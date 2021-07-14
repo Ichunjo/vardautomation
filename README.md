@@ -5,7 +5,7 @@ Package I used for my automation stuff
 # How to install vardautomation
 
 ```
-python -m pip install git+https://github.com/Ichunjo/encode-scripts.git#subdirectory=vardautomation/ -U
+python -m pip install git+https://github.com/Ichunjo/vardautomation.git -U
 ```
 
 # Requirements
