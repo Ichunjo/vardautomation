@@ -133,3 +133,9 @@ dmypy.json
 # Random files
 vardautomation/shaders.py
 random_test_files
+
+# Index files
+*.ffindex
+
+# Video test file
+*.mkv
