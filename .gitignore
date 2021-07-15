@@ -132,4 +132,4 @@ dmypy.json
 
 # Random files
 vardautomation/shaders.py
-py_test_files/*
+random_test_files
