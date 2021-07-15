@@ -5,24 +5,30 @@ on: [push, pull_request]
 jobs:
   lint:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python 3.9
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+            python-version: 3.9
+
       - name: Install VapourSynth
         uses: Irrational-Encoding-Wizardry/install-vapoursynth-action@v0.1
         with:
-          version: latest
-          cache: true
+            version: latest
+            cache: true
+
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          pip install -r requirements-dev.txt --use-feature=in-tree-build
+            python3 -m pip install --upgrade pip
+            pip install -r requirements-dev.txt --use-feature=in-tree-build
+
       - name: Running pylint
         run: pylint vardautomation
+
       - name: Running flake8
         run: flake8 vardautomation
+
       - name: Running mypy
         run: mypy -p vardautomation
