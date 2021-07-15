@@ -9,4 +9,4 @@ pyparsedvd>=0.0.3
 requests>=2.25.1
 requests_toolbelt>=0.9.1
 vardefunc>=0.2.8
-VapourSynth>=53
+VapourSynth>=51
