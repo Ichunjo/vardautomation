@@ -10,7 +10,7 @@ import vapoursynth as vs
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
 
-from .automation import BasicTool, VideoEncoder
+from .tooling import BasicTool, VideoEncoder
 from .config import FileInfo
 from .status import Status
 from .vpathlib import VPath

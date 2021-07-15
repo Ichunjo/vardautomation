@@ -1,6 +1,7 @@
 """pathlib.Path inheritance"""
 
 from __future__ import annotations
+from typing import Any
 
 __all__ = ['VPath']
 
@@ -9,12 +10,13 @@ from pathlib import Path
 
 class VPath(Path):
     """Vardë Path"""
+    # pylint: disable=no-member
     _flavour = type(Path())._flavour  # type: ignore
 
     def __format__(self, format_spec: str) -> str:
         return str(self)
 
-    def format(self, *args, **kwargs) -> VPath:
+    def format(self, *args: Any, **kwargs: Any) -> VPath:
         """
             vpath.format(*args, **kwargs) -> VPath
 

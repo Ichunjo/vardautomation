@@ -19,7 +19,7 @@ from .vpathlib import VPath
 core = vs.core
 
 
-class FileInfo:  # noqa: PLR0902
+class FileInfo:
     """File info object"""
     path: VPath
     path_without_ext: VPath

@@ -1,3 +1,6 @@
+
+__all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree']
+
 from os import PathLike
 from typing import Any, Callable, Dict, List, Optional, Union, cast
 
@@ -5,12 +8,14 @@ from lxml import etree
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
 
+# pylint: disable=self-assigning-variable
 AnyPath = Union[PathLike[str], str]
 DuplicateFrame = DuplicateFrame
 Element = etree._Element
 Trim = Trim
 UpdateFunc = Callable[[int, int], None]
 VPSIdx = Callable[[str], VideoNode]
+# pylint: enable=self-assigning-variable
 
 
 class ElementTree(etree._ElementTree):
