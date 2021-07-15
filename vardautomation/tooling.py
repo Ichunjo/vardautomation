@@ -909,7 +909,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
         }
 
         for i, (name, images) in enumerate(
-            zip(list(clips.keys()) + ['diff'] if magick_compare else [],
+            zip(list(clips.keys()) + (['diff'] if magick_compare else []),
                 all_images)
         ):
             for j, (image, frame) in enumerate(zip(images, frames)):
@@ -918,7 +918,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                 fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
 
         sess = session()
-        sess.get('https://slowpics.org/comparison')
+        sess.get('https://slow.pics/api/comparison')
         # TODO: yeet this
         files = MultipartEncoder(fields)
 
