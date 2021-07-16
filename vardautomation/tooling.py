@@ -3,7 +3,7 @@
 __all__ = [
     'Tool', 'BasicTool',
     'AudioEncoder', 'QAACEncoder', 'OpusEncoder', 'FlacCompressionLevel', 'FlacEncoder',
-    'AudioCutter',
+    'AudioCutter', 'EztrimCutter', 'SoxCutter',
     'VideoEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
     'progress_update_func',
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
