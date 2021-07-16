@@ -66,6 +66,14 @@ class Tool(ABC):
             with open(self.settings, 'r') as sttgs:
                 self.params = re.split(r'[\n\s]\s*', sttgs.read())
 
+        try:
+            subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except FileNotFoundError as file_not_found:
+            Status.fail(
+                f'Tool: {self.binary.to_str()} was not found!',
+                exception=FileNotFoundError, chain_err=file_not_found
+            )
+
         self.params.insert(0, self.binary.to_str())
         self.params = [p.format(**self.set_variable()) for p in self.params]
 
