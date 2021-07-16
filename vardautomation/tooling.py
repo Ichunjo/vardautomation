@@ -19,6 +19,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pprint import pformat
+from shutil import copyfile
 from typing import (Any, BinaryIO, Dict, List, NoReturn, Optional, Sequence,
                     Set, Tuple, Type, Union, cast)
 
@@ -28,12 +29,14 @@ from lvsfunc.render import SceneChangeMode, find_scene_changes
 from lxml import etree
 from requests import Session, session
 from requests_toolbelt import MultipartEncoder  # type: ignore
+from vardefunc.util import normalise_ranges
 
 from .config import FileInfo
 from .language import UNDEFINED, Lang
 from .properties import Properties
 from .status import Status
-from .types import AnyPath, UpdateFunc
+from .timeconv import Convert
+from .types import AnyPath, Trim, UpdateFunc
 from .vpathlib import VPath
 
 
@@ -328,8 +331,8 @@ class FlacEncoder(AudioEncoder):
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
 
-class AudioCutter:
-    """Audio cutter using eztrim"""
+class AudioCutter(ABC):
+    """Audio cutter interface"""
     file: FileInfo
     track: int
     kwargs: Dict[str, Any]
@@ -344,32 +347,148 @@ class AudioCutter:
                 Track number.
         """
         self.file = file
+
+        if not self.file.a_src:
+            Status.fail('AudioCutter: `file.a_src` is not a valid path!', exception=ValueError)
+        if not self.file.a_src_cut:
+            Status.fail('AudioCutter: `file.a_src_cut` is not a valid path!', exception=ValueError)
+
         if track > 0:
             self.track = track
         else:
-            Status.fail('AudioEncoder: `track` must be > 0', exception=ValueError)
+            Status.fail('AudioCutter: `track` must be > 0', exception=ValueError)
         self.kwargs = kwargs
 
+    @abstractmethod
     def run(self) -> None:
-        """Run eztrim"""
-        assert self.file.a_src
-        assert self.file.a_src_cut
+        pass
 
-        if self.file.trims_or_dfs:
-            if isinstance((trim := self.file.trims_or_dfs), tuple):
+    def _parse_trims(self) -> Union[Trim, List[Trim], None]:
+        trims: Union[Trim, List[Trim], None] = None
+        if trim := self.file.trims_or_dfs:
+            if isinstance(trim, tuple):
                 start, end = trim
                 if not start:
                     start = 0
+                trims = (start, end)
             else:
-                raise NotImplementedError
+                if all((isinstance(t, tuple) for t in trim)):
+                    trims = [t for t in trim if isinstance(t, tuple)]
+                else:
+                    Status.fail(
+                        'AudioCutter: `DuplicateFrame` is not implemented in audio handling',
+                        exception=NotImplementedError
+                    )
+        return trims
 
+
+class EztrimCutter(AudioCutter):
+    """Audio cutter using eztrim"""
+    def run(self) -> None:
+        assert self.file.a_src
+        assert self.file.a_src_cut
+
+        trims = self._parse_trims()
+
+        if trims:
+            if (quiet := 'quiet') not in self.kwargs:
+                self.kwargs[quiet] = True
+
+            Status.info('EztrimCutter: trimming audio...')
             eztrim(
-                self.file.clip, (start, end),
+                self.file.clip, trims,
                 self.file.a_src.format(self.track).to_str(), self.file.a_src_cut.format(self.track).to_str(),
                 **self.kwargs
             )
+        else:
+            Status.warn('EztrimCutter: no detected trims; use PassthroughCutter...')
+            PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
 
 
+class SoxCutter(AudioCutter):
+    """Audio cutter using Sox"""
+    sox_path: VPath = VPath('sox')
+
+    def run(self) -> None:
+        assert self.file.a_src
+        assert self.file.a_src_cut
+
+        trims = self._parse_trims()
+
+        if trims:
+            Status.info('SoxCutter: trimming audio...')
+            self.soxtrim(
+                self.file.a_src.format(self.track), self.file.a_src_cut.format(self.track),
+                trims, self.file.clip
+            )
+        else:
+            Status.warn('SoxCutter: no detected trims; use PassthroughCutter...')
+            PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
+
+    @classmethod
+    def soxtrim(
+        cls, src: AnyPath, output: AnyPath, /,
+        trims: Union[Trim, List[Trim]], ref_clip: vs.VideoNode, *,
+        combine: bool = True, cleanup: bool = True
+    ) -> None:
+        """
+        Simple trimming function that follows VapourSynth/Python slicing syntax.
+        End frame is NOT inclusive.
+
+        Args:
+            src (AnyPath): Input file
+
+            output (AnyPath): Output file.
+
+            trims (Union[Trim, List[Trim]]):
+                Either a list of 2-tuples, or one tuple of 2 ints.
+
+            ref_clip (vs.VideoNode):
+                Vapoursynth clip used to determine framerate
+
+            combine (bool, optional):
+                Keep all performed trims in the same file. Defaults to True.
+
+            cleanup (bool, optional):
+                Delete temporary file. Defaults to True.
+        """
+        src, output = map(VPath, (src, output))
+
+        if not isinstance(trims, list):
+            trims = [trims]
+
+        ntrims = normalise_ranges(ref_clip, trims)
+
+        parent, tmp_name = output.parent, output.name + '_tmp_{num}.wav'
+        tmp = parent / tmp_name
+        for i, (start, end) in enumerate(ntrims):
+            BasicTool(
+                cls.sox_path.to_str(),
+                [src.to_str(), tmp.format(num=i).to_str(),
+                 'trim', str(Convert.f2seconds(start, ref_clip.fps)), str(Convert.f2seconds(end - start, ref_clip.fps))]
+            ).run()
+
+        if combine:
+            tmps = sorted(output.parent.glob(tmp_name.format(num='?')))
+            BasicTool(
+                cls.sox_path.to_str(),
+                ['--combine', 'concatenate', *[tmp.to_str() for tmp in tmps], output.to_str()]
+            ).run()
+            if cleanup:
+                for tmp in tmps:
+                    os.remove(tmp)
+
+
+
+class PassthroughCutter(AudioCutter):
+    def run(self) -> None:
+        assert self.file.a_src
+        assert self.file.a_src_cut
+        Status.info('PassthroughCutter: copying audio...')
+        copyfile(
+            self.file.a_src.format(self.track).absolute().to_str(),
+            self.file.a_src_cut.format(self.track).absolute().to_str()
+        )
 
 
 
@@ -978,7 +1097,8 @@ class Tooling:
     OpusEncoder: Type[OpusEncoder] = OpusEncoder
     FlacEncoder: Type[FlacEncoder] = FlacEncoder
 
-    AudioCutter: Type[AudioCutter] = AudioCutter
+    EztrimCutter: Type[EztrimCutter] = EztrimCutter
+    SoxCutter: Type[SoxCutter] = SoxCutter
     VideoEncoder: Type[VideoEncoder] = VideoEncoder
     X265Encoder: Type[X265Encoder] = X265Encoder
     X264Encoder: Type[X264Encoder] = X264Encoder
