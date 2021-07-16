@@ -181,6 +181,25 @@ class AudioEncoder(BasicTool):
             )
 
 
+class PassthroughAudioEncoder(AudioEncoder):
+    def __init__(self, /, file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+        super().__init__('', [''], file, track=track, xml_tag=xml_tag)
+
+    def run(self) -> None:
+        assert self.file
+        assert self.file.a_src_cut
+        assert self.file.a_enc_cut
+
+        Status.info('PassthroughAudioEncoder: copying audio...')
+        copyfile(
+            self.file.a_src_cut.format(self.track).absolute().to_str(),
+            self.file.a_enc_cut.format(self.track).absolute().to_str()
+        )
+
+        if self.xml_tag:
+            self._write_encoder_name_file()
+
+
 class QAACEncoder(AudioEncoder):
     """QAAC AudioEncoder"""
     def __init__(self, /, file: FileInfo, *,
