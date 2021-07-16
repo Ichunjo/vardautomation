@@ -2,6 +2,7 @@
 # flake8: noqa
 from .automation import *
 from .chapterisation import *
+from .comp import *
 from .config import *
 from .language import *
 from .patch import *
