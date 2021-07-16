@@ -790,7 +790,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
             Number of frames to extract. Defaults to 15.
 
         frames (Optional[Sequence[int]], optional):
-            Addtionnal frame numbers that whill be added to the total of `num`.
+            Additionnal frame numbers that will be added to the total of `num`.
             Defaults to None.
 
         force_bt709 (bool, optional):
