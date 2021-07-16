@@ -511,10 +511,16 @@ class X265Encoder(VideoLanEncoder):
     def set_variable(self) -> Dict[str, Any]:
         assert self.clip.format
         min_luma, max_luma = Properties.get_color_range(self.params, self.clip)
-        return dict(clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                    fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
-                    bits=self.clip.format.bits_per_sample,
-                    min_luma=min_luma, max_luma=max_luma)
+        try:
+            return dict(
+                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
+                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
+                bits=self.clip.format.bits_per_sample,
+                min_luma=min_luma, max_luma=max_luma
+            )
+        except AttributeError:
+            return {}
+
 
 
 class X264Encoder(VideoLanEncoder):
@@ -528,9 +534,14 @@ class X264Encoder(VideoLanEncoder):
     def set_variable(self) -> Dict[str, Any]:
         assert self.clip.format
         csp = Properties.get_csp(self.clip)
-        return dict(clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                    fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
-                    bits=self.clip.format.bits_per_sample, csp=csp)
+        try:
+            return dict(
+                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
+                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
+                bits=self.clip.format.bits_per_sample, csp=csp
+            )
+        except AttributeError:
+            return {}
 
 
 class LosslessEncoder(VideoEncoder):
@@ -542,8 +553,13 @@ class LosslessEncoder(VideoEncoder):
 
     def set_variable(self) -> Dict[str, Any]:
         assert self.clip.format
-        return dict(clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
-                    bits=self.clip.format.bits_per_sample)
+        try:
+            return dict(
+                clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
+                bits=self.clip.format.bits_per_sample
+            )
+        except AttributeError:
+            return {}
 
 
 class NvenccEncoder(LosslessEncoder):
