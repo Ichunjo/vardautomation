@@ -6,7 +6,7 @@ __all__ = [
 
 import argparse
 from os import remove
-from typing import NamedTuple, Optional, Sequence, Set, Tuple
+from typing import NamedTuple, Optional, Sequence, Set, Tuple, Union
 
 import vapoursynth as vs
 
@@ -88,9 +88,9 @@ class RunnerConfig(NamedTuple):
     """Config for the SelfRunner"""
     v_encoder: VideoEncoder
     v_lossless_encoder: Optional[LosslessEncoder] = None
-    a_extracters: Optional[Sequence[BasicTool]] = None
-    a_cutters: Optional[Sequence[AudioCutter]] = None
-    a_encoders: Optional[Sequence[AudioEncoder]] = None
+    a_extracters: Union[BasicTool, Sequence[BasicTool], None] = None
+    a_cutters: Union[AudioCutter, Sequence[AudioCutter], None] = None
+    a_encoders: Union[AudioEncoder, Sequence[AudioEncoder], None] = None
     muxer: Optional[Mux] = None
 
 
@@ -158,20 +158,23 @@ class SelfRunner:
                 self.cleanup.add(self.file.qpfile)
 
     def _audio_getter(self) -> None:
-        if self.config.a_extracters:
-            for i, a_extracter in enumerate(self.config.a_extracters, start=1):
+        if a_extracters := self.config.a_extracters:
+            a_extracters = list(a_extracters) if isinstance(a_extracters, Sequence) else [a_extracters]
+            for i, a_extracter in enumerate(a_extracters, start=1):
                 if self.file.a_src and not self.file.a_src.format(i).exists():
                     a_extracter.run()
                     self.cleanup.add(self.file.a_src.format(i))
 
-        if self.config.a_cutters:
-            for i, a_cutter in enumerate(self.config.a_cutters, start=1):
+        if a_cutters := self.config.a_cutters:
+            a_cutters = list(a_cutters) if isinstance(a_cutters, Sequence) else [a_cutters]
+            for i, a_cutter in enumerate(a_cutters, start=1):
                 if self.file.a_src_cut and not self.file.a_src_cut.format(i).exists():
                     a_cutter.run()
                     self.cleanup.add(self.file.a_src_cut.format(i))
 
-        if self.config.a_encoders:
-            for i, a_encoder in enumerate(self.config.a_encoders, start=1):
+        if a_encoders := self.config.a_encoders:
+            a_encoders = list(a_encoders) if isinstance(a_encoders, Sequence) else [a_encoders]
+            for i, a_encoder in enumerate(a_encoders, start=1):
                 if self.file.a_enc_cut and not self.file.a_enc_cut.format(i).exists():
                     a_encoder.run()
                     self.cleanup.add(self.file.a_enc_cut.format(i))
