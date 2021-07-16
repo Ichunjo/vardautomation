@@ -22,7 +22,7 @@ setuptools.setup(
     package_data={
         'vardautomation': ['py.typed'],
     },
-    url='https://github.com/Ichunjo/encode-scripts/tree/master/vardautomation',
+    url='https://github.com/Ichunjo/vardautomation',
     zip_safe=False,
     classifiers=[
         'Programming Language :: Python :: 3',
