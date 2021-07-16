@@ -18,5 +18,5 @@ requests_toolbelt>=0.9.1
 types-colorama>=0.4.2
 types-requests>=2.25.0
 typing-extensions>=3.10.0.0
-vardefunc>=0.2.8
+vardefunc>=0.2.9
 VapourSynth>=51
