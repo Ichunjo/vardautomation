@@ -100,7 +100,7 @@ class BasicTool(Tool):
         return {}
 
     def _do_tooling(self) -> None:
-        Status.info(f'{self.binary.to_str()} command:' + ' '.join(self.params))
+        Status.info(f'{self.binary.to_str()} command: ' + ' '.join(self.params))
         subprocess.run(self.params, check=True, text=True, encoding='utf-8')
 
 
