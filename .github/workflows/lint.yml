@@ -1,13 +1,14 @@
-name: lint
+name: ci-lint
 
 on: [push, pull_request]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+
       - name: Setup Python 3.9
         uses: actions/setup-python@v2
         with:
@@ -21,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-            python3 -m pip install --upgrade pip
+            python -m pip install --upgrade pip
             pip install -r requirements-dev.txt --use-feature=in-tree-build
 
       - name: Running pylint

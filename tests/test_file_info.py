@@ -1,5 +1,9 @@
 from typing import List
+
+import vapoursynth as vs
 from vardautomation import FileInfo
+
+core = vs.core
 
 
 FILEINFO_ATTR: List[str] = [
@@ -27,12 +31,14 @@ FILEINFO_ATTR: List[str] = [
 
 
 def test_file_info_attr() -> None:
-    file = FileInfo('tests/video_file.mkv')
+    file = FileInfo('tests/video_file.mkv', idx=core.lsmas.LWLibavSource)
 
     assert len(vars(file)) == len(FILEINFO_ATTR)
 
     for attr in vars(file):
         assert attr in FILEINFO_ATTR
+
+    assert False
 
 
 # def test_file_info_trims() -> None:
