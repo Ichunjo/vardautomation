@@ -164,6 +164,45 @@ class BasicTool(Tool):
         subprocess.run(self.params, check=True, text=True, encoding='utf-8')
 
 
+class AudioExtracter(BasicTool):
+    file: FileInfo
+    track: int
+
+    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
+                 file: FileInfo, *, track: int) -> None:
+        """[summary]
+
+        Args:
+            binary (AnyPath): [description]
+            settings (Union[AnyPath, List[str], Dict[str, Any]]): [description]
+            file (FileInfo): [description]
+            track (int): [description]
+        """
+        super().__init__(binary, settings, file=file)
+
+        if self.file.a_src is None:
+            Status.fail('AudioEncoder: `file.a_src` is needed!', exception=ValueError)
+
+        if track > 0:
+            self.track = track
+        else:
+            Status.fail('AudioEncoder: `track` must be > 0', exception=ValueError)
+
+    def set_variable(self) -> Dict[str, Any]:
+        assert self.file.a_src
+        return dict(track=self.track,
+                    a_src_cut=self.file.path.to_str(),
+                    a_enc_cut=self.file.a_src.format(self.track).to_str())
+
+
+class FfmpegExtracter(AudioExtracter):
+    pass
+
+
+class Eac3toExtracter(AudioExtracter):
+    pass
+
+
 class AudioEncoder(BasicTool):
     """BasicTool interface for audio encoding"""
 
