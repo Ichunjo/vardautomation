@@ -3,6 +3,7 @@
 __all__ = ['make_comps']
 
 import random
+import subprocess
 from typing import Any, Dict, List, Optional, Sequence
 
 import vapoursynth as vs
@@ -119,6 +120,14 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     if magick_compare:
         if len(clips) > 2:
             Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
+
+        try:
+            subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except FileNotFoundError as file_not_found:
+            Status.fail(
+                'make_comps: "magick compare" was not found!',
+                exception=FileNotFoundError, chain_err=file_not_found
+            )
 
         all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
         images_a, images_b = all_images
