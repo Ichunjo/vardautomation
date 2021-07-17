@@ -154,6 +154,7 @@ disable=print-statement,
         too-many-statements,
         too-many-instance-attributes,
         too-many-arguments,
+        too-many-branches,
         fixme
 
 
