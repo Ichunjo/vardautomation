@@ -5,9 +5,10 @@ __all__ = ['FileInfo']
 import sys
 from operator import attrgetter
 from pprint import pformat
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union, cast
 
 import vapoursynth as vs
+from pymediainfo import MediaInfo
 from vardefunc.util import adjust_clip_frames
 
 from .presets import Preset, PresetGeneric
@@ -155,3 +156,7 @@ class FileInfo:
             self.clip_cut = adjust_clip_frames(self.clip, x if isinstance(x, list) else [x])
         else:
             self.clip_cut = self.clip
+
+    @property
+    def media_info(self) -> MediaInfo:
+        return cast(MediaInfo, MediaInfo.parse(self.path))
