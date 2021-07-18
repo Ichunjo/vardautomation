@@ -25,6 +25,7 @@ class Patch:
     clip: vs.VideoNode
     file: FileInfo
     ranges: List[Tuple[int, int]]
+    debug: bool
 
     workdir: VPath
     output_filename: VPath
@@ -33,7 +34,7 @@ class Patch:
 
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
                  ranges: Union[Range, List[Range]],
-                 output_filename: Optional[str] = None) -> None:
+                 output_filename: Optional[str] = None, *, debug: bool = False) -> None:
         """Patching your videos has never been so easy!"""
         self.encoder = encoder
         self.clip = clip
@@ -41,6 +42,7 @@ class Patch:
         self.file.do_qpfile = False
 
         self.ranges = normalise_ranges(self.clip, ranges)
+        self.debug = debug
 
         self._file_to_fix = self.file.name_file_final
 
@@ -83,7 +85,15 @@ class Patch:
         kfsint = [int(x) for x in kfsstr[2:]] + [self.clip.num_frames]
 
         rng = self.__resolve_range_with_kfs(kfsint)
+        if self.debug:
+            print('--------------------------------')
+            print('__resolve_range_with_kfs', rng)
+            print('--------------------------------')
         rng = self.__resolve_range_from_kfs(rng)
+        if self.debug:
+            print('--------------------------------')
+            print('__resolve_range_from_kfs', rng)
+            print('--------------------------------')
 
         if len(rng) == 1:
             if rng[0][0] == 0 and rng[0][1] == self.clip.num_frames:
@@ -93,6 +103,10 @@ class Patch:
 
     def _encode(self) -> None:
         for i, (s, e) in enumerate(self.ranges, start=1):
+            if self.debug:
+                print('--------------------------------')
+                print((s, e))
+                print('--------------------------------')
             fix = self.workdir / f'fix-{i:03.0f}'
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
@@ -171,12 +185,16 @@ class Patch:
         # [(0, 67), (0, 115), (67, 204), (67, 377), (115, 204), (962, 2006), (3960, 5053), (4883, 5053)]
         # to:
         # [(0, 377), (962, 2006), (3960, 5053)]
+        # Also this:
+        # [(18438, 18528), (20377, 20617), (20617, 20857), (21097, 21337), (21577, 21817), (21817, 22057), (22057, 22297), (33926, 34047)]
+        # to:
+        # [(18438, 18528), (20377, 20857), (21097, 21337), (21577, 22297), (33926, 34047)]
         values = dict(rng)
         values_e = sorted(values.items(), reverse=True)
 
         for (start1, end1), (start2, end2) in zip(values_e, values_e[1:]):
-            if start2 < start1 < end2 < end1:
-                values[start2] = end1
+            if start2 < start1 <= end2 < end1:
+                values[start2] = max(end1, values[start1])
                 del values[start1]
             if start2 < start1 and end1 <= end2:
                 del values[start1]
