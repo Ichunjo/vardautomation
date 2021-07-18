@@ -30,7 +30,7 @@ class Convert:
     @staticmethod
     def f2seconds(f: int, fps: Fraction, /) -> float:
         if f == 0:
-            s = 0.0
+            return 0.0
 
         t = round(float(10 ** 9 * f * fps ** -1))
         s = t / 10 ** 9
@@ -56,5 +56,5 @@ class Convert:
         elif precision == 9:
             out = f"{h:02.0f}:{m:02.0f}:{s:012.9f}"
         else:
-            Status.fail('precision must be <= 9 and >= 0', exception=ValueError)
+            Status.fail(f'composets: the precision {precision} must be a multiple of 3 (including 0)')
         return out
