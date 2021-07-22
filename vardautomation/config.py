@@ -116,7 +116,7 @@ class FileInfo:
 
         super().__init__()
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         self.preset = [vars(p) for p in self.preset]  # type: ignore
         return pformat(vars(self), width=100, sort_dicts=False)
 

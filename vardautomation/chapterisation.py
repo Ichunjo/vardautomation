@@ -40,7 +40,7 @@ class Chapters(ABC):
         self.chapter_file = VPath(chapter_file)
         super().__init__()
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return pformat(vars(self), indent=1, width=200, sort_dicts=False)
 
     @abstractmethod

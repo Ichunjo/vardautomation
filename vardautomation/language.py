@@ -22,7 +22,7 @@ class Lang:
         self.ietf = str(language)
         self.iso639 = language.to_alpha3(variant=iso639_variant)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return pformat(vars(self), indent=4, width=200, sort_dicts=False)
 
     @classmethod
