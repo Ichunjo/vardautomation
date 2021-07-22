@@ -11,10 +11,10 @@ core = vs.core
 
 
 class Properties:
-    """Collection of static methods to get some properties from the parameters and/or the clip"""
+    """Collection of methods to get some properties from the parameters and/or the clip"""
 
-    @staticmethod
-    def get_color_range(params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
+    @classmethod
+    def get_color_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
         """Get colour range.
 
         Args:
@@ -31,8 +31,7 @@ class Properties:
             Tuple[int, int]:
                 A tuple of min_luma and max_luma value
         """
-        assert clip.format
-        bits = clip.format.bits_per_sample
+        bits = cls.get_depth(clip)
 
         if '--range' in params:
             rng_param = params[params.index('--range') + 1]
@@ -58,6 +57,13 @@ class Properties:
             Status.fail('Cannot guess the color range!', exception=ValueError)
 
         return min_luma, max_luma
+
+
+    @staticmethod
+    def get_depth(clip: vs.VideoNode, /) -> int:
+        """Returns the bit depth of a VideoNode as an integer."""
+        assert clip.format
+        return clip.format.bits_per_sample
 
     @staticmethod
     def get_csp(clip: vs.VideoNode) -> str:
