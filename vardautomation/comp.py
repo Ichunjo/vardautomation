@@ -103,7 +103,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 
         outputs: List[str] = []
         for i, path_image in enumerate(path_images):
-            outputs += ['-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+            outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
 
         settings = [
             '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
