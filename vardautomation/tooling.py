@@ -70,7 +70,7 @@ class Tool(ABC):
             subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         except FileNotFoundError as file_not_found:
             Status.fail(
-                f'Tool: {self.binary.to_str()} was not found!',
+                f'{self.__class__.__name__}: {self.binary.to_str()} was not found!',
                 exception=FileNotFoundError, chain_err=file_not_found
             )
 
@@ -143,14 +143,14 @@ class AudioEncoder(BasicTool):
         assert self.file
 
         if self.file.a_src_cut is None:
-            Status.fail('AudioEncoder: `file.a_src_cut` is needed!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `file.a_src_cut` is needed!', exception=ValueError)
         if self.file.a_enc_cut is None:
-            Status.fail('AudioEncoder: `file.a_enc_cut` is needed!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `file.a_enc_cut` is needed!', exception=ValueError)
 
         if track > 0:
             self.track = track
         else:
-            Status.fail('AudioEncoder: `track` must be > 0', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `track` must be > 0', exception=ValueError)
         self.xml_tag = xml_tag
 
     def run(self) -> None:
@@ -194,7 +194,7 @@ class PassthroughAudioEncoder(AudioEncoder):
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
 
-        Status.info('PassthroughAudioEncoder: copying audio...')
+        Status.info(f'{self.__class__.__name__}: copying audio...')
         copyfile(
             self.file.a_src_cut.format(self.track).absolute().to_str(),
             self.file.a_enc_cut.format(self.track).absolute().to_str()
@@ -372,14 +372,14 @@ class AudioCutter(ABC):
         self.file = file
 
         if not self.file.a_src:
-            Status.fail('AudioCutter: `file.a_src` is not a valid path!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `file.a_src` is not a valid path!', exception=ValueError)
         if not self.file.a_src_cut:
-            Status.fail('AudioCutter: `file.a_src_cut` is not a valid path!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `file.a_src_cut` is not a valid path!', exception=ValueError)
 
         if track > 0:
             self.track = track
         else:
-            Status.fail('AudioCutter: `track` must be > 0', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: `track` must be > 0', exception=ValueError)
         self.kwargs = kwargs
 
     @abstractmethod
@@ -399,7 +399,7 @@ class AudioCutter(ABC):
                     trims = [t for t in trim if isinstance(t, tuple)]
                 else:
                     Status.fail(
-                        'AudioCutter: `DuplicateFrame` is not implemented in audio handling',
+                        f'{self.__class__.__name__}: `DuplicateFrame` is not implemented in audio handling',
                         exception=NotImplementedError
                     )
         return trims
@@ -417,14 +417,14 @@ class EztrimCutter(AudioCutter):
             if (quiet := 'quiet') not in self.kwargs:
                 self.kwargs[quiet] = True
 
-            Status.info('EztrimCutter: trimming audio...')
+            Status.info(f'{self.__class__.__name__}: trimming audio...')
             eztrim(
                 self.file.clip, trims,
                 self.file.a_src.format(self.track).to_str(), self.file.a_src_cut.format(self.track).to_str(),
                 **self.kwargs
             )
         else:
-            Status.warn('EztrimCutter: no detected trims; use PassthroughCutter...')
+            Status.warn(f'{self.__class__.__name__}: no detected trims; use PassthroughCutter...')
             PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
 
 
@@ -439,13 +439,13 @@ class SoxCutter(AudioCutter):
         trims = self._parse_trims()
 
         if trims:
-            Status.info('SoxCutter: trimming audio...')
+            Status.info(f'{self.__class__.__name__}: trimming audio...')
             self.soxtrim(
                 self.file.a_src.format(self.track), self.file.a_src_cut.format(self.track),
                 trims, self.file.clip
             )
         else:
-            Status.warn('SoxCutter: no detected trims; use PassthroughCutter...')
+            Status.warn(f'{self.__class__.__name__}: no detected trims; use PassthroughCutter...')
             PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
 
     @classmethod
@@ -507,7 +507,7 @@ class PassthroughCutter(AudioCutter):
     def run(self) -> None:
         assert self.file.a_src
         assert self.file.a_src_cut
-        Status.info('PassthroughCutter: copying audio...')
+        Status.info(f'{self.__class__.__name__}: copying audio...')
         copyfile(
             self.file.a_src.format(self.track).absolute().to_str(),
             self.file.a_src_cut.format(self.track).absolute().to_str()
@@ -535,8 +535,27 @@ class VideoEncoder(Tool):
             binary (str):
                 Path to your binary file.
 
-            settings (Union[Path, List[str]]):
-                Path to your settings file or list of string containing your settings.
+            settings (Union[AnyPath, List[str], Dict[str, Any]]):
+                Path to your settings file or list of string or a dict containing your settings.
+
+            Example:
+                ::
+
+                    # This
+                    >>>cat settings
+                    >>>-o {clip_output:s} - --y4m --preset slower --crf 51
+
+                    # is equivalent to this:
+                    settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
+
+                    # and is equivalent to this:
+                    settings: Dict[str, Any] = {
+                        '-o': '{clip_output:s}',
+                        '-': None,
+                        '--y4m': None,
+                        '--preset': 'slower',
+                        '--crf': 51
+                    }
 
             progress_update (Optional[UpdateFunc], optional):
                 Current progress can be reported by passing a callback function
@@ -563,7 +582,7 @@ class VideoEncoder(Tool):
         self._do_encode(y4m)
 
     def run(self) -> NoReturn:
-        Status.fail('VideoEncoder: Use `run_enc` instead', exception=NameError)
+        Status.fail(f'{self.__class__.__name__}: Use `run_enc` instead', exception=NameError)
 
     def set_variable(self) -> Dict[str, Any]:
         try:
@@ -579,10 +598,56 @@ class VideoEncoder(Tool):
                 qpf.writelines([f"{s} K\n" for s in scenes])
 
     def _do_encode(self, y4m: bool) -> None:
-        Status.info('VideoEncoder command: ' + ' '.join(self.params))
+        Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
 
         with subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
             self.clip.output(cast(BinaryIO, process.stdin), y4m=y4m, progress_update=self.progress_update)
+
+
+class LosslessEncoder(VideoEncoder):
+    """Video encoder for lossless encoding"""
+
+    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
+                 progress_update: Optional[UpdateFunc] = None) -> None:
+        super().__init__(binary, settings, progress_update=progress_update)
+
+    def set_variable(self) -> Dict[str, Any]:
+        assert self.clip.format
+        try:
+            return dict(
+                clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
+                bits=self.clip.format.bits_per_sample
+            )
+        except AttributeError:
+            return {}
+
+
+class NvenccEncoder(LosslessEncoder):
+    def __init__(self) -> None:
+        """"""
+        super().__init__(
+            'nvencc',
+            ['-i', '-', '--y4m',
+             '--lossless',
+             '-c', 'hevc',
+             '--output-depth', '{bits:d}',
+             '-o', '{clip_output_lossless:s}'],
+            progress_update=None
+        )
+
+
+class FFV1Encoder(LosslessEncoder):
+    def __init__(self, *, threads: int = 16) -> None:
+        """"""
+        super().__init__(
+            'ffmpeg',
+            ['-i', '-',
+             '-vcodec', 'ffv1',
+             '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
+             '-threads', str(threads), '-slices', '24', '-slicecrc', '1', '-slicecrc', '1',
+             '{clip_output_lossless:s}'],
+            progress_update=None
+        )
 
 
 class VideoLanEncoder(VideoEncoder, ABC):
@@ -641,6 +706,17 @@ class VideoLanEncoder(VideoEncoder, ABC):
                     zones_settings += '/'
             self.params += ['--zones', zones_settings]
 
+    def set_variable(self) -> Dict[str, Any]:
+        if (bits := Properties.get_depth(self.clip)) > 10:
+            Status.warn(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
+        try:
+            return dict(
+                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
+                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits
+            )
+        except AttributeError:
+            return {}
+
 
 class X265Encoder(VideoLanEncoder):
     """Video encoder using x265 in HEVC"""
@@ -651,17 +727,8 @@ class X265Encoder(VideoLanEncoder):
         super().__init__('x265', settings, zones, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
-        assert self.clip.format
         min_luma, max_luma = Properties.get_color_range(self.params, self.clip)
-        try:
-            return dict(
-                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
-                bits=self.clip.format.bits_per_sample,
-                min_luma=min_luma, max_luma=max_luma
-            )
-        except AttributeError:
-            return {}
+        return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
 
 
@@ -674,62 +741,7 @@ class X264Encoder(VideoLanEncoder):
         super().__init__('x264', settings, zones, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
-        assert self.clip.format
-        csp = Properties.get_csp(self.clip)
-        try:
-            return dict(
-                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator,
-                bits=self.clip.format.bits_per_sample, csp=csp
-            )
-        except AttributeError:
-            return {}
-
-
-class LosslessEncoder(VideoEncoder):
-    """Video encoder for lossless encoding"""
-
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 progress_update: Optional[UpdateFunc] = None) -> None:
-        super().__init__(binary, settings, progress_update=progress_update)
-
-    def set_variable(self) -> Dict[str, Any]:
-        assert self.clip.format
-        try:
-            return dict(
-                clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
-                bits=self.clip.format.bits_per_sample
-            )
-        except AttributeError:
-            return {}
-
-
-class NvenccEncoder(LosslessEncoder):
-    def __init__(self) -> None:
-        """"""
-        super().__init__(
-            'nvencc',
-            ['-i', '-', '--y4m',
-             '--lossless',
-             '-c', 'hevc',
-             '--output-depth', '{bits:d}',
-             '-o', '{clip_output_lossless:s}'],
-            progress_update=None
-        )
-
-
-class FFV1Encoder(LosslessEncoder):
-    def __init__(self, *, threads: int = 16) -> None:
-        """"""
-        super().__init__(
-            'ffmpeg',
-            ['-i', '-',
-             '-vcodec', 'ffv1',
-             '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
-             '-threads', str(threads), '-slices', '24', '-slicecrc', '1', '-slicecrc', '1',
-             '{clip_output_lossless:s}'],
-            progress_update=None
-        )
+        return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
 
 
 class Stream(ABC):
@@ -738,7 +750,7 @@ class Stream(ABC):
     def __init__(self, path: AnyPath) -> None:
         self.path = VPath(path)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return pformat(vars(self), indent=1, width=80, sort_dicts=True)
 
 
@@ -903,7 +915,7 @@ class SubProcessAsync:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)
         else:
-            Status.fail('SubProcessAsync: no CPU found!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: no CPU found!', exception=ValueError)
 
     def run(self, cmds: List[str]) -> None:
         loop = asyncio.get_event_loop()
