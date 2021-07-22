@@ -62,11 +62,11 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 
     # Make samples
     samples = set(random.sample(range(lens.pop()), num))
-    max_num = max(samples)
 
     # Add additionnal frames if frame exists
     if frames:
         samples.update(frames)
+    max_num = max(samples)
     frames = sorted(samples)
 
     path = VPath(path)
