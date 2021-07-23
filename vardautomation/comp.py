@@ -1,12 +1,14 @@
 """Comparison module"""
 
-__all__ = ['make_comps']
+__all__ = ['make_comps', 'Writer']
 
 import random
 import subprocess
+from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 import vapoursynth as vs
+from lvsfunc.render import clip_async_render
 from requests import Session, session
 from requests_toolbelt import MultipartEncoder  # type: ignore
 
@@ -16,9 +18,15 @@ from .types import AnyPath
 from .vpathlib import VPath
 
 
+class Writer(Enum):
+    FFMPEG = 0
+    IMWRI = 1
+
+
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                num: int = 15, frames: Optional[Sequence[int]] = None, *,
                force_bt709: bool = False,
+               writer: Writer = Writer.FFMPEG,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     """Extract frames, make diff between two clips and upload to slow.pics
@@ -78,16 +86,6 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     # Extracts the requested frames using ffmpeg
     # imwri lib is slower even asynchronously requested
     for name, clip in clips.items():
-        clip = vs.core.std.Splice([clip[f] for f in frames])
-
-        if force_bt709:
-            clip = clip.std.SetFrameProp('_Matrix', intval=1)
-
-        # -> RGB -> GBR. Needed for ffmpeg
-        # Also FPS=1/1. I'm just lazy, okay?
-        clip = clip.resize.Bicubic(
-            format=vs.RGB24, dither_type='error_diffusion',
-        ).std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
 
         path_name = path / name
         try:
@@ -96,24 +94,43 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
             Status.fail(f'make_comps: {path_name.to_str()} already exists!',
                         exception=FileExistsError, chain_err=file_err)
 
-        path_images = [
-            path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
-            for f in frames
-        ]
+        if force_bt709:
+            clip = clip.std.SetFrameProp('_Matrix', intval=1)
+        clip = clip.resize.Bicubic(format=vs.RGB24, dither_type='error_diffusion')
 
-        outputs: List[str] = []
-        for i, path_image in enumerate(path_images):
-            outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+        if writer == Writer.FFMPEG:
+            clip = vs.core.std.Splice([clip[f] for f in frames])
 
-        settings = [
-            '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
-            '-video_size', f'{clip.width}x{clip.height}',
-            '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
-            '-i', 'pipe:', *outputs
-        ]
+            # -> RGB -> GBR. Needed for ffmpeg
+            # Also FPS=1/1. I'm just lazy, okay?
+            clip = clip.std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
 
-        VideoEncoder('ffmpeg', settings, progress_update=None).run_enc(clip, None, y4m=False)
-        print('\n')
+            path_images = [
+                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
+                for f in frames
+            ]
+
+            outputs: List[str] = []
+            for i, path_image in enumerate(path_images):
+                outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+
+            settings = [
+                '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
+                '-video_size', f'{clip.width}x{clip.height}',
+                '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
+                '-i', 'pipe:', *outputs
+            ]
+
+            VideoEncoder('ffmpeg', settings, progress_update=None).run_enc(clip, None, y4m=False)
+            print('\n')
+
+        else:
+            reqs = clip.imwri.Write(
+                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
+            )
+            clip = vs.core.std.Splice([reqs[f] for f in frames])
+            # zzzzzzzzz soooo slow
+            clip_async_render(clip)
 
 
     # Make diff images
@@ -145,7 +162,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 
         # Launch asynchronously the Magick commands
         Status.info('Diffing clips...\n')
-        SubProcessAsync().run(cmds)
+        SubProcessAsync(cmds)
 
 
     # Upload to slow.pics
