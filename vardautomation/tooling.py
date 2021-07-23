@@ -851,6 +851,7 @@ class Mux:
             self.audios = []
             i = 1
             while True:
+                assert self.audios  # Hello? Pylance?
                 if self.file.a_enc_cut is not None and self.file.a_enc_cut.format(i).exists():
                     self.audios += [AudioStream(self.file.a_enc_cut.format(i))]
                 elif self.file.a_src_cut is not None and self.file.a_src_cut.format(i).exists():
