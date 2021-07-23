@@ -136,6 +136,7 @@ random_test_files
 
 # Index files
 *.ffindex
+*.lwi
 
 # Video test file
 *.mkv
