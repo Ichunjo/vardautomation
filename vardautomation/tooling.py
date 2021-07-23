@@ -912,13 +912,12 @@ class Mux:
 class SubProcessAsync:
     sem: asyncio.Semaphore
 
-    def __init__(self, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:
+    def __init__(self, cmds: List[str], /, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)
         else:
             Status.fail(f'{self.__class__.__name__}: no CPU found!', exception=ValueError)
 
-    def run(self, cmds: List[str]) -> None:
         loop = asyncio.get_event_loop()
         try:
             loop.run_until_complete(self._processing(cmds))
@@ -926,16 +925,14 @@ class SubProcessAsync:
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()
 
+    async def _processing(self, all_cmds: List[str]) -> None:
+        await asyncio.gather(
+            *(asyncio.ensure_future(self._safe_processing(cmd)) for cmd in all_cmds)
+        )
+
     async def _safe_processing(self, cmd: str) -> None:
         async with self.sem:
             return await self._run_cmd(cmd)
-
-    async def _processing(self, all_cmds: List[str]) -> None:
-        tasks = [
-            asyncio.ensure_future(self._safe_processing(cmd))
-            for cmd in all_cmds
-        ]
-        await asyncio.gather(*tasks)
 
     @staticmethod
     async def _run_cmd(cmd: str) -> None:
