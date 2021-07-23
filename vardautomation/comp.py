@@ -2,11 +2,14 @@
 
 __all__ = ['make_comps']
 
+import sys
 import random
 import subprocess
+from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 import vapoursynth as vs
+from lvsfunc.render import clip_async_render
 from requests import Session, session
 from requests_toolbelt import MultipartEncoder  # type: ignore
 
@@ -16,9 +19,34 @@ from .types import AnyPath
 from .vpathlib import VPath
 
 
+class Extracter(Enum):
+    FFMPEG = 0
+    IMWRI = 1
+
+
+import asyncio
+from functools import partial
+
+
+async def render_frame(c: vs.VideoNode) -> None:
+    c.get_frame(0)
+
+
+async def render_all_frames(clip: vs.VideoNode, frames: List[int]) -> None:
+    funcs = (render_frame(clip[f]) for f in frames)
+    await asyncio.gather(*funcs)
+
+
+_TMP_SCRIPT = f"""from importlib.machinery import SourceFileLoader
+clip = SourceFileLoader('script', '{VPath(sys.argv[0]).absolute().as_posix()}').load_module().vs.get_output(-1)
+clip.set_output(0)
+"""
+
+
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                num: int = 15, frames: Optional[Sequence[int]] = None, *,
                force_bt709: bool = False,
+               extracter: Extracter = Extracter.FFMPEG,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     """Extract frames, make diff between two clips and upload to slow.pics
@@ -78,16 +106,6 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     # Extracts the requested frames using ffmpeg
     # imwri lib is slower even asynchronously requested
     for name, clip in clips.items():
-        clip = vs.core.std.Splice([clip[f] for f in frames])
-
-        if force_bt709:
-            clip = clip.std.SetFrameProp('_Matrix', intval=1)
-
-        # -> RGB -> GBR. Needed for ffmpeg
-        # Also FPS=1/1. I'm just lazy, okay?
-        clip = clip.resize.Bicubic(
-            format=vs.RGB24, dither_type='error_diffusion',
-        ).std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
 
         path_name = path / name
         try:
@@ -96,97 +114,138 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
             Status.fail(f'make_comps: {path_name.to_str()} already exists!',
                         exception=FileExistsError, chain_err=file_err)
 
-        path_images = [
-            path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
-            for f in frames
-        ]
+        if force_bt709:
+            clip = clip.std.SetFrameProp('_Matrix', intval=1)
+        clip = clip.resize.Bicubic(format=vs.RGB24, dither_type='error_diffusion')
 
-        outputs: List[str] = []
-        for i, path_image in enumerate(path_images):
-            outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+        if extracter == Extracter.FFMPEG:
+            clip = vs.core.std.Splice([clip[f] for f in frames])
 
-        settings = [
-            '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
-            '-video_size', f'{clip.width}x{clip.height}',
-            '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
-            '-i', 'pipe:', *outputs
-        ]
+            # -> RGB -> GBR. Needed for ffmpeg
+            # Also FPS=1/1. I'm just lazy, okay?
+            clip = clip.std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
 
-        VideoEncoder('ffmpeg', settings, progress_update=None).run_enc(clip, None, y4m=False)
-        print('\n')
+            path_images = [
+                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
+                for f in frames
+            ]
 
+            outputs: List[str] = []
+            for i, path_image in enumerate(path_images):
+                outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
 
-    # Make diff images
-    if magick_compare:
-        if len(clips) > 2:
-            Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
+            settings = [
+                '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
+                '-video_size', f'{clip.width}x{clip.height}',
+                '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
+                '-i', 'pipe:', *outputs
+            ]
 
-        try:
-            subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        except FileNotFoundError as file_not_found:
-            Status.fail(
-                'make_comps: "magick compare" was not found!',
-                exception=FileNotFoundError, chain_err=file_not_found
+            VideoEncoder('ffmpeg', settings, progress_update=None).run_enc(clip, None, y4m=False)
+            print('\n')
+
+        else:
+            reqs = clip.imwri.Write(
+                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
             )
+            # reqs.set_output(-1)
 
-        all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
-        images_a, images_b = all_images
+            # with open('_temp.py', 'w') as tmpscript:
+            #     tmpscript.write(_TMP_SCRIPT)
 
-        path_diff = path / 'diffs'
-        try:
-            path_diff.mkdir(parents=True)
-        except FileExistsError as file_err:
-            Status.fail(f'make_comps: {path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+            # asyncio.run(render_all_frames(reqs, frames))
 
-        cmds = [
-            f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % max_num)) + '.png"'
-            for i1, i2, f in zip(images_a, images_b, frames)
-        ]
+            # for f in frames:
+            #     clip_async_render(reqs[f], progress=None, callback=None)
 
-        # Launch asynchronously the Magick commands
-        Status.info('Diffing clips...\n')
-        SubProcessAsync().run(cmds)
+            # filename = (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
+            # # reqs = clip.imwri.Write(
+            # #     'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
+            # # )
+
+            # with open('_temp.py', 'w') as tmpscript:
+            #     pass
+
+            # # clip = vs.core.std.Splice([reqs[f] for f in frames])
+            # # clip_async_render(clip)
+            # cmds = [
+            #     f'vspipe -s {f} -e {f} -p _temp.py .'
+            #     for f in frames
+            # ]
+            # SubProcessAsync().run(cmds)
 
 
-    # Upload to slow.pics
-    if slowpics:
-        all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
-        if magick_compare:
-            all_images.append(sorted(path_diff.glob('*.png')))  # type: ignore
+    # # Make diff images
+    # if magick_compare:
+    #     if len(clips) > 2:
+    #         Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
 
-        fields: Dict[str, Any] = {
-            'collectionName': collection_name,
-            'public': str(public).lower(),
-            'optimize-images': 'true'
-        }
+    #     try:
+    #         subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    #     except FileNotFoundError as file_not_found:
+    #         Status.fail(
+    #             'make_comps: "magick compare" was not found!',
+    #             exception=FileNotFoundError, chain_err=file_not_found
+    #         )
 
-        for i, (name, images) in enumerate(
-            zip(list(clips.keys()) + (['diff'] if magick_compare else []),
-                all_images)
-        ):
-            for j, (image, frame) in enumerate(zip(images, frames)):
-                fields[f'comparisons[{j}].name'] = str(frame)
-                fields[f'comparisons[{j}].images[{i}].name'] = name
-                fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
+    #     all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
+    #     images_a, images_b = all_images
 
-        sess = session()
-        sess.get('https://slow.pics/api/comparison')
-        # TODO: yeet this
-        files = MultipartEncoder(fields)
+    #     path_diff = path / 'diffs'
+    #     try:
+    #         path_diff.mkdir(parents=True)
+    #     except FileExistsError as file_err:
+    #         Status.fail(f'make_comps: {path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
-        Status.info('Uploading images...\n')
-        url = sess.post(
-            'https://slow.pics/api/comparison', data=files.to_string(),
-            headers=_get_slowpics_header(str(files.len), files.content_type, sess)
-        )
-        sess.close()
+    #     cmds = [
+    #         f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % max_num)) + '.png"'
+    #         for i1, i2, f in zip(images_a, images_b, frames)
+    #     ]
 
-        slowpics_url = f'https://slow.pics/c/{url.text}'
-        Status.info(f'Slowpics url: {slowpics_url}')
+    #     # Launch asynchronously the Magick commands
+    #     Status.info('Diffing clips...\n')
+    #     SubProcessAsync().run(cmds)
 
-        url_file = path / 'slow.pics.url'
-        url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
-        Status.info(f'url file copied to {url_file}')
+
+    # # Upload to slow.pics
+    # if slowpics:
+    #     all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
+    #     if magick_compare:
+    #         all_images.append(sorted(path_diff.glob('*.png')))  # type: ignore
+
+    #     fields: Dict[str, Any] = {
+    #         'collectionName': collection_name,
+    #         'public': str(public).lower(),
+    #         'optimize-images': 'true'
+    #     }
+
+    #     for i, (name, images) in enumerate(
+    #         zip(list(clips.keys()) + (['diff'] if magick_compare else []),
+    #             all_images)
+    #     ):
+    #         for j, (image, frame) in enumerate(zip(images, frames)):
+    #             fields[f'comparisons[{j}].name'] = str(frame)
+    #             fields[f'comparisons[{j}].images[{i}].name'] = name
+    #             fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
+
+    #     sess = session()
+    #     sess.get('https://slow.pics/api/comparison')
+    #     # TODO: yeet this
+    #     files = MultipartEncoder(fields)
+
+    #     Status.info('Uploading images...\n')
+    #     url = sess.post(
+    #         'https://slow.pics/api/comparison', data=files.to_string(),
+    #         headers=_get_slowpics_header(str(files.len), files.content_type, sess)
+    #     )
+    #     sess.close()
+
+    #     slowpics_url = f'https://slow.pics/c/{url.text}'
+    #     Status.info(f'Slowpics url: {slowpics_url}')
+
+    #     url_file = path / 'slow.pics.url'
+    #     url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
+    #     Status.info(f'url file copied to {url_file}')
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:

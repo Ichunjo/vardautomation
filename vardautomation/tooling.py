@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from enum import IntEnum
 from pprint import pformat
 from shutil import copyfile
-from typing import (Any, BinaryIO, Dict, List, NoReturn, Optional, Sequence,
+from typing import (Any, BinaryIO, Callable, Dict, List, NoReturn, Optional, Sequence,
                     Set, Tuple, Type, Union, cast)
 
 import vapoursynth as vs
@@ -941,6 +941,39 @@ class SubProcessAsync:
         proc = await asyncio.create_subprocess_shell(cmd)
         await proc.communicate()
 
+
+# class FuncAsync:
+#     sem: asyncio.Semaphore
+
+#     def __init__(self, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:
+#         if nb_cpus:
+#             self.sem = asyncio.Semaphore(nb_cpus)
+#         else:
+#             Status.fail(f'{self.__class__.__name__}: no CPU found!', exception=ValueError)
+    
+#     def run(self, funcs: List[Callable[..., Any]]) -> None:
+#         loop = asyncio.get_event_loop()
+#         try:
+#             loop.run_until_complete(self._processing(cmds))
+#         finally:
+#             loop.run_until_complete(loop.shutdown_asyncgens())
+#             loop.close()
+
+#     async def _processing(self, funcs: List[Callable[..., Any]]) -> None:
+#         tasks = [
+#             asyncio.ensure_future(self._safe_processing(func))
+#             for func in funcs
+#         ]
+#         await asyncio.gather(*tasks)
+
+#     async def _safe_processing(self, func: Callable[..., Any]) -> None:
+#         async with self.sem:
+#             return await self._exec_func(func)
+
+
+#     @staticmethod
+#     async def _exec_func(func: Callable[..., Any]) -> None:
+#         pass
 
 
 class Tooling:
