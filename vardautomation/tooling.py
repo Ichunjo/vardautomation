@@ -163,20 +163,22 @@ class AudioEncoder(BasicTool):
         assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
-        return dict(a_src_cut=self.file.a_src_cut.format(self.track).to_str(),
-                    a_enc_cut=self.file.a_enc_cut.format(self.track).to_str())
+        return dict(
+            a_src_cut=self.file.a_src_cut.set_track(self.track).to_str(),
+            a_enc_cut=self.file.a_enc_cut.set_track(self.track).to_str()
+        )
 
 
     def _write_encoder_name_file(self) -> None:
         assert self.file
-        assert (a_enc_sut := self.file.a_enc_cut)
+        assert (a_enc_cut := self.file.a_enc_cut)
 
         tags = etree.Element('Tags')
         tag = etree.SubElement(tags, 'Tag')
         _ = etree.SubElement(tag, 'Targets')
         simple = etree.SubElement(tag, 'Simple')
         etree.SubElement(simple, 'Name').text = 'ENCODER'
-        etree.SubElement(simple, 'String').text = Properties.get_encoder_name(a_enc_sut.format(self.track))
+        etree.SubElement(simple, 'String').text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
 
         assert self.xml_tag
         with open(self.file.workdir / self.xml_tag, 'wb') as f:
@@ -196,8 +198,8 @@ class PassthroughAudioEncoder(AudioEncoder):
 
         Status.info(f'{self.__class__.__name__}: copying audio...')
         copyfile(
-            self.file.a_src_cut.format(self.track).absolute().to_str(),
-            self.file.a_enc_cut.format(self.track).absolute().to_str()
+            self.file.a_src_cut.set_track(self.track).absolute().to_str(),
+            self.file.a_enc_cut.set_track(self.track).absolute().to_str()
         )
 
         if self.xml_tag:
@@ -420,7 +422,8 @@ class EztrimCutter(AudioCutter):
             Status.info(f'{self.__class__.__name__}: trimming audio...')
             eztrim(
                 self.file.clip, trims,
-                self.file.a_src.format(self.track).to_str(), self.file.a_src_cut.format(self.track).to_str(),
+                self.file.a_src.set_track(self.track).to_str(),
+                self.file.a_src_cut.set_track(self.track).to_str(),
                 **self.kwargs
             )
         else:
@@ -441,7 +444,8 @@ class SoxCutter(AudioCutter):
         if trims:
             Status.info(f'{self.__class__.__name__}: trimming audio...')
             self.soxtrim(
-                self.file.a_src.format(self.track), self.file.a_src_cut.format(self.track),
+                self.file.a_src.set_track(self.track),
+                self.file.a_src_cut.set_track(self.track),
                 trims, self.file.clip
             )
         else:
@@ -482,17 +486,17 @@ class SoxCutter(AudioCutter):
 
         ntrims = normalise_ranges(ref_clip, trims)
 
-        parent, tmp_name = output.parent, output.name + '_tmp_{num}.wav'
+        parent, tmp_name = output.parent, output.name + '_tmp_{track_number}.wav'
         tmp = parent / tmp_name
         for i, (start, end) in enumerate(ntrims):
             BasicTool(
                 cls.sox_path.to_str(),
-                [src.to_str(), tmp.format(num=i).to_str(),
+                [src.to_str(), tmp.set_track(i).to_str(),
                  'trim', str(Convert.f2seconds(start, ref_clip.fps)), str(Convert.f2seconds(end - start, ref_clip.fps))]
             ).run()
 
         if combine:
-            tmps = sorted(output.parent.glob(tmp_name.format(num='?')))
+            tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
                 cls.sox_path.to_str(),
                 ['--combine', 'concatenate', *[tmp.to_str() for tmp in tmps], output.to_str()]
@@ -509,8 +513,8 @@ class PassthroughCutter(AudioCutter):
         assert self.file.a_src_cut
         Status.info(f'{self.__class__.__name__}: copying audio...')
         copyfile(
-            self.file.a_src.format(self.track).absolute().to_str(),
-            self.file.a_src_cut.format(self.track).absolute().to_str()
+            self.file.a_src.set_track(self.track).absolute().to_str(),
+            self.file.a_src_cut.set_track(self.track).absolute().to_str()
         )
 
 
@@ -815,7 +819,7 @@ class Mux:
         """
             If `streams` is not specified:
                 - Will find `file.name_file_final` as VideoStream
-                - Will try to find in this order file.a_enc_cut, file.a_src_cut, file.a_src as long as there is a file.a_xxxx.format(n)
+                - Will try to find in this order file.a_enc_cut, file.a_src_cut, file.a_src as long as there is a file.a_xxxx.set_track(n)
                 - All languages are set to `und` and names to None.
             Otherwise will mux the `streams` to `file.name_file_final`.
         """
@@ -852,12 +856,12 @@ class Mux:
             i = 1
             while True:
                 assert self.audios  # Hello? Pylance?
-                if self.file.a_enc_cut is not None and self.file.a_enc_cut.format(i).exists():
-                    self.audios += [AudioStream(self.file.a_enc_cut.format(i))]
-                elif self.file.a_src_cut is not None and self.file.a_src_cut.format(i).exists():
-                    self.audios += [AudioStream(self.file.a_src_cut.format(i))]
-                elif self.file.a_src is not None and self.file.a_src.format(i).exists():
-                    self.audios += [AudioStream(self.file.a_src.format(i))]
+                if self.file.a_enc_cut is not None and self.file.a_enc_cut.set_track(i).exists():
+                    self.audios += [AudioStream(self.file.a_enc_cut.set_track(i))]
+                elif self.file.a_src_cut is not None and self.file.a_src_cut.set_track(i).exists():
+                    self.audios += [AudioStream(self.file.a_src_cut.set_track(i))]
+                elif self.file.a_src is not None and self.file.a_src.set_track(i).exists():
+                    self.audios += [AudioStream(self.file.a_src.set_track(i))]
                 else:
                     break
                 i += 1

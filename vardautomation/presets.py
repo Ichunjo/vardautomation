@@ -57,8 +57,8 @@ PresetGeneric = Preset(
 )
 PresetBD = Preset(
     idx=core.lsmas.LWLibavSource,
-    a_src=VPath('{work_filename:s}_track_{num:s}.wav'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{num:s}.wav'),
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.wav'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.wav'),
     a_enc_cut=None,
     chapter=None,
     preset_type=PresetType.VIDEO
@@ -73,33 +73,33 @@ PresetWEB = Preset(
 )
 PresetAAC = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{num:s}.aac'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{num:s}.aac'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{num:s}.m4a'),
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.aac'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.aac'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.m4a'),
     chapter=None,
     preset_type=PresetType.AUDIO
 )
 PresetOpus = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{num:s}.opus'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{num:s}.opus'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{num:s}.opus'),
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.opus'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.opus'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.opus'),
     chapter=None,
     preset_type=PresetType.AUDIO
 )
 PresetEAC3 = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{num:s}.eac3'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{num:s}.eac3'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{num:s}.eac3'),
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.eac3'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.eac3'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.eac3'),
     chapter=None,
     preset_type=PresetType.AUDIO
 )
 PresetFLAC = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{num:s}.flac'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{num:s}.flac'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{num:s}.flac'),
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.flac'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.flac'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.flac'),
     chapter=None,
     preset_type=PresetType.AUDIO
 )

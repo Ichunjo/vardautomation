@@ -13,9 +13,6 @@ class VPath(Path):
     # pylint: disable=no-member
     _flavour = type(Path())._flavour  # type: ignore
 
-    def __format__(self, format_spec: str) -> str:
-        return str(self)
-
     def format(self, *args: Any, **kwargs: Any) -> VPath:
         """
             vpath.format(*args, **kwargs) -> VPath
@@ -24,6 +21,9 @@ class VPath(Path):
             The substitutions are identified by braces ('{' and '}')
         """
         return VPath(self.to_str().format(*args, **kwargs))
+
+    def set_track(self, track_number: int, /) -> VPath:
+        return self.format(track_number=track_number)
 
     def to_str(self) -> str:
         """

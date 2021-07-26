@@ -128,19 +128,25 @@ class FileInfo:
             if p.a_src == VPath():
                 self.a_src = VPath()
             else:
-                self.a_src = self.workdir / p.a_src.format(work_filename=self.work_filename, num='{}')
+                self.a_src = self.workdir / p.a_src.format(
+                    work_filename=self.work_filename, track_number='{track_number}'
+                )
 
         if self.a_src_cut is None and p.a_src_cut is not None:
             if p.a_src_cut == VPath():
                 self.a_src_cut = VPath()
             else:
-                self.a_src_cut = self.workdir / p.a_src_cut.format(work_filename=self.work_filename, num='{}')
+                self.a_src_cut = self.workdir / p.a_src_cut.format(
+                    work_filename=self.work_filename, track_number='{track_number}'
+                )
 
         if self.a_enc_cut is None and p.a_enc_cut is not None:
             if p.a_enc_cut == VPath():
                 self.a_enc_cut = VPath()
             else:
-                self.a_enc_cut = self.workdir / p.a_enc_cut.format(work_filename=self.work_filename, num='{}')
+                self.a_enc_cut = self.workdir / p.a_enc_cut.format(
+                    work_filename=self.work_filename, track_number='{track_number}'
+                )
 
         if self.chapter is None and p.chapter is not None:
             self.chapter = self.workdir / p.chapter.format(name=self.name)
