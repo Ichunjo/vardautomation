@@ -89,6 +89,9 @@ class OGMChapters(Chapters):
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
         """Create a txt chapter file."""
 
+        if not (par := self.chapter_file.parent).exists():
+            par.mkdir(parents=True, exist_ok=True)
+
         with self.chapter_file.open('w') as file:
             for i, chapter in enumerate(chapters, start=1):
                 file.writelines([f'CHAPTER{i:02.0f}={Convert.f2ts(chapter.start_frame, fps)}\n',
@@ -195,6 +198,9 @@ class MatroskaXMLChapters(Chapters):
         # Append chapters
         for chap in [self._make_chapter_xml(c) for c in chapters]:
             edit_entry.append(chap)
+
+        if not (par := self.chapter_file.parent).exists():
+            par.mkdir(parents=True, exist_ok=True)
 
         self.chapter_file.write_bytes(
             etree.tostring(root, encoding='utf-8', xml_declaration=True,
@@ -379,7 +385,7 @@ class MplsReader():
     lang: Lang
     default_chap_name: str
 
-    class MplsFile(NamedTuple):  # noqa: PLC0115
+    class MplsFile(NamedTuple):
         mpls_file: VPath
         mpls_chapters: List[MplsChapters]
 
