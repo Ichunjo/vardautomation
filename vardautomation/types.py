@@ -6,16 +6,15 @@ from typing import Any, Callable, Dict, List, Optional, Union, cast
 
 from lxml import etree
 from vapoursynth import VideoNode
-from vardefunc.types import DuplicateFrame, Trim
+from vardefunc.types import DuplicateFrame as V_DF
+from vardefunc.types import Trim as V_Trim
 
-# pylint: disable=self-assigning-variable
 AnyPath = Union[PathLike[str], str]
-DuplicateFrame = DuplicateFrame
+DuplicateFrame = V_DF
 Element = etree._Element
-Trim = Trim
+Trim = V_Trim
 UpdateFunc = Callable[[int, int], None]
 VPSIdx = Callable[[str], VideoNode]
-# pylint: enable=self-assigning-variable
 
 
 class ElementTree(etree._ElementTree):
