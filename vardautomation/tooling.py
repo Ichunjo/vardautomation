@@ -768,7 +768,8 @@ class MediaStream(Stream, ABC):
         super().__init__(path)
         self.name = name
         self.lang = lang
-        self.tag_file = VPath(tag_file) if tag_file is not None else tag_file
+        if tag_file is not None:
+            self.tag_file = VPath(tag_file)
 
 
 class VideoStream(MediaStream):
@@ -788,7 +789,6 @@ class ChapterStream(Stream):
         super().__init__(path)
         self.lang = lang
         self.charset = charset
-
 
 
 
@@ -824,7 +824,6 @@ class Mux:
             Otherwise will mux the `streams` to `file.name_file_final`.
         """
         self.output = file.name_file_final
-
 
         if streams is not None:
             self.file = file
@@ -882,11 +881,21 @@ class Mux:
 
     def _video_cmd(self) -> List[str]:
         cmd: List[str] = []
+
         if self.video.tag_file:
-            cmd += ['--tags', '0:' + self.video.tag_file.to_str()]
+            if self.video.tag_file.exists():
+                cmd += ['--tags', '0:' + self.video.tag_file.to_str()]
+            else:
+                Status.fail(f'{self.__class__.__name__}: {self.video.tag_file} not found!')
+
         if self.video.name:
             cmd += ['--track-name', '0:' + self.video.name]
-        cmd += ['--language', '0:' + self.video.lang.iso639, self.video.path.to_str()]
+
+        if self.video.path.exists():
+            cmd += ['--language', '0:' + self.video.lang.iso639, self.video.path.to_str()]
+        else:
+            Status.fail(f'{self.__class__.__name__}: {self.video.path} not found!')
+
         self.__workfiles.add(self.video.path)
         return cmd
 
@@ -895,10 +904,26 @@ class Mux:
         assert self.audios
         for audio in self.audios:
             if audio.tag_file:
-                cmd += ['--tags', '0:' + audio.tag_file.to_str()]
+                if audio.tag_file.exists():
+                    cmd += ['--tags', '0:' + audio.tag_file.to_str()]
+                else:
+                    Status.fail(f'{self.__class__.__name__}: {audio.tag_file} not found!')
             if audio.name:
                 cmd += ['--track-name', '0:' + audio.name]
-            cmd += ['--language', '0:' + audio.lang.iso639, audio.path.to_str()]
+
+            if audio.path.exists():
+                cmd += ['--language', '0:' + audio.lang.iso639, audio.path.to_str()]
+            else:
+                i = 1
+                while True:
+                    if (a_good_path := audio.path.set_track(i)).exists():
+                        Status.warn(f'{self.__class__.__name__}: "{audio.path}" not found, found {a_good_path} instead.')
+                        cmd += ['--language', '0:' + audio.lang.iso639, a_good_path.to_str()]
+                        break
+                    i += 1
+                    if i > 10:
+                        Status.fail(f'{self.__class__.__name__}: "{audio.path}" not found!')
+
             self.__workfiles.add(audio.path)
         return cmd
 
@@ -907,7 +932,11 @@ class Mux:
         cmd = ['--chapter-language', self.chapters.lang.iso639]
         if self.chapters.charset:
             cmd += ['--chapter-charset', self.chapters.charset]
-        cmd += ['--chapters', self.chapters.path.to_str()]
+
+        if self.chapters.path.exists():
+            cmd += ['--chapters', self.chapters.path.to_str()]
+        else:
+            Status.fail(f'{self.__class__.__name__}: "{self.chapters.path}" not found!')
         self.__workfiles.add(self.chapters.path)
         return cmd
 
