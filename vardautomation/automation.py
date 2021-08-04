@@ -159,21 +159,21 @@ class SelfRunner:
 
     def _audio_getter(self) -> None:
         if a_extracters := self.config.a_extracters:
-            a_extracters = list(a_extracters) if isinstance(a_extracters, Sequence) else [a_extracters]
+            a_extracters = a_extracters if isinstance(a_extracters, Sequence) else [a_extracters]
             for i, a_extracter in enumerate(a_extracters, start=1):
                 if self.file.a_src and not self.file.a_src.set_track(i).exists():
                     a_extracter.run()
                     self.cleanup.add(self.file.a_src.set_track(i))
 
         if a_cutters := self.config.a_cutters:
-            a_cutters = list(a_cutters) if isinstance(a_cutters, Sequence) else [a_cutters]
+            a_cutters = a_cutters if isinstance(a_cutters, Sequence) else [a_cutters]
             for i, a_cutter in enumerate(a_cutters, start=1):
                 if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
                     a_cutter.run()
                     self.cleanup.add(self.file.a_src_cut.set_track(i))
 
         if a_encoders := self.config.a_encoders:
-            a_encoders = list(a_encoders) if isinstance(a_encoders, Sequence) else [a_encoders]
+            a_encoders = a_encoders if isinstance(a_encoders, Sequence) else [a_encoders]
             for i, a_encoder in enumerate(a_encoders, start=1):
                 if self.file.a_enc_cut and not self.file.a_enc_cut.set_track(i).exists():
                     a_encoder.run()
