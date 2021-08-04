@@ -801,20 +801,23 @@ class Mux:
     video: VideoStream
     audios: Optional[List[AudioStream]]
     chapters: Optional[ChapterStream]
+    deterministic_seed: Optional[Union[int, str]]
+    merge_args: Dict[str, str]
 
     mkvmerge_path: VPath = VPath('mkvmerge')
 
     __workfiles: Set[VPath]
 
     def __init__(
-        self, file: FileInfo,
+        self, file: FileInfo, /,
         streams: Optional[
             Tuple[
                 VideoStream,
                 Optional[Union[AudioStream, Sequence[AudioStream]]],
                 Optional[ChapterStream]
             ]
-        ] = None
+        ] = None, *,
+        deterministic_seed: Optional[Union[int, str]] = None, merge_args: Dict[str, str]
     ) -> None:
         """
             If `streams` is not specified:
@@ -824,6 +827,8 @@ class Mux:
             Otherwise will mux the `streams` to `file.name_file_final`.
         """
         self.output = file.name_file_final
+        self.deterministic_seed = deterministic_seed
+        self.merge_args = merge_args
 
         if streams is not None:
             self.file = file
@@ -840,13 +845,14 @@ class Mux:
 
     def run(self) -> Set[VPath]:
         """Make and launch the command"""
-        cmd = ['-o', self.output.to_str()]
-
         self.__workfiles = set()
 
+        cmd = ['-o', self.output.to_str()]
+
+        if self.deterministic_seed is not None:
+            cmd += ['--deterministic', str(self.deterministic_seed)]
 
         cmd += self._video_cmd()
-
 
         if self.audios is not None:
             cmd += self._audios_cmd()
@@ -854,18 +860,16 @@ class Mux:
             self.audios = []
             i = 1
             while True:
-                assert self.audios  # Hello? Pylance?
                 if self.file.a_enc_cut is not None and self.file.a_enc_cut.set_track(i).exists():
-                    self.audios += [AudioStream(self.file.a_enc_cut.set_track(i))]
+                    self.audios.append(AudioStream(self.file.a_enc_cut.set_track(i)))
                 elif self.file.a_src_cut is not None and self.file.a_src_cut.set_track(i).exists():
-                    self.audios += [AudioStream(self.file.a_src_cut.set_track(i))]
+                    self.audios.append(AudioStream(self.file.a_src_cut.set_track(i)))
                 elif self.file.a_src is not None and self.file.a_src.set_track(i).exists():
-                    self.audios += [AudioStream(self.file.a_src.set_track(i))]
+                    self.audios.append(AudioStream(self.file.a_src.set_track(i)))
                 else:
                     break
                 i += 1
             cmd += self._audios_cmd()
-
 
         if self.chapters is not None:
             cmd += self._chapters_cmd()
@@ -873,6 +877,9 @@ class Mux:
             if (chap := self.file.chapter) and chap.exists():
                 self.chapters = ChapterStream(chap)
                 cmd += self._chapters_cmd()
+
+        for k, v in self.merge_args.items():
+            cmd += [k] + [v]
 
         BasicTool(self.mkvmerge_path.to_str(), cmd).run()
 
@@ -886,7 +893,7 @@ class Mux:
             if self.video.tag_file.exists():
                 cmd += ['--tags', '0:' + self.video.tag_file.to_str()]
             else:
-                Status.fail(f'{self.__class__.__name__}: {self.video.tag_file} not found!')
+                Status.fail(f'{self.__class__.__name__}: "{self.video.tag_file}" not found!')
 
         if self.video.name:
             cmd += ['--track-name', '0:' + self.video.name]
@@ -894,7 +901,7 @@ class Mux:
         if self.video.path.exists():
             cmd += ['--language', '0:' + self.video.lang.iso639, self.video.path.to_str()]
         else:
-            Status.fail(f'{self.__class__.__name__}: {self.video.path} not found!')
+            Status.fail(f'{self.__class__.__name__}: "{self.video.path}" not found!')
 
         self.__workfiles.add(self.video.path)
         return cmd
@@ -907,7 +914,7 @@ class Mux:
                 if audio.tag_file.exists():
                     cmd += ['--tags', '0:' + audio.tag_file.to_str()]
                 else:
-                    Status.fail(f'{self.__class__.__name__}: {audio.tag_file} not found!')
+                    Status.fail(f'{self.__class__.__name__}: "{audio.tag_file} not found!')
             if audio.name:
                 cmd += ['--track-name', '0:' + audio.name]
 
@@ -917,7 +924,7 @@ class Mux:
                 i = 1
                 while True:
                     if (a_good_path := audio.path.set_track(i)).exists():
-                        Status.warn(f'{self.__class__.__name__}: "{audio.path}" not found, found {a_good_path} instead.')
+                        Status.warn(f'{self.__class__.__name__}: "{audio.path}" not found, found "{a_good_path}"" instead.')
                         cmd += ['--language', '0:' + audio.lang.iso639, a_good_path.to_str()]
                         break
                     i += 1
