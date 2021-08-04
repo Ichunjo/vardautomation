@@ -27,6 +27,13 @@ class Convert:
         m %= 60
         return cls.composets(h, m, s, precision=precision)
 
+    @classmethod
+    def f2assts(cls, f: int, fps: Fraction, /) -> str:
+        s = cls.f2seconds(f, fps)
+        s -= fps ** -1 * 0.5
+        ts = cls.seconds2ts(max(0, s), precision=3)
+        return ts[:-1]
+
     @staticmethod
     def f2seconds(f: int, fps: Fraction, /) -> float:
         if f == 0:
