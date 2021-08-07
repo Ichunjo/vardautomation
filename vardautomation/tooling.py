@@ -817,7 +817,8 @@ class Mux:
                 Optional[ChapterStream]
             ]
         ] = None, *,
-        deterministic_seed: Optional[Union[int, str]] = None, merge_args: Dict[str, str]
+        deterministic_seed: Optional[Union[int, str]] = None,
+        merge_args: Optional[Dict[str, str]] = None
     ) -> None:
         """
             If `streams` is not specified:
@@ -828,7 +829,7 @@ class Mux:
         """
         self.output = file.name_file_final
         self.deterministic_seed = deterministic_seed
-        self.merge_args = merge_args
+        self.merge_args = merge_args if merge_args is not None else {}
 
         if streams is not None:
             self.file = file
