@@ -6,7 +6,7 @@ from .status import Status
 
 
 class Convert:
-    """Collection of static method to perform time conversion"""
+    """Collection of methods to perform time conversion"""
     @classmethod
     def ts2f(cls, ts: str, fps: Fraction, /) -> int:
         s = cls.ts2seconds(ts)
