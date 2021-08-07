@@ -20,6 +20,7 @@ from .language import UNDEFINED, Lang
 from .status import Status
 from .timeconv import Convert
 from .types import AnyPath, Element, ElementTree
+from .utils import recursive_dict
 from .vpathlib import VPath
 
 
@@ -41,7 +42,7 @@ class Chapters(ABC):
         super().__init__()
 
     def __str__(self) -> str:
-        return pformat(vars(self), indent=1, width=200, sort_dicts=False)
+        return pformat(recursive_dict(self), indent=1, width=200, sort_dicts=False)
 
     @abstractmethod
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:

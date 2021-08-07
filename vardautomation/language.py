@@ -10,6 +10,8 @@ from typing import Optional
 
 from langcodes import Language
 
+from .utils import recursive_dict
+
 
 class Lang:
     """Language"""
@@ -23,7 +25,7 @@ class Lang:
         self.iso639 = language.to_alpha3(variant=iso639_variant)
 
     def __str__(self) -> str:
-        return pformat(vars(self), indent=4, width=200, sort_dicts=False)
+        return pformat(recursive_dict(self), indent=4, width=200, sort_dicts=False)
 
     @classmethod
     def make(cls, ietf: Optional[str]) -> Lang:

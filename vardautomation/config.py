@@ -15,6 +15,7 @@ from .presets import Preset, PresetGeneric
 from .types import AnyPath
 from .types import DuplicateFrame as DF
 from .types import Trim, VPSIdx
+from .utils import recursive_dict
 from .vpathlib import VPath
 
 core = vs.core
@@ -117,8 +118,7 @@ class FileInfo:
         super().__init__()
 
     def __str__(self) -> str:
-        self.preset = [vars(p) for p in self.preset]  # type: ignore
-        return pformat(vars(self), width=100, sort_dicts=False)
+        return pformat(recursive_dict(self), width=200, sort_dicts=False)
 
     def _fill_preset(self, p: Preset) -> None:
         if self.idx is None:

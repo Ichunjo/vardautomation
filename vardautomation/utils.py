@@ -1,6 +1,6 @@
 """Properties and helpers functions"""
 import subprocess
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import vapoursynth as vs
 
@@ -94,3 +94,14 @@ class Properties:
         ffprobe_args = ['ffprobe', '-loglevel', 'quiet', '-show_entries', 'format_tags=encoder',
                         '-print_format', 'default=nokey=1:noprint_wrappers=1', str(path)]
         return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
+
+
+def recursive_dict(obj: object) -> Union[Dict[str, Any], str]:
+    # pylint: disable=no-else-return
+    if hasattr(obj, '__dict__') and obj.__dict__:
+        return {k: recursive_dict(v) for k, v in obj.__dict__.items()}
+    else:
+        if isinstance(obj, vs.VideoNode):
+            return repr(obj)
+        else:
+            return str(obj)

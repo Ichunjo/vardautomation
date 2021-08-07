@@ -29,10 +29,10 @@ from vardefunc.util import normalise_ranges
 
 from .config import FileInfo
 from .language import UNDEFINED, Lang
-from .properties import Properties
 from .status import Status
 from .timeconv import Convert
 from .types import AnyPath, Trim, UpdateFunc
+from .utils import Properties, recursive_dict
 from .vpathlib import VPath
 
 
@@ -755,7 +755,7 @@ class Stream(ABC):
         self.path = VPath(path)
 
     def __str__(self) -> str:
-        return pformat(vars(self), indent=1, width=80, sort_dicts=True)
+        return pformat(recursive_dict(self), indent=1, width=80, sort_dicts=True)
 
 
 class MediaStream(Stream, ABC):
