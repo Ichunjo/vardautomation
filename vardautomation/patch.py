@@ -55,7 +55,7 @@ class Patch:
             self.output_filename = final / f'{self._file_to_fix.stem}_new.mkv'
 
         if self.workdir.exists():
-            Status.fail(f'Patch: {self.workdir.resolve().to_str()} already exists!', exception=FileExistsError)
+            Status.fail(f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!', exception=FileExistsError)
 
     def run(self) -> None:
         """Launch patch"""
@@ -84,22 +84,22 @@ class Patch:
         # Convert to int and add the last frame
         kfsint = [int(x) for x in kfsstr[2:]] + [self.clip.num_frames]
 
-        rng = self.__resolve_range_with_kfs(kfsint)
+        ranges = self._bound_to_keyframes(kfsint)
         if self.debug:
             print('--------------------------------')
-            print('__resolve_range_with_kfs', rng)
+            print('_bound_to_keyframes', ranges)
             print('--------------------------------')
-        rng = self.__resolve_range_from_kfs(rng)
+        nranges = normalise_ranges(self.clip, ranges, norm_dups=True)
         if self.debug:
             print('--------------------------------')
-            print('__resolve_range_from_kfs', rng)
+            print('norm_dups', ranges)
             print('--------------------------------')
 
-        if len(rng) == 1:
-            if rng[0][0] == 0 and rng[0][1] == self.clip.num_frames:
-                Status.fail('Don\'t use Patch, just redo your encode', exception=ValueError)
+        if len(nranges) == 1:
+            if nranges[0][0] == 0 and nranges[0][1] == self.clip.num_frames:
+                Status.fail(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode', exception=ValueError)
 
-        self.ranges = rng
+        self.ranges = nranges
 
     def _encode(self) -> None:
         for i, (s, e) in enumerate(self.ranges, start=1):
@@ -155,7 +155,7 @@ class Patch:
             ['-o', self.output_filename.to_str(), tmpnoaudio.to_str(), '--no-video', self._file_to_fix.to_str()]
         ).run()
 
-    def __resolve_range_with_kfs(self, kfs: List[int]) -> List[Tuple[int, int]]:
+    def _bound_to_keyframes(self, kfs: List[int]) -> List[Range]:
         rng_set: Set[Tuple[int, int]] = set()
         for start, end in self.ranges:
             s, e = (None, ) * 2
@@ -173,30 +173,8 @@ class Patch:
                     break
 
             if s is None or e is None:
-                Status.fail('_resolve_range: Something is wrong in `s` or `e`', exception=ValueError)
+                Status.fail('_bound_to_keyframes: Something is wrong in `s` or `e`', exception=ValueError)
 
             rng_set.add((s, e))
 
         return sorted(rng_set)
-
-    @staticmethod
-    def __resolve_range_from_kfs(rng: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-        # Changes something like that:
-        # [(0, 67), (0, 115), (67, 204), (67, 377), (115, 204), (962, 2006), (3960, 5053), (4883, 5053)]
-        # to:
-        # [(0, 377), (962, 2006), (3960, 5053)]
-        # Also this:
-        # [(18438, 18528), (20377, 20617), (20617, 20857), (21097, 21337), (21577, 21817), (21817, 22057), (22057, 22297), (33926, 34047)]
-        # to:
-        # [(18438, 18528), (20377, 20857), (21097, 21337), (21577, 22297), (33926, 34047)]
-        values = dict(rng)
-        values_e = sorted(values.items(), reverse=True)
-
-        for (start1, end1), (start2, end2) in zip(values_e, values_e[1:]):
-            if start2 < start1 <= end2 < end1:
-                values[start2] = max(end1, values[start1])
-                del values[start1]
-            if start2 < start1 and end1 <= end2:
-                del values[start1]
-
-        return list(values.items())
