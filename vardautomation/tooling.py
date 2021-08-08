@@ -25,13 +25,14 @@ import vapoursynth as vs
 from acsuite import eztrim
 from lvsfunc.render import SceneChangeMode, find_scene_changes
 from lxml import etree
+from pymediainfo import MediaInfo
 from vardefunc.util import normalise_ranges
 
 from .config import FileInfo
 from .language import UNDEFINED, Lang
 from .status import Status
 from .timeconv import Convert
-from .types import AnyPath, Trim, UpdateFunc
+from .types import AnyPath, DuplicateFrame, Trim, UpdateFunc
 from .utils import Properties, recursive_dict
 from .vpathlib import VPath
 
@@ -388,47 +389,184 @@ class AudioCutter(ABC):
     def run(self) -> None:
         pass
 
-    def _parse_trims(self) -> Union[Trim, List[Trim], None]:
-        trims: Union[Trim, List[Trim], None] = None
-        if trim := self.file.trims_or_dfs:
-            if isinstance(trim, tuple):
-                start, end = trim
-                if not start:
-                    start = 0
-                trims = (start, end)
-            else:
-                if all((isinstance(t, tuple) for t in trim)):
-                    trims = [t for t in trim if isinstance(t, tuple)]
-                else:
-                    Status.fail(
-                        f'{self.__class__.__name__}: `DuplicateFrame` is not implemented in audio handling',
-                        exception=NotImplementedError
-                    )
-        return trims
+    @classmethod
+    @abstractmethod
+    def generate_silence(
+        cls, s: float, output: AnyPath,
+        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> None:
+        pass
+
+
+FFMPEG_CHANNEL_LAYOUT_MAP: Dict[int, str] = {
+    1: 'mono',
+    2: 'stereo',
+    6: '5.1'
+}
 
 
 class EztrimCutter(AudioCutter):
     """Audio cutter using eztrim"""
+    force_eztrim: bool = False
+
+    ffmpeg_path: VPath = VPath('ffmpeg')
+    ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
+
     def run(self) -> None:
         assert self.file.a_src
         assert self.file.a_src_cut
 
-        trims = self._parse_trims()
+        trims = self.file.trims_or_dfs
 
         if trims:
-            if (quiet := 'quiet') not in self.kwargs:
-                self.kwargs[quiet] = True
-
+            if isinstance(trims, tuple):
+                trims = [trims]
             Status.info(f'{self.__class__.__name__}: trimming audio...')
-            eztrim(
-                self.file.clip, trims,
-                self.file.a_src.set_track(self.track).to_str(),
-                self.file.a_src_cut.set_track(self.track).to_str(),
-                **self.kwargs
-            )
+
+            if self.force_eztrim or not any(isinstance(t, DuplicateFrame) for t in trims):
+                self.kwargs.setdefault('quiet', True)
+                eztrim(
+                    self.file.clip, cast(List[Trim], trims),
+                    self.file.a_src.set_track(self.track).to_str(),
+                    self.file.a_src_cut.set_track(self.track).to_str(),
+                    **self.kwargs
+                )
+            else:
+                Status.warn(f'{self.__class__.__name__}: DuplicateFrame(s) detected...')
+                self.ezpztrim(
+                    self.file.a_src.set_track(self.track),
+                    self.file.a_src_cut.set_track(self.track),
+                    trims, self.file.clip
+                )
         else:
-            Status.warn(f'{self.__class__.__name__}: no detected trims; use PassthroughCutter...')
-            PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
+            Status.warn(f'{self.__class__.__name__}: no trims detected; use PassthroughCutter...')
+            PassthroughCutter(self.file, track=self.track).run()
+
+    @classmethod
+    def ezpztrim(
+        cls, src: AnyPath, output: AnyPath, /,
+        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        ref_clip: vs.VideoNode, *,
+        combine: bool = True, cleanup: bool = True
+    ) -> None:
+        """
+        Simple trimming function that follows VapourSynth/Python slicing syntax.
+        End frame is NOT inclusive.
+
+        Args:
+            src (AnyPath): Input file.
+
+            output (AnyPath): Output file.
+
+            trims (Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]]):
+                Either a list of 2-tuples, one tuple of 2 ints, a DuplicateFrame object
+                or a list of of 2-tuples and/or DuplicateFrame object.
+
+            ref_clip (vs.VideoNode):
+                Vapoursynth clip used to determine framerate.
+
+            combine (bool, optional):
+                Keep all performed trims in the same file. Defaults to True.
+
+            cleanup (bool, optional):
+                Delete temporary file. Defaults to True.
+        """
+        src, output = map(VPath, (src, output))
+
+        if not isinstance(trims, list):
+            trims = [trims]
+
+        media_info = cast(MediaInfo, MediaInfo.parse(src)).to_data()
+        try:
+            ext = media_info['tracks'][0]['file_extension']
+            srate = media_info['tracks'][1]['sampling_rate']
+            bitrate = media_info['tracks'][0]['overall_bit_rate']
+            nb_ch = media_info['tracks'][1]['channel_s']
+        except AttributeError as att_err:
+            Status.fail(
+                f'{cls.__name__}: file extension, sampling rate, bitrate or num channels not found',
+                exception=AttributeError, chain_err=att_err
+            )
+
+        parent = output.parent
+        tmp_name = output.name + '_tmp_{track_number}' + src.suffix
+        tmp = parent / tmp_name
+
+        tmp_files: Set[AnyPath] = set()
+        fps = ref_clip.fps
+        f2ts = Convert.f2ts
+
+        for i, trim in enumerate(trims):
+            if isinstance(trim, tuple):
+                start, end = normalise_ranges(ref_clip, trim).pop()
+                # Just trim
+                BasicTool(
+                    cls.ffmpeg_path.to_str(),
+                    cls.ffmpeg_quiet
+                    + ['-i', src.to_str(), '-vn', '-ss', f2ts(start, fps), '-to', f2ts(end, fps)]
+                    + ['-c:a', 'copy', '-rf64', 'auto']
+                    + [tmp.set_track(i).to_str()]
+                ).run()
+                tmp_files.add(tmp.set_track(i))
+            else:
+                # Handle DuplicateFrame
+                df = trim
+                tmp_silence = tmp.with_name(tmp.name + '_silence.wav')
+                # Generate silence
+                cls.generate_silence(
+                    Convert.f2seconds(df.dup, fps), tmp_silence.set_track(i),
+                    nb_ch, srate
+                )
+                tmp_files.add(tmp_silence.set_track(i))
+                # Encode in source format
+                BasicTool(
+                    cls.ffmpeg_path.to_str(),
+                    cls.ffmpeg_quiet
+                    + ['-i', tmp_silence.set_track(i).to_str()]
+                    + ['-acodec', str(ext), '-ab', str(bitrate), tmp.set_track(i).to_str()]
+                ).run()
+                tmp_files.add(tmp.set_track(i))
+
+        if combine:
+            # Get the trimmed files
+            concat_files = sorted(output.parent.glob(tmp_name.format(track_number='?')))
+            # Write a config concat file
+            # paths should be in poxix format and space character escaped
+            # this is so annoying
+            with open('_conf_concat.txt', 'w') as _conf_concat:
+                _conf_concat.writelines(
+                    'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
+                    for af in concat_files
+                )
+            BasicTool(
+                cls.ffmpeg_path.to_str(),
+                cls.ffmpeg_quiet
+                + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', output.to_str()]
+            ).run()
+
+            if cleanup:
+                os.remove('_conf_concat.txt')
+                for tmpf in tmp_files:
+                    os.remove(tmpf)
+
+        tmp_files.clear()
+
+    @classmethod
+    def generate_silence(
+        cls, s: float, output: AnyPath,
+        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> None:
+        try:
+            channel_layout = FFMPEG_CHANNEL_LAYOUT_MAP[num_ch]
+        except AttributeError as att_err:
+            Status.fail(f'{cls.__name__}: channel layout unknown!', exception=ValueError, chain_err=att_err)
+
+        BasicTool(
+            cls.ffmpeg_path.to_str(),
+            cls.ffmpeg_quiet
+            + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
+            + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
+        ).run()
 
 
 class SoxCutter(AudioCutter):
@@ -439,7 +577,7 @@ class SoxCutter(AudioCutter):
         assert self.file.a_src
         assert self.file.a_src_cut
 
-        trims = self._parse_trims()
+        trims = self.file.trims_or_dfs
 
         if trims:
             Status.info(f'{self.__class__.__name__}: trimming audio...')
@@ -450,12 +588,13 @@ class SoxCutter(AudioCutter):
             )
         else:
             Status.warn(f'{self.__class__.__name__}: no detected trims; use PassthroughCutter...')
-            PassthroughCutter(self.file, track=self.track, **self.kwargs).run()
+            PassthroughCutter(self.file, track=self.track).run()
 
     @classmethod
     def soxtrim(
         cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, List[Trim]], ref_clip: vs.VideoNode, *,
+        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        ref_clip: vs.VideoNode, *,
         combine: bool = True, cleanup: bool = True
     ) -> None:
         """
@@ -484,27 +623,63 @@ class SoxCutter(AudioCutter):
         if not isinstance(trims, list):
             trims = [trims]
 
-        ntrims = normalise_ranges(ref_clip, trims)
+        media_info = cast(MediaInfo, MediaInfo.parse(src)).to_data()
+        try:
+            srate = media_info['tracks'][1]['sampling_rate']
+            bitdepth = media_info['tracks'][1]['bit_depth']
+            nb_ch = media_info['tracks'][1]['channel_s']
+        except AttributeError as att_err:
+            Status.fail(
+                f'{cls.__name__}: sampling rate, bit_depth or channel_s not found',
+                exception=AttributeError, chain_err=att_err
+            )
 
-        parent, tmp_name = output.parent, output.name + '_tmp_{track_number}.wav'
+        parent = output.parent
+        tmp_name = output.name + '_tmp_{track_number}.wav'
         tmp = parent / tmp_name
-        for i, (start, end) in enumerate(ntrims):
-            BasicTool(
-                cls.sox_path.to_str(),
-                [src.to_str(), tmp.set_track(i).to_str(),
-                 'trim', str(Convert.f2seconds(start, ref_clip.fps)), str(Convert.f2seconds(end - start, ref_clip.fps))]
-            ).run()
+
+        tmp_files: Set[AnyPath] = set()
+        fps = ref_clip.fps
+        f2s = Convert.f2seconds
+
+        for i, trim in enumerate(trims):
+            if isinstance(trim, tuple):
+                start, end = normalise_ranges(ref_clip, trim).pop()
+                BasicTool(
+                    cls.sox_path.to_str(),
+                    [src.to_str(), tmp.set_track(i).to_str(),
+                     'trim', str(f2s(start, fps)), str(f2s(end - start, fps))]
+                ).run()
+                tmp_files.add(tmp.set_track(i))
+            else:
+                df = trim
+                # Generate silence
+                cls.generate_silence(
+                    Convert.f2seconds(df.dup, fps), tmp.set_track(i).to_str(),
+                    nb_ch, srate, bitdepth
+                )
+                tmp_files.add(tmp.set_track(i).to_str())
 
         if combine:
             tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
                 cls.sox_path.to_str(),
-                ['--combine', 'concatenate', *[tmp.to_str() for tmp in tmps], output.to_str()]
+                ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
             ).run()
             if cleanup:
                 for tmp in tmps:
                     os.remove(tmp)
 
+    @classmethod
+    def generate_silence(
+        cls, s: float, output: AnyPath,
+        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> None:
+        BasicTool(
+            cls.sox_path.to_str(),
+            ['-n', '-r', str(sample_rate), '-c', str(num_ch), '-b', str(bitdepth),
+             VPath(output).with_suffix('.wav').to_str(), 'trim', '0.0', str(s)]
+        ).run()
 
 
 class PassthroughCutter(AudioCutter):
@@ -516,6 +691,13 @@ class PassthroughCutter(AudioCutter):
             self.file.a_src.set_track(self.track).absolute().to_str(),
             self.file.a_src_cut.set_track(self.track).absolute().to_str()
         )
+
+    @classmethod
+    def generate_silence(
+        cls, s: float, output: AnyPath,
+        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> NoReturn:
+        raise NotImplementedError
 
 
 
