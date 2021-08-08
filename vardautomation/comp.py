@@ -11,6 +11,7 @@ import vapoursynth as vs
 from lvsfunc.render import clip_async_render
 from requests import Session, session
 from requests_toolbelt import MultipartEncoder  # type: ignore
+from vardefunc.types import Zimg
 
 from .status import Status
 from .tooling import SubProcessAsync, VideoEncoder
@@ -94,9 +95,10 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
             Status.fail(f'make_comps: {path_name.to_str()} already exists!',
                         exception=FileExistsError, chain_err=file_err)
 
-        if force_bt709:
-            clip = clip.std.SetFrameProp('_Matrix', intval=1)
-        clip = clip.resize.Bicubic(format=vs.RGB24, dither_type='error_diffusion')
+        clip = clip.resize.Bicubic(
+            format=vs.RGB24, matrix_in=Zimg.Matrix.BT709 if force_bt709 else None,
+            dither_type=Zimg.DitherType.ERROR_DIFFUSION
+        )
 
         if writer == Writer.FFMPEG:
             clip = vs.core.std.Splice([clip[f] for f in frames])
