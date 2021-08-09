@@ -984,7 +984,7 @@ class Mux:
     audios: Optional[List[AudioStream]]
     chapters: Optional[ChapterStream]
     deterministic_seed: Optional[Union[int, str]]
-    merge_args: Dict[str, str]
+    merge_args: Dict[str, Any]
 
     mkvmerge_path: VPath = VPath('mkvmerge')
 
@@ -999,8 +999,8 @@ class Mux:
                 Optional[ChapterStream]
             ]
         ] = None, *,
-        deterministic_seed: Optional[Union[int, str]] = None,
-        merge_args: Optional[Dict[str, str]] = None
+        deterministic_seed: Union[int, str, None] = None,
+        merge_args: Optional[Dict[str, Any]] = None
     ) -> None:
         """
             If `streams` is not specified:
@@ -1008,6 +1008,17 @@ class Mux:
                 - Will try to find in this order file.a_enc_cut, file.a_src_cut, file.a_src as long as there is a file.a_xxxx.set_track(n)
                 - All languages are set to `und` and names to None.
             Otherwise will mux the `streams` to `file.name_file_final`.
+
+            deterministic_seed:
+                https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.deterministic
+
+            merge_args:
+
+                Example:
+                    ::
+
+                        merge_args={'--ui-language': 'nl_NL', '--abort-on-warnings': None}
+
         """
         self.output = file.name_file_final
         self.deterministic_seed = deterministic_seed
@@ -1062,7 +1073,7 @@ class Mux:
                 cmd += self._chapters_cmd()
 
         for k, v in self.merge_args.items():
-            cmd += [k] + [v]
+            cmd += [k] + ([str(v)] if v else [])
 
         BasicTool(self.mkvmerge_path.to_str(), cmd).run()
 
