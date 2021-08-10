@@ -14,6 +14,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+meta = {}
+exec(open(os.path.abspath('../vardautomation/_metadata.py')).read(), meta)
 
 # -- Project information -----------------------------------------------------
 
@@ -22,7 +24,7 @@ copyright = '2021, Ichunjo'
 author = 'Ichunjo'
 
 # The full version, including alpha/beta/rc tags
-release = '0.3.0'
+version = release = meta['__version__']
 
 
 # -- General configuration ---------------------------------------------------
@@ -64,12 +66,17 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_css_files = ['css/theme_overrides.css']
+html_style = 'css/theme_overrides.css'
 
-autosummary_generate = True
-
-autodoc_mock_imports = ["vsutil", "vapoursynth"]
 
 # -- Extension configuration -------------------------------------------------
+autoclass_content = 'both'
+autosummary_generate = True
+autodoc_mock_imports = ['vapoursynth', 'vsutil']
+smartquotes = True
+html_show_sphinx = False
+pygments_style = 'sphinx'
 
 # -- Options for todo extension ----------------------------------------------
 
