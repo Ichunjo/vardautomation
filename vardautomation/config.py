@@ -52,6 +52,8 @@ class FileInfo:
     qpfile: VPath
     do_qpfile: bool
 
+    _num_prop: bool = False
+    _num_prop_name: str = 'FileInfoFrameNumber'
 
     def __init__(
         self, path: AnyPath, /,
@@ -166,3 +168,22 @@ class FileInfo:
     @property
     def media_info(self) -> MediaInfo:
         return cast(MediaInfo, MediaInfo.parse(self.path))
+
+    @property
+    def num_prop(self) -> bool:
+        return self._num_prop
+
+    @num_prop.setter
+    def num_prop(self, x: bool) -> None:
+        self._num_prop = x
+        if x:
+            def _add_frame_num(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
+                (fout := f.copy()).props[self._num_prop_name] = n
+                return fout
+
+            self.clip = core.std.ModifyFrame(self.clip, self.clip, _add_frame_num)
+            self.trims_or_dfs = self._trims_or_dfs
+        else:
+            self.clip, self.clip_cut = [
+                c.std.SetFrameProp(self._num_prop_name, True) for c in [self.clip, self.clip_cut]
+            ]
