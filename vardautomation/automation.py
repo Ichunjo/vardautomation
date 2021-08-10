@@ -46,41 +46,6 @@ class Parser:
         if self.args.start or self.args.end:
             Status.fail('', exception=NotImplementedError)
 
-        # file_frame_start: Optional[int] = None
-        # file_frame_end: Optional[int] = None
-
-        # frame_start: Optional[int] = None
-        # frame_end: Optional[int] = None
-
-        # # start frame check
-        # if self.args.start is not None:
-        #     if self.args.start >= 0:
-        #         frame_start = self.args.start
-        #         if file.frame_start is None:
-        #             file.frame_start = 0
-        #         file_frame_start = file.frame_start + self.args.start
-        #     else:
-        #         Status.fail('--start START must be a positive value!', exception=ValueError)
-        # else:
-        #     file_frame_start = file.frame_start
-
-        # # end frame check
-        # if self.args.end is not None:
-        #     if self.args.end >= 0:
-        #         frame_end = self.args.end + 1
-        #         if file.frame_end is None:
-        #             file.frame_end = file.clip.num_frames
-        #         file_frame_end = min((file.frame_start if file.frame_start is not None else 0) + self.args.end + 1,
-        #                              file.frame_end)
-        #     else:
-        #         Status.fail('--end END must be a positive value!', exception=ValueError)
-        # else:
-        #     file_frame_end = file.frame_end
-
-        # file.frame_start = file_frame_start
-        # file.frame_end = file_frame_end
-
-        # return file, clip[frame_start:frame_end]
         return file, clip
 
 
@@ -115,31 +80,6 @@ class SelfRunner:
         self._encode()
         self._audio_getter()
         self._muxer()
-
-    # @abstractmethod
-    # def chapter(self) -> None:
-    #     """Chapterisation"""
-    #     # Examples
-    #     assert self.file.chapter
-    #     assert self.file.frame_start
-
-    #     # Variables
-    #     chap_names: List[Optional[str]] = []
-    #     chapters: List[Chapter] = []
-    #     fps: Fraction = self.clip.fps
-
-    #     # XML or OGM chapters
-    #     chap = MatroskaXMLChapters(self.file.chapter)  # type: ignore
-    #     chap = OGMChapters(self.file.chapter)  # type: ignore
-
-    #     # Method to be used
-    #     chap.create(chapters, fps)
-    #     chap.set_names(chap_names)
-    #     chap.copy(Path(self.file.chapter).parent / 'new_chap.xml')
-    #     chap.shift_times(0 - self.file.frame_start, fps)
-    #     chap.create_qpfile(self.file.qpfile, fps)
-
-    #     self.file.chapter = str(chap.chapter_file)
 
     def _parsing(self) -> None:
         parser = Parser(self.file)
