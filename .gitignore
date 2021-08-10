@@ -140,3 +140,10 @@ random_test_files
 
 # Video test file
 *.mkv
+
+# Docs file
+docs/_build
+docs/_static
+docs/_templates
+docs/make.bat
+docs/Makefile
