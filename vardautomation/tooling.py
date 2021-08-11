@@ -73,7 +73,7 @@ class Tool(ABC):
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
         """
-        :param binary: 
+        :param binary:
         :param settings:
         """
         self.binary = VPath(binary)

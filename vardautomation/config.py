@@ -244,7 +244,8 @@ class FileInfo:
         :param path:            Path to your source file.
         :param trims_or_dfs:    Adjust the clip length by trimming or duplicating frames. Python slicing. Defaults to None
         :param idx:             Indexer used to index the video track, defaults to None
-        :param preset:          Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes, defaults to :py:data:`.PresetGeneric`
+        :param preset:          Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes,
+                                defaults to :py:data:`.PresetGeneric`
         :param workdir:         Work directory. Default to the current directorie where the script is launched.
         """
         self.workdir = VPath(workdir)
