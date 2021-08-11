@@ -118,6 +118,11 @@ def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callab
     """
     @wraps(original)
     def wrapper(target: F) -> F:
+        if target.__doc__ is None:
+            target.__doc__ = ''
+        if original.__doc__ is None:
+            original.__doc__ = ''
+
         if mode == 'o':
             target.__doc__ = original.__doc__
         elif mode == 'o+t':
@@ -127,4 +132,5 @@ def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callab
         else:
             Status.fail('copy_docstring_from: Wrong mode!')
         return target
+
     return wrapper
