@@ -7,18 +7,17 @@ from typing import Any, Callable, Dict, List, Optional, Union, cast
 
 from lxml import etree
 from vapoursynth import VideoNode
-from vardefunc.types import DuplicateFrame as V_DF
-from vardefunc.types import Trim as V_Trim
+from vardefunc import types
 
 AnyPath = Union[PathLike[str], str]
 """Represents a PathLike"""
 
-DuplicateFrame = V_DF
+DuplicateFrame = types.DuplicateFrame
 """DuplicateFrame from ``vardefunc``"""
 
 Element = etree._Element
 
-Trim = V_Trim
+Trim = types.Trim
 """Trim from ``vardefunc``"""
 
 UpdateFunc = Callable[[int, int], None]
