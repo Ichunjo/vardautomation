@@ -65,10 +65,10 @@ autodoc_member_order = 'bysource'                       # https://www.sphinx-doc
 # we're uysing sphinx_autodoc_typehints
 autodoc_typehints = 'description'                       # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_typehints
 autoclass_content = 'both'                              # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autoclass_content
-autosummary_generate = True                             # https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html?highlight=autosummary_generate#confval-autosummary_generate  # type: ignore
+autosummary_generate = True                             # https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html?highlight=autosummary_generate#confval-autosummary_generate  # noqa: E501
 autodoc_mock_imports = [
     'vapoursynth', 'vsutil', 'lvsfunc',
-    'vardefunc', 'acsuite'                          # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports
+    'vardefunc', 'acsuite'                              # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports
 ]
 smartquotes = True                                      # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=smartquotes#confval-smartquotes
 html_show_sphinx = False                                # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=smartquotes#confval-html_show_sphinx
