@@ -67,18 +67,18 @@ autodoc_member_order = 'bysource'                       # https://www.sphinx-doc
 autodoc_typehints = 'description'                       # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_typehints
 autoclass_content = 'both'                              # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autoclass_content
 autosummary_generate = True                             # https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html?highlight=autosummary_generate#confval-autosummary_generate  # type: ignore
-autodoc_mock_imports = ['vapoursynth', 'vsutil', 'lxml', 'vardefunc']        # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports
+autodoc_mock_imports = ['vapoursynth', 'vsutil']        # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports
 smartquotes = True                                      # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=smartquotes#confval-smartquotes
 html_show_sphinx = False                                # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=smartquotes#confval-html_show_sphinx
 pygments_style = 'sphinx'                               # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=pygments_style#confval-pygments_style
 
-_meta_types: Dict[str, Any] = {}
-with Path('../vardautomation/types.py').resolve().open() as f:
-    exec(f.read(), _meta_types)
-
+_meta_types = [
+    'AnyPath', 'DuplicateFrame', 'Element',
+    'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree'
+]
 autodoc_type_aliases = {                                # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_type_aliases
     alias_type: f'vardautomation.types.{alias_type}'
-    for alias_type in _meta_types['__all__']
+    for alias_type in _meta_types
 }
 autodoc_preserve_defaults = True                        # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_preserve_defaults
 
