@@ -155,7 +155,7 @@ class AudioEncoder(BasicTool):
     """
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 file, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+                 file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
         """
         Helper for audio extraction.
 
