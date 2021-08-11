@@ -9,7 +9,6 @@ __all__ = [
     'VideoEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
     'progress_update_func',
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
-    'Tooling'
 ]
 
 import asyncio
@@ -21,7 +20,7 @@ from enum import IntEnum
 from pprint import pformat
 from shutil import copyfile
 from typing import (Any, BinaryIO, Dict, List, NoReturn, Optional, Sequence,
-                    Set, Tuple, Type, Union, cast)
+                    Set, Tuple, Union, cast)
 
 import vapoursynth as vs
 from acsuite import eztrim
@@ -1193,25 +1192,3 @@ class SubProcessAsync:
     async def _run_cmd(cmd: str) -> None:
         proc = await asyncio.create_subprocess_shell(cmd)
         await proc.communicate()
-
-
-
-class Tooling:
-    BasicTool: Type[BasicTool] = BasicTool
-
-    AudioEncoder: Type[AudioEncoder] = AudioEncoder
-    QAACEncoder: Type[QAACEncoder] = QAACEncoder
-    OpusEncoder: Type[OpusEncoder] = OpusEncoder
-    FlacEncoder: Type[FlacEncoder] = FlacEncoder
-
-    EztrimCutter: Type[EztrimCutter] = EztrimCutter
-    SoxCutter: Type[SoxCutter] = SoxCutter
-    VideoEncoder: Type[VideoEncoder] = VideoEncoder
-    X265Encoder: Type[X265Encoder] = X265Encoder
-    X264Encoder: Type[X264Encoder] = X264Encoder
-    LosslessEncoder: Type[LosslessEncoder] = LosslessEncoder
-
-    Mux: Type[Mux] = Mux
-    VideoStream: Type[VideoStream] = VideoStream
-    AudioStream: Type[AudioStream] = AudioStream
-    ChapterStream: Type[ChapterStream] = ChapterStream
