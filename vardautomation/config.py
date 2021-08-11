@@ -1,17 +1,26 @@
-"""Automation module"""
+"""Config module"""
+from __future__ import annotations
 
-__all__ = ['FileInfo']
+__all__ = [
+    'FileInfo',
+    'Preset', 'NoPreset',
+    'PresetGeneric',
+    'PresetBD', 'PresetWEB',
+    'PresetAAC', 'PresetOpus', 'PresetEAC3', 'PresetFLAC',
+    'PresetChapOGM', 'PresetChapXML'
+]
 
 import sys
-from operator import attrgetter
+from dataclasses import dataclass
+from enum import IntEnum
 from pprint import pformat
-from typing import List, Optional, Sequence, Union, cast
+from typing import Callable, List, Optional, Sequence, Union, cast
 
 import vapoursynth as vs
+from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_clip_frames
 
-from .presets import Preset, PresetGeneric
 from .types import AnyPath
 from .types import DuplicateFrame as DF
 from .types import Trim, VPSIdx
@@ -170,35 +179,54 @@ Preset for XML based chapters.
 
 
 class FileInfo:
-    """File info object"""
+    """FileInfo object. This is the first thing you should initialise."""
     path: VPath
+    """Path of the video file"""
     path_without_ext: VPath
+    """Path of the video file without the extension"""
     work_filename: str
+    """Work directory filename"""
 
     idx: Optional[VPSIdx]
+    """Vapoursynth Indexer"""
     preset: List[Preset]
+    """Preset(s) used"""
 
     name: str
+    """Name of the script"""
 
     workdir: VPath
+    """Work directory"""
 
     a_src: Optional[VPath]
+    """Audio source path"""
     a_src_cut: Optional[VPath]
+    """Audio source trimmed/cut path"""
     a_enc_cut: Optional[VPath]
+    """Audio source encoded (and trimmed) path"""
     chapter: Optional[VPath]
+    """Chapter file path"""
 
     clip: vs.VideoNode
+    """VideoNode object loaded by the indexer"""
     _trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None]
     clip_cut: vs.VideoNode
+    """Clip trimmed"""
 
     name_clip_output: VPath
+    """Clip output path name"""
     name_file_final: VPath
+    """Final file output path"""
 
     name_clip_output_lossless: VPath
+    """Lossless file name path"""
     do_lossless: bool
+    """If lossless or not"""
 
     qpfile: VPath
+    """Qpfile name path"""
     do_qpfile: bool
+    """If Qpfile or not"""
 
     _num_prop: bool = False
     _num_prop_name: str = 'FileInfoFrameNumber'
@@ -210,29 +238,16 @@ class FileInfo:
         preset: Union[Sequence[Preset], Preset] = PresetGeneric,
         workdir: AnyPath = VPath().cwd()
     ) -> None:
-        """Helper which allows to store the data related to your file to be encoded
+        """
+        Helper which allows to store the data related to your file to be encoded
 
-        Args:
-            path (AnyPath):
-                Path to your source file.
-
-            trims_or_dfs (Union[List[Union[Trim, DF]], Trim, None], optional):
-                Adjust the clip length by trimming or duplicating frames. Python slicing.
-                Defaults to None.
-
-            idx (Optional[Callable[[str], vs.VideoNode]], optional):
-                Indexer used to index the video track.
-                Defaults to None.
-
-            preset (Union[Sequence[Preset], Preset], optional):
-                Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes.
-                Defaults to NoPreset.
-
-            workdir (AnyPath, optional):
-                Work directory. Default to the current directorie where the script is launched.
+        :param path:            Path to your source file.
+        :param trims_or_dfs:    Adjust the clip length by trimming or duplicating frames. Python slicing. Defaults to None
+        :param idx:             Indexer used to index the video track, defaults to None
+        :param preset:          Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes, defaults to :py:data:`.PresetGeneric`
+        :param workdir:         Work directory. Default to the current directorie where the script is launched.
         """
         self.workdir = VPath(workdir)
-
 
         self.path = VPath(path)
         self.path_without_ext = self.path.with_suffix('')
@@ -242,15 +257,13 @@ class FileInfo:
 
         self.name = VPath(sys.argv[0]).stem
 
-
         self.a_src, self.a_src_cut, self.a_enc_cut, self.chapter = (None, ) * 4
         if isinstance(preset, Preset):
             self.preset = [preset]
         else:
-            self.preset = sorted(preset, key=attrgetter('preset_type'))
+            self.preset = sorted(preset, key=lambda p: p.preset_type)
         for p in self.preset:
             self._fill_preset(p)
-
 
         if self.idx:
             self.clip = self.idx(str(path))
@@ -315,10 +328,16 @@ class FileInfo:
 
     @property
     def media_info(self) -> MediaInfo:
+        """Get the MediaInfo of the video file loaded"""
         return cast(MediaInfo, MediaInfo.parse(self.path))
 
     @property
     def num_prop(self) -> bool:
+        """
+        If the frame number is added to props
+
+        :setter:    Add a prop :attr:`_num_prop_name` to the frame properties of :attr:`FileInfo.clip` and :attr:`FileInfo.clip_cut`
+        """
         return self._num_prop
 
     @num_prop.setter

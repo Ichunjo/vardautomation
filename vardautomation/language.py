@@ -1,7 +1,7 @@
 """Language module"""
 from __future__ import annotations
 
-__all__ = ['Language',
+__all__ = ['Lang',
            'FRENCH', 'ENGLISH', 'JAPANESE', 'UNDEFINED']
 
 

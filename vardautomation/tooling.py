@@ -1,5 +1,7 @@
 """Tooling module"""
 
+from __future__ import annotations
+
 __all__ = [
     'Tool', 'BasicTool',
     'AudioEncoder', 'QAACEncoder', 'OpusEncoder', 'FlacCompressionLevel', 'FlacEncoder',
@@ -38,12 +40,42 @@ from .vpathlib import VPath
 
 
 class Tool(ABC):
-    """Abstract Tool interface"""
+    """
+    Abstract Tool interface
+    Most of the tools inherit from it
+    """
     binary: VPath
+    """Binary path"""
     settings: Union[AnyPath, List[str], Dict[str, Any]]
+    """
+    Path to your settings file or list of string or a dict containing your settings.
+
+    .. code-block:: python
+
+        # This
+        >>> cat settings
+        -o {clip_output:s} - --y4m --preset slower --crf 51
+
+        # is equivalent to this:
+        settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
+
+        # and is equivalent to this:
+        settings: Dict[str, Any] = {
+            '-o': '{clip_output:s}',
+            '-': None,
+            '--y4m': None,
+            '--preset': 'slower',
+            '--crf': 51
+        }
+    """
     params: List[str]
+    """Settings normalised and parsed"""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
+        """
+        :param binary: 
+        :param settings:
+        """
         self.binary = VPath(binary)
         self.settings = settings
         self.params = []
@@ -81,21 +113,18 @@ class Tool(ABC):
 
 class BasicTool(Tool):
     """BasicTool interface"""
+
     file: Optional[FileInfo]
+    """FileInfo object."""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  file: Optional[FileInfo] = None) -> None:
-        """Helper allowing the use of CLI programs for basic tasks like video or audio track extraction.
+        """
+        Helper allowing the use of CLI programs for basic tasks like video or audio track extraction.
 
-        Args:
-            binary (AnyPath):
-                Path to your binary file.
-
-            settings (Union[AnyPath, List[str], Dict[str, Any]]):
-                Path to your settings file or list of string or a dict containing your settings.
-
-            file (Optional[FileInfo]):
-                FileInfo object. Not used in BasicTool implementation.
+        :param binary:          See :py:attr:`Tool.binary`
+        :param settings:        See :py:attr:`Tool.settings`
+        :param file:            Not used in BasicTool implementation, defaults to None
         """
         self.file = file
         super().__init__(binary, settings)
@@ -114,31 +143,28 @@ class BasicTool(Tool):
 
 class AudioEncoder(BasicTool):
     """BasicTool interface for audio encoding"""
+
     track: int
+    """Track number"""
+
     xml_tag: Optional[AnyPath]
+    """
+    XML tags suitable for mkvmerge
+    Curently only write the encoder name
+    More info here: https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.tags
+    """
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
-        """Helper for audio extraction.
+                 file, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+        """
+        Helper for audio extraction.
 
-        Args:
-            binary (AnyPath):
-                Path to your binary file.
-
-            settings (Union[AnyPath, List[str], Dict[str, Any]]):
-                Path to your settings file or list of string or a dict containing your settings.
-
-            file (FileInfo):
-                FileInfo object. Needed in AudioEncoder implementation.
-
-            track (int):
-                Track number.
-
-            xml_tag (Optional[AnyPath], optional):
-                XML file path.
-                If specified, will write a file containing the encoder info
-                to be passed to the muxer.
-                Defaults to None.
+        :param binary:          See :py:attr:`Tool.binary`
+        :param settings:        See :py:attr:`Tool.settings`
+        :param file:            FileInfo object, needed.
+        :param track:           Track number
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+                                If specified, will write a file containing the encoder info to be passed to the muxer.
         """
         super().__init__(binary, settings, file=file)
         assert self.file
@@ -169,7 +195,6 @@ class AudioEncoder(BasicTool):
             a_enc_cut=self.file.a_enc_cut.set_track(self.track).to_str()
         )
 
-
     def _write_encoder_name_file(self) -> None:
         assert self.file
         assert (a_enc_cut := self.file.a_enc_cut)
@@ -189,7 +214,14 @@ class AudioEncoder(BasicTool):
 
 
 class PassthroughAudioEncoder(AudioEncoder):
+    """Special AudioEncoder that will copy :py:attr:`FileInfo.a_src_cut` to :py:attr:`FileInfo.a_enc_cut`"""
+
     def __init__(self, /, file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+        """
+        :param file:        FileInfo object
+        :param track:       Track number
+        :param xml_tag:     See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        """
         super().__init__('', [''], file, track=track, xml_tag=xml_tag)
 
     def run(self) -> None:
@@ -208,28 +240,17 @@ class PassthroughAudioEncoder(AudioEncoder):
 
 
 class QAACEncoder(AudioEncoder):
-    """QAAC AudioEncoder"""
+    """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder"""
+
     def __init__(self, /, file: FileInfo, *,
                  track: int, xml_tag: Optional[AnyPath] = None,
                  tvbr_quality: int = 127, qaac_args: Optional[List[str]] = None) -> None:
         """
-        Args:
-            file (FileInfo):
-                FileInfo object. Needed in AudioEncoder implementation.
-
-            track (int):
-                Track number.
-
-            xml_tag (Optional[AnyPath], optional):
-                XML file path. If specified, will write a file containing the encoder info
-                to be passed to the muxer.
-                Defaults to None.
-
-            tvbr_quality (int, optional):
-                Read the QAAC doc. Defaults to 127.
-
-            qaac_args (Optional[List[str]], optional):
-                Additionnal arguments. Defaults to None.
+        :param file:            FileInfo object
+        :param track:           Track number
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        :param tvbr_quality:    AAC True VBR mode, defaults to 127
+        :param qaac_args:       https://github.com/nu774/qaac/wiki/Command-Line-Options, defaults to None
         """
         binary = 'qaac'
         settings = ['{a_src_cut:s}', '-V', str(tvbr_quality), '--no-delay', '-o', '{a_enc_cut:s}']

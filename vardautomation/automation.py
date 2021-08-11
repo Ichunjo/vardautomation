@@ -20,9 +20,14 @@ core = vs.core
 
 
 class Parser:
-    """Parser implementation"""
+    """Parser implementation. Still WIP"""
 
     def __init__(self, file: FileInfo) -> None:
+        """[summary]
+
+        :param file: [description]
+        :type file: FileInfo
+        """
         parser = argparse.ArgumentParser(description=f'Encode {file.name}')
         parser.add_argument('-L', '--lossless', action='store_true', default=False,
                             help='Write a lossless file instead of piping the pre-processing.')

@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree']
 
@@ -10,11 +11,21 @@ from vardefunc.types import DuplicateFrame as V_DF
 from vardefunc.types import Trim as V_Trim
 
 AnyPath = Union[PathLike[str], str]
+"""Represents a PathLike"""
+
 DuplicateFrame = V_DF
+"""DuplicateFrame from ``vardefunc``"""
+
 Element = etree._Element
+
 Trim = V_Trim
+"""Trim from ``vardefunc``"""
+
 UpdateFunc = Callable[[int, int], None]
+"""An update function type suitable for ``vapoursynth.VideoNode.output``"""
+
 VPSIdx = Callable[[str], VideoNode]
+"""Vapoursynth function indexer"""
 
 
 class ElementTree(etree._ElementTree):
