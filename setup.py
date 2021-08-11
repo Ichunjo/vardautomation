@@ -1,9 +1,11 @@
-from setuptools import setup
 from distutils.util import convert_path
+from typing import Any, Dict
 
-meta = {}
-exec(open(convert_path('vardautomation/_metadata.py')).read(), meta)
+from setuptools import setup
 
+meta: Dict[str, Any] = {}
+with open(convert_path('vardautomation/_metadata.py')) as f:
+    exec(f.read(), meta)
 
 with open('README.md') as fh:
     long_description = fh.read()
@@ -18,7 +20,7 @@ setup(
     version=meta['__version__'],
     author=meta['__author__'].split()[0],
     author_email=meta['__author__'].split()[1][1:-1],
-    description='Automatisation tools',
+    description='Encoding automation tools via Vapoursynth',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['vardautomation'],
