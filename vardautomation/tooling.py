@@ -254,7 +254,7 @@ class QAACEncoder(AudioEncoder):
         binary = 'qaac'
         settings = ['{a_src_cut:s}', '-V', str(tvbr_quality), '--no-delay', '-o', '{a_enc_cut:s}']
         if qaac_args is not None:
-            settings.append(*qaac_args)
+            settings.extend(qaac_args)
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
 
@@ -295,7 +295,7 @@ class OpusEncoder(AudioEncoder):
             settings = ['--bitrate', str(bitrate), '{a_src_cut:s}', '{a_enc_cut:s}']
 
         if opus_args is not None:
-            settings.append(*opus_args)
+            settings.extend(opus_args)
 
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
@@ -360,20 +360,17 @@ class FlacEncoder(AudioEncoder):
                               '-lpc_passes', '3', '-exact_rice_parameters', '1']
             else:
                 level_args = [f'-compression_level {level}']
-            settings = ['-i', '{a_src_cut:s}', *level_args]
+            settings = ['-i', '{a_src_cut:s}'] + level_args
             if flac_args is not None:
-                settings.append(*flac_args)
-            settings += ['{a_enc_cut:s}']
+                settings.extend(flac_args)
+            settings.append('{a_enc_cut:s}')
         else:
             binary = 'flac'
             if level <= FlacCompressionLevel.EIGHT:
-                if flac_args is not None:
-                    settings = [*flac_args]
+                settings = [*flac_args] if flac_args is not None else []
+                settings.extend([f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}'])
                 else:
-                    settings = []
-                settings = [f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}']
-            else:
-                Status.fail('FlacEncoder: "level" must be <= 8 if use_ffmpeg is false', exception=ValueError)
+                Status.fail(f'{self.__class__.__name__}: "level" must be <= 8 if "use_ffmpeg" is false', exception=ValueError)
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
 
@@ -429,8 +426,8 @@ class EztrimCutter(AudioCutter):
     """Audio cutter using eztrim"""
     force_eztrim: bool = False
 
-    ffmpeg_path: VPath = VPath('ffmpeg')
-    ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
+    _ffmpeg_path: VPath = VPath('ffmpeg')
+    _ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
 
     def run(self) -> None:
         assert self.file.a_src
@@ -521,8 +518,8 @@ class EztrimCutter(AudioCutter):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
                 BasicTool(
-                    cls.ffmpeg_path.to_str(),
-                    cls.ffmpeg_quiet
+                    cls._ffmpeg_path.to_str(),
+                    cls._ffmpeg_quiet
                     + ['-i', src.to_str(), '-vn', '-ss', f2ts(start, fps), '-to', f2ts(end, fps)]
                     + ['-c:a', 'copy', '-rf64', 'auto']
                     + [tmp.set_track(i).to_str()]
@@ -540,8 +537,8 @@ class EztrimCutter(AudioCutter):
                 tmp_files.add(tmp_silence.set_track(i))
                 # Encode in source format
                 BasicTool(
-                    cls.ffmpeg_path.to_str(),
-                    cls.ffmpeg_quiet
+                    cls._ffmpeg_path.to_str(),
+                    cls._ffmpeg_quiet
                     + ['-i', tmp_silence.set_track(i).to_str()]
                     + ['-acodec', str(ext), '-ab', str(bitrate), tmp.set_track(i).to_str()]
                 ).run()
@@ -559,8 +556,8 @@ class EztrimCutter(AudioCutter):
                     for af in concat_files
                 )
             BasicTool(
-                cls.ffmpeg_path.to_str(),
-                cls.ffmpeg_quiet
+                cls._ffmpeg_path.to_str(),
+                cls._ffmpeg_quiet
                 + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', output.to_str()]
             ).run()
 
@@ -582,8 +579,8 @@ class EztrimCutter(AudioCutter):
             Status.fail(f'{cls.__name__}: channel layout unknown!', exception=ValueError, chain_err=att_err)
 
         BasicTool(
-            cls.ffmpeg_path.to_str(),
-            cls.ffmpeg_quiet
+            cls._ffmpeg_path.to_str(),
+            cls._ffmpeg_quiet
             + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
             + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
         ).run()
@@ -591,7 +588,7 @@ class EztrimCutter(AudioCutter):
 
 class SoxCutter(AudioCutter):
     """Audio cutter using Sox"""
-    sox_path: VPath = VPath('sox')
+    _sox_path: VPath = VPath('sox')
 
     def run(self) -> None:
         assert self.file.a_src
@@ -666,7 +663,7 @@ class SoxCutter(AudioCutter):
             if isinstance(trim, tuple):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 BasicTool(
-                    cls.sox_path.to_str(),
+                    cls._sox_path.to_str(),
                     [src.to_str(), tmp.set_track(i).to_str(),
                      'trim', str(f2s(start, fps)), str(f2s(end - start, fps))]
                 ).run()
@@ -683,7 +680,7 @@ class SoxCutter(AudioCutter):
         if combine:
             tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
-                cls.sox_path.to_str(),
+                cls._sox_path.to_str(),
                 ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
             ).run()
             if cleanup:
@@ -696,7 +693,7 @@ class SoxCutter(AudioCutter):
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         BasicTool(
-            cls.sox_path.to_str(),
+            cls._sox_path.to_str(),
             ['-n', '-r', str(sample_rate), '-c', str(num_ch), '-b', str(bitdepth),
              VPath(output).with_suffix('.wav').to_str(), 'trim', '0.0', str(s)]
         ).run()
@@ -801,7 +798,9 @@ class VideoEncoder(Tool):
             scenes = find_scene_changes(self.file.clip_cut, SceneChangeMode.WWXD_SCXVID_UNION)
 
             with qpfile.open('w') as qpf:
-                qpf.writelines([f"{s} K\n" for s in scenes])
+                qpf.writelines(f"{s} K\n" for s in scenes)
+        else:
+            Status.warn(f'{self.__class__.__name__}: a qpfile already exists at {self.file.qpfile.resolve().to_str()}')
 
     def _do_encode(self, y4m: bool) -> None:
         Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
