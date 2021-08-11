@@ -154,7 +154,7 @@ class AudioEncoder(BasicTool):
     """
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+                 file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
         """
         Helper for audio extraction.
 
@@ -215,7 +215,7 @@ class AudioEncoder(BasicTool):
 class PassthroughAudioEncoder(AudioEncoder):
     """Special AudioEncoder that will copy :py:attr:`FileInfo.a_src_cut` to :py:attr:`FileInfo.a_enc_cut`"""
 
-    def __init__(self, /, file: FileInfo, *, track: int, xml_tag: Optional[AnyPath] = None) -> None:
+    def __init__(self, /, file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
         """
         :param file:        FileInfo object
         :param track:       Track number
@@ -242,7 +242,7 @@ class QAACEncoder(AudioEncoder):
     """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder"""
 
     def __init__(self, /, file: FileInfo, *,
-                 track: int, xml_tag: Optional[AnyPath] = None,
+                 track: int = -1, xml_tag: Optional[AnyPath] = None,
                  tvbr_quality: int = 127, qaac_args: Optional[List[str]] = None) -> None:
         """
         :param file:            FileInfo object
@@ -262,7 +262,7 @@ class OpusEncoder(AudioEncoder):
     """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec """
 
     def __init__(self, /, file: FileInfo, *,
-                 track: int, xml_tag: Optional[AnyPath] = None,
+                 track: int = -1, xml_tag: Optional[AnyPath] = None,
                  bitrate: int = 192,
                  use_ffmpeg: bool = True, opus_args: Optional[List[str]] = None) -> None:
         """
@@ -378,7 +378,7 @@ class FlacCompressionLevel(IntEnum):
 class FlacEncoder(AudioEncoder):
     """AudioEncoder using FLAC, Free Lossless Audio Codec"""
     def __init__(self, file: FileInfo, *,
-                 track: int, xml_tag: Optional[AnyPath] = None,
+                 track: int = -1, xml_tag: Optional[AnyPath] = None,
                  level: FlacCompressionLevel = FlacCompressionLevel.VARDOU,
                  use_ffmpeg: bool = True, flac_args: Optional[List[str]] = None) -> None:
         """
@@ -425,6 +425,7 @@ class AudioCutter(ABC):
         """
         :param file:        FileInfo object
         :param track:       Track number
+        :param kwargs:      Additionnal arguments
         """
         self.file = file
 

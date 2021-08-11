@@ -60,6 +60,7 @@ Video encoders
    :members:
    :inherited-members:
    :show-inheritance:
+
 Audio encoders
 ----------------
 .. autoclass:: vardautomation.tooling.AudioEncoder
@@ -84,6 +85,7 @@ Audio encoders
    :members:
    :inherited-members:
    :show-inheritance:
+
 Audio cutters
 ----------------
 .. autoclass:: vardautomation.tooling.AudioCutter
@@ -102,6 +104,7 @@ Audio cutters
    :members:
    :inherited-members:
    :show-inheritance:
+
 Muxing
 -------
 .. autoclass:: vardautomation.tooling.Mux
