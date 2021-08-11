@@ -1,1 +1,2 @@
 sphinx-autodoc-typehints==1.12.0
+enum_tools>=0.6.4
