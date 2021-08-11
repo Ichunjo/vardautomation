@@ -1,6 +1,7 @@
 """Properties and helpers functions"""
 import subprocess
-from typing import Any, Dict, List, Tuple, Union
+from functools import wraps
+from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
 
 import vapoursynth as vs
 
@@ -105,3 +106,25 @@ def recursive_dict(obj: object) -> Union[Dict[str, Any], str]:
             return repr(obj)
         else:
             return str(obj)
+
+
+F = TypeVar('F', bound=Callable[..., Any])
+
+
+def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callable[[F], F]:
+    """
+    :param original:        Original function
+    :param mode:            Copy mode. Can be 'o+t', 't+o', 'o', defaults to 'o'
+    """
+    @wraps(original)
+    def wrapper(target: F) -> F:
+        if mode == 'o':
+            target.__doc__ = original.__doc__
+        elif mode == 'o+t':
+            target.__doc__ = original.__doc__ + target.__doc__
+        elif mode == 't+o':
+            target.__doc__ += original.__doc__
+        else:
+            Status.fail('copy_docstring_from: Wrong mode!')
+        return target
+    return wrapper
