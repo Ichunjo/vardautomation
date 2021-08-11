@@ -34,7 +34,7 @@ from .language import UNDEFINED, Lang
 from .status import Status
 from .timeconv import Convert
 from .types import AnyPath, DuplicateFrame, Trim, UpdateFunc
-from .utils import Properties, recursive_dict
+from .utils import Properties, copy_docstring_from, recursive_dict
 from .vpathlib import VPath
 
 
@@ -259,33 +259,19 @@ class QAACEncoder(AudioEncoder):
 
 
 class OpusEncoder(AudioEncoder):
-    """Opus AudioEncoder"""
+    """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec """
+
     def __init__(self, /, file: FileInfo, *,
                  track: int, xml_tag: Optional[AnyPath] = None,
                  bitrate: int = 192,
                  use_ffmpeg: bool = True, opus_args: Optional[List[str]] = None) -> None:
         """
-        Args:
-            file (FileInfo):
-                FileInfo object. Needed in AudioEncoder implementation.
-
-            track (int):
-                Track number.
-
-            xml_tag (Optional[AnyPath], optional):
-                XML file path. If specified, will write a file containing the encoder info
-                to be passed to the muxer.
-                Defaults to None.
-
-            bitrate (int, optional):
-                Opus bitrate in vbr mode. Defaults to 192.
-
-            use_ffmpeg (bool, optional):
-                Will use opusenc if false.
-                Defaults to True.
-
-            opus_args (Optional[List[str]], optional):
-                Additionnal arguments. Defaults to None.
+        :param file:            FileInfo object
+        :param track:           Track number
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        :param bitrate:         Opus bitrate in vbr mode, defaults to 192
+        :param use_ffmpeg:      Will use opusenc if false, defaults to True
+        :param opus_args:       Additionnal arguments, defaults to None
         """
         if use_ffmpeg:
             binary = 'ffmpeg'
@@ -302,56 +288,107 @@ class OpusEncoder(AudioEncoder):
 
 class FlacCompressionLevel(IntEnum):
     """
-        Flac compression level.
-        Keep in mind that the max FLAC can handle is 8 and ffmpeg 12
+    Flac compression level.
+    Keep in mind that the max FLAC can handle is 8 and ffmpeg 12
     """
     ZERO = 0
+    """
+    ffmpeg: compression_level 0
+    flac: --compression-level-0
+    """
     ONE = 1
+    """
+    ffmpeg: compression_level 1
+    flac: --compression-level-1
+    """
     TWO = 2
+    """
+    ffmpeg: compression_level 2
+    flac: --compression-level-2
+    """
     THREE = 3
+    """
+    ffmpeg: compression_level 3
+    flac: --compression-level-3
+    """
     FOUR = 4
+    """
+    ffmpeg: compression_level 4
+    flac: --compression-level-4
+    """
     FIVE = 5
+    """
+    ffmpeg: compression_level 5
+    flac: --compression-level-5
+    This is default for both ffmpeg and flac encoders
+    """
     SIX = 6
+    """
+    ffmpeg: compression_level 6
+    flac: --compression-level-6
+    """
     SEVEN = 7
+    """
+    ffmpeg: compression_level 7
+    flac: --compression-level-7
+    """
     EIGHT = 8
+    """
+    ffmpeg: compression_level 8
+    flac: --compression-level-8
+    """
     NINE = 9
+    """
+    ffmpeg: compression_level 9
+    """
     TEN = 10
+    """
+    ffmpeg: compression_level 10
+    """
     ELEVEN = 11
+    """
+    ffmpeg: compression_level 11
+    """
     TWELVE = 12
+    """
+    ffmpeg: compression_level 12
+    """
     FAST = 0
+    """
+    Fastest compression. Currently synonymous with 0
+    ffmpeg: compression_level 0
+    flac: --compression-level-0
+    """
     BEST = 8
+    """
+    Highest compression. Currently synonymous with -8
+    ffmpeg: compression_level 0
+    flac: --compression-level-0
+    """
     VARDOU = 99
+    """
+    My custom ffmpeg command
+    .. code-block:: python
+
+        ['-compression_level', '12', '-lpc_type', 'cholesky', '-lpc_passes', '3', '-exact_rice_parameters', '1']
+
+    """
 
 
 class FlacEncoder(AudioEncoder):
-    """Flac AudioEncoder"""
+    """AudioEncoder using FLAC, Free Lossless Audio Codec"""
     def __init__(self, file: FileInfo, *,
                  track: int, xml_tag: Optional[AnyPath] = None,
                  level: FlacCompressionLevel = FlacCompressionLevel.VARDOU,
                  use_ffmpeg: bool = True, flac_args: Optional[List[str]] = None) -> None:
         """
-        Args:
-            file (FileInfo):
-                FileInfo object. Needed in AudioEncoder implementation.
-
-            track (int):
-                Track number.
-
-            xml_tag (Optional[AnyPath], optional):
-                XML file path. If specified, will write a file containing the encoder info
-                to be passed to the muxer.
-                Defaults to None.
-
-            level (FlacCompressionLevel, optional):
-                See FlacCompressionLevel for all levels available.
-                Defaults to FlacCompressionLevel.VARDOU.
-
-            use_ffmpeg (bool, optional):
-                Will use flac if false.
-                Defaults to True.
-
-            flac_args (Optional[List[str]], optional):
-                Additionnal arguments. Defaults to None.
+        :param file:            FileInfo object
+        :param track:           Track number
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        :param level:           See :py:class:`FlacCompressionLevel` for all levels available,
+                                defaults to FlacCompressionLevel.VARDOU
+        :param use_ffmpeg:      Will use flac if false, defaults to True
+        :param flac_args:       Additionnal arguments, defaults to None
         """
         if use_ffmpeg:
             binary = 'ffmpeg'
@@ -369,25 +406,25 @@ class FlacEncoder(AudioEncoder):
             if level <= FlacCompressionLevel.EIGHT:
                 settings = [*flac_args] if flac_args is not None else []
                 settings.extend([f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}'])
-                else:
+            else:
                 Status.fail(f'{self.__class__.__name__}: "level" must be <= 8 if "use_ffmpeg" is false', exception=ValueError)
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
 
 class AudioCutter(ABC):
-    """Audio cutter interface"""
+    """Abstract interface implementing audio trimming"""
+
     file: FileInfo
+    """FileInfo object"""
     track: int
+    """Track number"""
     kwargs: Dict[str, Any]
+    """Additionnal arguments"""
 
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         """
-        Args:
-            file (FileInfo):
-                FileInfo object.
-
-            track (int):
-                Track number.
+        :param file:        FileInfo object
+        :param track:       Track number
         """
         self.file = file
 
@@ -404,7 +441,7 @@ class AudioCutter(ABC):
 
     @abstractmethod
     def run(self) -> None:
-        pass
+        """Trimming toolchain"""
 
     @classmethod
     @abstractmethod
@@ -412,7 +449,15 @@ class AudioCutter(ABC):
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
-        pass
+        """
+        Generate silence if supported by the current interface
+
+        :param s:               Seconds
+        :param output:          Output file path
+        :param num_ch:          Number of channels, defaults to 2
+        :param sample_rate:     Sample rate in Hz, defaults to 48000
+        :param bitdepth:        Bit depth, defaults to 16
+        """
 
 
 FFMPEG_CHANNEL_LAYOUT_MAP: Dict[int, str] = {
@@ -420,11 +465,25 @@ FFMPEG_CHANNEL_LAYOUT_MAP: Dict[int, str] = {
     2: 'stereo',
     6: '5.1'
 }
+"""
+Dictionary containing the channel layout map of ffmpeg
+More information here: https://ffmpeg.org/doxygen/1.2/channel__layout_8c_source.html
+Only "mono", "stereo" and "5.1" are currently supported
+"""
 
 
 class EztrimCutter(AudioCutter):
-    """Audio cutter using eztrim"""
+    """
+    AudioCutter using :py:func:`acsuite.eztrim`
+    If fallback on :py:func:`EztrimCutter.ezpztrim` if some DuplicateFrame object are detected
+    in the FileInfo object specified.
+    """
     force_eztrim: bool = False
+    """
+    Force using :py:func:`acsuite.eztrim`
+    Keep in mind that if you don't specify DuplicateFrame objects in the FileInfo object
+    eztrim will be used anyway.
+    """
 
     _ffmpeg_path: VPath = VPath('ffmpeg')
     _ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
@@ -470,23 +529,13 @@ class EztrimCutter(AudioCutter):
         Simple trimming function that follows VapourSynth/Python slicing syntax.
         End frame is NOT inclusive.
 
-        Args:
-            src (AnyPath): Input file.
-
-            output (AnyPath): Output file.
-
-            trims (Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]]):
-                Either a list of 2-tuples, one tuple of 2 ints, a DuplicateFrame object
-                or a list of of 2-tuples and/or DuplicateFrame object.
-
-            ref_clip (vs.VideoNode):
-                Vapoursynth clip used to determine framerate.
-
-            combine (bool, optional):
-                Keep all performed trims in the same file. Defaults to True.
-
-            cleanup (bool, optional):
-                Delete temporary file. Defaults to True.
+        :param src:             Input file
+        :param output:          Output file
+        :param trims:           Either a list of 2-tuples, one tuple of 2 ints, a DuplicateFrame object
+                                or a list of of 2-tuples and/or DuplicateFrame object.
+        :param ref_clip:        Vapoursynth clip used to determine framerate AND the number of frames.
+        :param combine:         Keep all performed trims in the same file, defaults to True
+        :param cleanup:         Delete temporary files, defaults to True
         """
         src, output = map(VPath, (src, output))
 
@@ -618,22 +667,13 @@ class SoxCutter(AudioCutter):
         Simple trimming function that follows VapourSynth/Python slicing syntax.
         End frame is NOT inclusive.
 
-        Args:
-            src (AnyPath): Input file
-
-            output (AnyPath): Output file.
-
-            trims (Union[Trim, List[Trim]]):
-                Either a list of 2-tuples, or one tuple of 2 ints.
-
-            ref_clip (vs.VideoNode):
-                Vapoursynth clip used to determine framerate
-
-            combine (bool, optional):
-                Keep all performed trims in the same file. Defaults to True.
-
-            cleanup (bool, optional):
-                Delete temporary file. Defaults to True.
+        :param src:             Input file
+        :param output:          Output file
+        :param trims:           Either a list of 2-tuples, one tuple of 2 ints, a DuplicateFrame object
+                                or a list of of 2-tuples and/or DuplicateFrame object.
+        :param ref_clip:        Vapoursynth clip used to determine framerate AND the number of frames.
+        :param combine:         Keep all performed trims in the same file, defaults to True
+        :param cleanup:         Delete temporary files, defaults to True
         """
         src, output = map(VPath, (src, output))
 
@@ -700,6 +740,8 @@ class SoxCutter(AudioCutter):
 
 
 class PassthroughCutter(AudioCutter):
+    """Special AudioCutter that will copy :py:attr:`FileInfo.a_src` to :py:attr:`FileInfo.a_src_cut`"""
+
     def run(self) -> None:
         assert self.file.a_src
         assert self.file.a_src_cut
@@ -714,63 +756,55 @@ class PassthroughCutter(AudioCutter):
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> NoReturn:
+        """You can't generate silence from this class"""
         raise NotImplementedError
 
 
 
 def progress_update_func(value: int, endvalue: int) -> None:
-    """Callback function used in clip.output"""
+    """
+    Callback function used in clip.output
+
+    :param value:       Current value
+    :param endvalue:    End value
+    """
     return print(f"\rVapourSynth: {value}/{endvalue} ~ {100 * value // endvalue}% || Encoder: ", end="")
 
 
 class VideoEncoder(Tool):
-    """VideoEncoder interface"""
+    """General VideoEncoder interface"""
+
     progress_update: Optional[UpdateFunc]
+    """"Progress update function to be used in `vapoursynth.VideoNode.output`"""
 
     file: FileInfo
+    """FileInfo object"""
+
     clip: vs.VideoNode
+    """Your filtered VideoNode clip"""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        """Helper intended to facilitate video encoding
-
-        Args:
-            binary (str):
-                Path to your binary file.
-
-            settings (Union[AnyPath, List[str], Dict[str, Any]]):
-                Path to your settings file or list of string or a dict containing your settings.
-
-            Example:
-                ::
-
-                    # This
-                    >>>cat settings
-                    >>>-o {clip_output:s} - --y4m --preset slower --crf 51
-
-                    # is equivalent to this:
-                    settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
-
-                    # and is equivalent to this:
-                    settings: Dict[str, Any] = {
-                        '-o': '{clip_output:s}',
-                        '-': None,
-                        '--y4m': None,
-                        '--preset': 'slower',
-                        '--crf': 51
-                    }
-
-            progress_update (Optional[UpdateFunc], optional):
-                Current progress can be reported by passing a callback function
-                of the form func(current_frame, total_frames) to progress_update.
-                Defaults to progress_update_func.
+        """
+        :param binary:              Path to your binary file.
+        :param settings:            Path to your settings file or list of string or a dict containing your settings.
+                                    See :py:attr:`Tool.settings`
+        :param progress_update:     Current progress can be reported by passing a callback function
+                                    of the form func(current_frame, total_frames) to progress_update,
+                                    defaults to progress_update_func
         """
         self.progress_update = progress_update
-
         super().__init__(binary, settings)
 
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *, y4m: bool = True) -> None:
-        """Run encoding"""
+        """
+        Run encoding toolchain
+
+        :param clip:            Clip to be encoded
+        :param file:            FileInfo object
+        :param y4m:             Add YUV4MPEG2 headers, defaults to True
+                                More informations http://www.vapoursynth.com/doc/pythonreference.html#VideoNode.output
+        """
         if file:
             self.file = file
 
@@ -785,6 +819,10 @@ class VideoEncoder(Tool):
         self._do_encode(y4m)
 
     def run(self) -> NoReturn:
+        """
+        Shouldn't be used in VideoEncoder object.
+        Use :py:func:`run_enc` instead
+        """
         Status.fail(f'{self.__class__.__name__}: Use `run_enc` instead', exception=NameError)
 
     def set_variable(self) -> Dict[str, Any]:
@@ -812,6 +850,7 @@ class VideoEncoder(Tool):
 class LosslessEncoder(VideoEncoder):
     """Video encoder for lossless encoding"""
 
+    @copy_docstring_from(VideoEncoder.__init__)
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  progress_update: Optional[UpdateFunc] = None) -> None:
         super().__init__(binary, settings, progress_update=progress_update)
@@ -829,7 +868,10 @@ class LosslessEncoder(VideoEncoder):
 
 class NvenccEncoder(LosslessEncoder):
     def __init__(self) -> None:
-        """"""
+        """
+        Built-in NvencC encoder
+        Lossless mode in HEVC. Hardcoded path: 'nvencc'
+        """
         super().__init__(
             'nvencc',
             ['-i', '-', '--y4m',
@@ -843,7 +885,10 @@ class NvenccEncoder(LosslessEncoder):
 
 class FFV1Encoder(LosslessEncoder):
     def __init__(self, *, threads: int = 16) -> None:
-        """"""
+        """
+        Built-in FFV1 encoder
+        Lossless mode in FFV1. Hardcoded path: 'ffmpeg'
+        """
         super().__init__(
             'ffmpeg',
             ['-i', '-',
@@ -858,47 +903,19 @@ class FFV1Encoder(LosslessEncoder):
 class VideoLanEncoder(VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264"""
 
+    @copy_docstring_from(VideoEncoder.__init__, 'o+t')
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
         """
-        Args:
-            settings (Union[AnyPath, List[str], Dict[str, Any]]):
-                Path to your settings file or list of string or a dict containing your settings.
+        :param zones:       Custom zone ranges, defaults to None
 
-            Example:
-                ::
+        .. code-block:: python
 
-                    # This
-                    >>>cat settings
-                    >>>-o {clip_output:s} - --y4m --preset slower --crf 51
-
-                    # is equivalent to this:
-                    settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
-
-                    # and is equivalent to this:
-                    settings: Dict[str, Any] = {
-                        '-o': '{clip_output:s}',
-                        '-': None,
-                        '--y4m': None,
-                        '--preset': 'slower',
-                        '--crf': 51
-                    }
-
-            zones (Optional[Dict[Tuple[int, int], Dict[str, Any]]], optional):
-                Custom zone ranges. Defaults to None.
-            Example:
-                ::
-
-                    zones: Dict[Tuple[int, int], Dict[str, Any]] = {
+            zones: Dict[Tuple[int, int], Dict[str, Any]] = {
                         (3500, 3600): dict(b=3, subme=11),
                         (4800, 4900): {'psy-rd': '0.40:0.05', 'merange': 48}
                     }
-
-            progress_update (Optional[UpdateFunc], optional):
-                Current progress can be reported by passing a callback function
-                of the form func(current_frame, total_frames) to progress_update.
-                Defaults to progress_update_func.
         """
         super().__init__(binary, settings, progress_update=progress_update)
         if zones:
@@ -926,6 +943,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
 class X265Encoder(VideoLanEncoder):
     """Video encoder using x265 in HEVC"""
 
+    @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
@@ -940,6 +958,7 @@ class X265Encoder(VideoLanEncoder):
 class X264Encoder(VideoLanEncoder):
     """Video encoder using x264 in AVC"""
 
+    @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
@@ -950,9 +969,15 @@ class X264Encoder(VideoLanEncoder):
 
 
 class Stream(ABC):
+    """Abstract class representing a stream to be passed to mkvmerge"""
+
     path: VPath
+    """Stream's path"""
 
     def __init__(self, path: AnyPath) -> None:
+        """
+        :param path:        Stream's path
+        """
         self.path = VPath(path)
 
     def __str__(self) -> str:
@@ -960,12 +985,24 @@ class Stream(ABC):
 
 
 class MediaStream(Stream, ABC):
+    """Class representing a media stream to be passed to mkvmerge"""
     name: Optional[str] = None
+    """Stream's name"""
     lang: Lang = UNDEFINED
+    """Stream's language"""
     tag_file: Optional[VPath] = None
+    """XML tag file"""
 
     def __init__(self, path: AnyPath, name: Optional[str] = None,
                  lang: Lang = UNDEFINED, tag_file: Optional[AnyPath] = None) -> None:
+        """
+        Register a MediaStream with its associated informations
+
+        :param path:        Stream's path
+        :param name:        Stream's name, defaults to None
+        :param lang:        Stream's language, defaults to UNDEFINED
+        :param tag_file:    XML tag file, defaults to None
+        """
         super().__init__(path)
         self.name = name
         self.lang = lang
@@ -982,11 +1019,25 @@ class AudioStream(MediaStream):
 
 
 class ChapterStream(Stream):
+    """Class representing a chapter stream to be passed to mkvmerge"""
     lang: Lang = UNDEFINED
+    """Chapter's language"""
+
     charset: Optional[str] = None
+    """
+    Sets the character set that is used for the conversion to UTF-8 for simple chapter files.\n
+    See https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.chapter_charset
+    """
 
     def __init__(self, path: AnyPath,
                  lang: Lang = UNDEFINED, charset: Optional[str] = None) -> None:
+        """
+        Register a ChapterStream with its associated informations
+
+        :param path:        Stream's path
+        :param lang:        Stream's language, defaults to UNDEFINED
+        :param charset:     :py:attr:`charset`, defaults to None
+        """
         super().__init__(path)
         self.lang = lang
         self.charset = charset
@@ -995,17 +1046,25 @@ class ChapterStream(Stream):
 
 class Mux:
     """Muxing interface using mkvmerge"""
-    output: VPath
 
+    output: VPath
+    """Output path"""
     file: FileInfo
+    """FileInfo object"""
 
     video: VideoStream
+    """VideoStream object"""
     audios: Optional[List[AudioStream]]
+    """AudioStream object list"""
     chapters: Optional[ChapterStream]
+    """ChapterStream object"""
     deterministic_seed: Optional[Union[int, str]]
+    """https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.deterministic"""
     merge_args: Dict[str, Any]
+    """Additional arguments to be passed to mkvmerge"""
 
     mkvmerge_path: VPath = VPath('mkvmerge')
+    """Path of mkvmerge"""
 
     __workfiles: Set[VPath]
 
@@ -1022,22 +1081,19 @@ class Mux:
         merge_args: Optional[Dict[str, Any]] = None
     ) -> None:
         """
-            If `streams` is not specified:
-                - Will find `file.name_file_final` as VideoStream
-                - Will try to find in this order file.a_enc_cut, file.a_src_cut, file.a_src as long as there is a file.a_xxxx.set_track(n)
-                - All languages are set to `und` and names to None.
-            Otherwise will mux the `streams` to `file.name_file_final`.
+        If ``streams`` is not specified:
 
-            deterministic_seed:
-                https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.deterministic
+            - Will find :py:attr:`FileInfo.name_file_final` as VideoStream
+            - Will try to find in this order :py:attr:`FileInfo.a_enc_cut`, :py:attr:`FileInfo.a_src_cut`,
+              :py:attr:`FileInfo.a_src` as long as there is a ``file.a_xxxx.set_track(n)``
+            - All languages are set to ``und`` and names to ``None``.
 
-            merge_args:
+        Otherwise will mux the ``streams`` to :py:attr:`FileInfo.name_file_final`.
 
-                Example:
-                    ::
-
-                        merge_args={'--ui-language': 'nl_NL', '--abort-on-warnings': None}
-
+        :param file:                :py:attr:`file`
+        :param streams:             A tuple of :py:attr:`video`, :py:attr:`audios` and :py:attr:`chapters`, defaults to None
+        :param deterministic_seed:  :py:attr:`deterministic_seed`, defaults to None
+        :param merge_args:          :py:attr:`merge_args`, defaults to None
         """
         self.output = file.name_file_final
         self.deterministic_seed = deterministic_seed
