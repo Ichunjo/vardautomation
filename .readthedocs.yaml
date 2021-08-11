@@ -1,9 +1,7 @@
 version: 2
 
 build:
-  image: 'testing'
-  apt_packages:
-    - build-essential
+  image: 'latest'
 
 sphinx:
     configuration: docs/conf.py
@@ -11,7 +9,6 @@ sphinx:
 formats: all
 
 python:
-    version: '3.9'
+    version: '3.8'
     install:
     - requirements: docs/requirements.txt
-
