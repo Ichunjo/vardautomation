@@ -21,6 +21,154 @@ from .vpathlib import VPath
 core = vs.core
 
 
+class PresetType(IntEnum):
+    """Type of preset"""
+    NO_PRESET = 0
+    """Special type"""
+    VIDEO = 10
+    """Video type"""
+    AUDIO = 20
+    """Audio type"""
+    CHAPTER = 30
+    """Chapter type"""
+
+
+@dataclass
+class Preset:
+    """Preset class that fills some attributes of :py:class:`FileInfo`"""
+    idx: Optional[Callable[[str], vs.VideoNode]]
+    a_src: Optional[VPath]
+    a_src_cut: Optional[VPath]
+    a_enc_cut: Optional[VPath]
+    chapter: Optional[VPath]
+    preset_type: PresetType
+
+
+NoPreset = Preset(
+    idx=None,
+    a_src=VPath(''),
+    a_src_cut=VPath(''),
+    a_enc_cut=VPath(''),
+    chapter=VPath(''),
+    preset_type=PresetType.NO_PRESET
+)
+"""
+Special Preset that won't do anything
+"""
+
+PresetGeneric = Preset(
+    idx=source,
+    a_src=None,
+    a_src_cut=None,
+    a_enc_cut=None,
+    chapter=None,
+    preset_type=PresetType.VIDEO
+)
+"""
+Generic preset which index the video using :py:func:`lvsfunc.misc.source`
+"""
+
+PresetBD = Preset(
+    idx=core.lsmas.LWLibavSource,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.wav'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.wav'),
+    a_enc_cut=None,
+    chapter=None,
+    preset_type=PresetType.VIDEO
+)
+"""
+Preset for BD encode.
+The indexer is core.lsmas.LWLibavSource and audio sources are .wav
+"""
+
+PresetWEB = Preset(
+    idx=core.ffms2.Source,
+    a_src=None,
+    a_src_cut=None,
+    a_enc_cut=VPath(''),
+    chapter=None,
+    preset_type=PresetType.VIDEO
+)
+"""
+Preset for WEB encode.
+The indexer is core.ffms2.Source and a_enc_cut is blocked
+"""
+
+PresetAAC = Preset(
+    idx=None,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.aac'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.aac'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.m4a'),
+    chapter=None,
+    preset_type=PresetType.AUDIO
+)
+"""
+Preset for AAC encode.
+"""
+
+PresetOpus = Preset(
+    idx=None,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.opus'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.opus'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.opus'),
+    chapter=None,
+    preset_type=PresetType.AUDIO
+)
+"""
+Preset for Opus encode.
+"""
+
+
+PresetEAC3 = Preset(
+    idx=None,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.eac3'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.eac3'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.eac3'),
+    chapter=None,
+    preset_type=PresetType.AUDIO
+)
+"""
+Preset for EAC3 encode.
+"""
+
+PresetFLAC = Preset(
+    idx=None,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.flac'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.flac'),
+    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.flac'),
+    chapter=None,
+    preset_type=PresetType.AUDIO
+)
+"""
+Preset for FLAC encode.
+"""
+
+PresetChapOGM = Preset(
+    idx=None,
+    a_src=None,
+    a_src_cut=None,
+    a_enc_cut=None,
+    chapter=VPath('chapters/{name:s}.txt'),
+    preset_type=PresetType.CHAPTER
+)
+"""
+Preset for OGM based chapters.
+"""
+
+PresetChapXML = Preset(
+    idx=None,
+    a_src=None,
+    a_src_cut=None,
+    a_enc_cut=None,
+    chapter=VPath('chapters/{name:s}.xml'),
+    preset_type=PresetType.CHAPTER
+)
+"""
+Preset for XML based chapters.
+"""
+
+
+
 class FileInfo:
     """File info object"""
     path: VPath
