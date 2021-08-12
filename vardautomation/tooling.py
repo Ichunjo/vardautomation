@@ -90,19 +90,17 @@ class Tool(ABC):
         """Set variables in the settings"""
 
     def _get_settings(self) -> None:
-        params: List[str] = []
-
         if isinstance(self.settings, dict):
             for k, v in self.settings.items():
-                params += [k] + ([str(v)] if v else [])
+                self.params += [k] + ([str(v)] if v else [])
         elif isinstance(self.settings, list):
-            params = self.settings
+            self.params = self.settings
         else:
             with open(self.settings, 'r') as sttgs:
                 params_re = re.split(r'[\n\s]\s*', sttgs.read())
-                params = [p for p in params_re if isinstance(p, str)]
+                self.params = [p for p in params_re if isinstance(p, str)]
 
-                if len(params_re) != len(params):
+                if len(params_re) != len(self.params):
                     not_str_p = [p for p in params_re if not isinstance(p, str)]
                     string = f' "{not_str_p.pop()}" is ' if len(not_str_p) == 1 else 's "' + ', '.join(not_str_p) + '" are '
                     Status.fail(f'{self.__class__.__name__}: param{string} not a str object')
@@ -115,8 +113,8 @@ class Tool(ABC):
                 exception=FileNotFoundError, chain_err=file_not_found
             )
 
-        self.params += [self.binary.to_str()]
-        for p in params:
+        params_parsed: List[str] = []
+        for p in self.params:
             # pylint: disable=W0702
             try:
                 p = p.format(**self.set_variable())
@@ -124,12 +122,16 @@ class Tool(ABC):
                 Status.warn(f'{self.__class__.__name__}: param {p} is not a str object; trying to convert to str...')
                 p = str(p).format(**self.set_variable())
             except:  # noqa: E722
-                exception = sys.exc_info()[0]
+                excp_type, excp_val, traceback = sys.exc_info()
                 Status.fail(
-                    f'{self.__class__.__name__}: Unexpected exception!',
-                    exception=exception if exception is not None else BaseException
+                    f'{self.__class__.__name__}: Unexpected exception from the following traceback: "{traceback}"',
+                    exception=excp_type if excp_type is not None else BaseException,
+                    chain_err=excp_val
                 )
-            self.params.append(p)
+            params_parsed.append(p)
+        self.params.clear()
+        self.params = [self.binary.to_str()] + params_parsed
+
 
 
 class BasicTool(Tool):
