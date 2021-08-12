@@ -12,7 +12,7 @@ from vardefunc.types import DuplicateFrame, Trim
 AnyPath = Union[PathLike[str], str]
 """Represents a PathLike"""
 
-Element = etree._Element
+Element = etree._Element  # type: ignore
 
 UpdateFunc = Callable[[int, int], None]
 """An update function type suitable for ``vapoursynth.VideoNode.output``"""
@@ -21,7 +21,7 @@ VPSIdx = Callable[[str], VideoNode]
 """Vapoursynth function indexer"""
 
 
-class ElementTree(etree._ElementTree):
+class ElementTree(etree._ElementTree):  # type: ignore
     def xpath(self, _path: Union[str, bytes],  # type: ignore
               namespaces: Optional[Union[Dict[str, str], Dict[bytes, bytes]]] = None,
               extensions: Any = None, smart_strings: bool = True,

@@ -117,14 +117,13 @@ class Tool(ABC):
 
         self.params += [self.binary.to_str()]
         for p in params:
+            # pylint: disable=W0702
             try:
                 p = p.format(**self.set_variable())
             except AttributeError:
                 Status.warn(f'{self.__class__.__name__}: param {p} is not a str object; trying to convert to str...')
                 p = str(p).format(**self.set_variable())
-            # pylint: disable=bare-except
-            except:  # noqa: E722, PLW0702
-                # pylint: enable=bare-except
+            except:  # noqa: E722
                 exception = sys.exc_info()[0]
                 Status.fail(
                     f'{self.__class__.__name__}: Unexpected exception!',
@@ -776,7 +775,7 @@ class PassthroughCutter(AudioCutter):
         )
 
     @classmethod
-    def generate_silence(
+    def generate_silence(  # type: ignore
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> NoReturn:
@@ -842,7 +841,7 @@ class VideoEncoder(Tool):
 
         self._do_encode(y4m)
 
-    def run(self) -> NoReturn:
+    def run(self) -> NoReturn:  # type: ignore
         """
         Shouldn't be used in VideoEncoder object.
         Use :py:func:`run_enc` instead
