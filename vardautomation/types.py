@@ -25,7 +25,7 @@ class ElementTree(etree._ElementTree):
     def xpath(self, _path: Union[str, bytes],  # type: ignore
               namespaces: Optional[Union[Dict[str, str], Dict[bytes, bytes]]] = None,
               extensions: Any = None, smart_strings: bool = True,
-              **_variables) -> List[Element]:
+              **_variables: Any) -> List[Element]:
         xpathobject = super().xpath(
             _path, namespaces=namespaces, extensions=extensions,
             smart_strings=smart_strings, **_variables
