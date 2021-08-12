@@ -70,6 +70,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/make.bat
+docs/Makefile
 
 # PyBuilder
 target/
@@ -132,7 +134,7 @@ dmypy.json
 
 # Random files
 vardautomation/shaders.py
-random_test_files
+.my_test_files
 
 # Index files
 *.ffindex
@@ -140,8 +142,3 @@ random_test_files
 
 # Video test file
 *.mkv
-
-# Docs file
-docs/_build
-docs/make.bat
-docs/Makefile
