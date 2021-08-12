@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+from typing import Optional
+
 from langcodes import Language
-from typing import Any, Optional
+
 
 class Lang:
     name: str
@@ -9,7 +13,8 @@ class Lang:
     @classmethod
     def make(cls, ietf: Optional[str]) -> Lang: ...
 
-FRENCH: Any
-ENGLISH: Any
-JAPANESE: Any
-UNDEFINED: Any
+
+FRENCH: Lang
+ENGLISH: Lang
+JAPANESE: Lang
+UNDEFINED: Lang
