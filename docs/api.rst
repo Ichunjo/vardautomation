@@ -136,3 +136,9 @@ Types
 .. autodata:: vardautomation.types.Trim
 .. autodata:: vardautomation.types.UpdateFunc
 .. autodata:: vardautomation.types.VPSIdx
+
+Comparison
+============
+.. autofunction:: vardautomation.comp.make_comps
+.. autoclass:: vardautomation.comp.Writer
+   :members:

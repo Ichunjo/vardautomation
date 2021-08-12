@@ -9,9 +9,10 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import vapoursynth as vs
 from lvsfunc.render import clip_async_render
-from requests import Session, session
-from requests_toolbelt import MultipartEncoder  # type: ignore
+from requests import Session
+from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
+from vardefunc.util import select_frames
 
 from .status import Status
 from .tooling import SubProcessAsync, VideoEncoder
@@ -20,8 +21,11 @@ from .vpathlib import VPath
 
 
 class Writer(Enum):
+    """Writer to be used to extract frames"""
     FFMPEG = 0
+    """ffmpeg encoder"""
     IMWRI = 1
+    """core.imwri.Write Vapoursynth plugin"""
 
 
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
@@ -30,39 +34,20 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                writer: Writer = Writer.FFMPEG,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
-    """Extract frames, make diff between two clips and upload to slow.pics
+    """
+    Extract frames, make diff between two clips and upload to slow.pics
 
-    Args:
-        clips (Dict[str, vs.VideoNode]):
-            Named clips.
-
-        path (AnyPath, optional):
-            Path to your comparison folder. Defaults to 'comps'.
-
-        num (int, optional):
-            Number of frames to extract. Defaults to 15.
-
-        frames (Optional[Sequence[int]], optional):
-            Additionnal frame numbers that will be added to the total of `num`.
-            Defaults to None.
-
-        force_bt709 (bool, optional):
-            Force BT709 matrix before conversion to RGB24.
-            Defaults to False.
-
-        magick_compare (bool, optional):
-            Make diffs between the first and second clip.
-            Will raise an exception if more than 2 clips are passed to clips.
-            Defaults to False.
-
-        slowpics (bool, optional):
-            Upload to slow.pics. Defaults to False.
-
-        collection_name (str, optional):
-            Slowpics's collection name. Defaults to ''.
-
-        public (bool, optional):
-            Make the comparison public. Defaults to True.
+    :param clips:               Named clips.
+    :param path:                Path to your comparison folder, defaults to 'comps'
+    :param num:                 Number of frames to extract, defaults to 15
+    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
+    :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
+    :param writer:              Writer method to be used, defaults to Writer.FFMPEG
+    :param magick_compare:      Make diffs between the first and second clip
+                                Will raise an exception if more than 2 clips are passed to clips, defaults to False
+    :param slowpics:            Upload to slow.pics, defaults to False
+    :param collection_name:     Slowpics's collection name, defaults to ''
+    :param public:              Make the comparison public, defaults to True
     """
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
@@ -101,7 +86,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
         )
 
         if writer == Writer.FFMPEG:
-            clip = vs.core.std.Splice([clip[f] for f in frames])
+            clip = select_frames(clip, frames)
 
             # -> RGB -> GBR. Needed for ffmpeg
             # Also FPS=1/1. I'm just lazy, okay?
@@ -130,7 +115,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
             reqs = clip.imwri.Write(
                 'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
             )
-            clip = vs.core.std.Splice([reqs[f] for f in frames])
+            clip = select_frames(reqs, frames)
             # zzzzzzzzz soooo slow
             clip_async_render(clip)
 
@@ -188,7 +173,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                 fields[f'comparisons[{j}].images[{i}].name'] = name
                 fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
 
-        sess = session()
+        sess = Session()
         sess.get('https://slow.pics/api/comparison')
         # TODO: yeet this
         files = MultipartEncoder(fields)
