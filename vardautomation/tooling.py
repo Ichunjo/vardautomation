@@ -473,7 +473,7 @@ class AudioCutter(ABC):
     def generate_silence(
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
-    ) -> None:
+    ) -> Union[None, NoReturn]:
         """
         Generate silence if supported by the current interface
 
@@ -777,7 +777,7 @@ class PassthroughCutter(AudioCutter):
         )
 
     @classmethod
-    def generate_silence(  # type: ignore
+    def generate_silence(
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> NoReturn:

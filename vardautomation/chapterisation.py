@@ -10,7 +10,8 @@ from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
 from shutil import copyfile
-from typing import List, NamedTuple, NoReturn, Optional, Sequence, Type, cast
+from typing import (List, NamedTuple, NoReturn, Optional, Sequence, Type,
+                    Union, cast)
 
 from lxml import etree
 from pyparsebluray import mpls
@@ -45,11 +46,11 @@ class Chapters(ABC):
         return pformat(recursive_dict(self), indent=1, width=200, sort_dicts=False)
 
     @abstractmethod
-    def create(self, chapters: List[Chapter], fps: Fraction) -> None:
+    def create(self, chapters: List[Chapter], fps: Fraction) -> Union[None, NoReturn]:
         """Create a chapter"""
 
     @abstractmethod
-    def set_names(self, names: Sequence[Optional[str]]) -> None:
+    def set_names(self, names: Sequence[Optional[str]]) -> Union[None, NoReturn]:
         """Change chapter names."""
 
     @abstractmethod
@@ -62,8 +63,8 @@ class Chapters(ABC):
         copyfile(self.chapter_file.absolute(), destination.absolute())
         self.chapter_file = destination
         Status.info(
-            'Chapter file sucessfully copied from: '
-            + f'"{self.chapter_file.absolute().to_str()}" to "{destination.absolute().to_str()}"'
+            f'{self.__class__.__name__}:Chapter file sucessfully copied from: '
+            f'"{self.chapter_file.absolute().to_str()}" to "{destination.absolute().to_str()}"'
         )
 
     def create_qpfile(self, qpfile: AnyPath, fps: Fraction) -> None:
@@ -72,12 +73,15 @@ class Chapters(ABC):
 
         keyf = [chap.start_frame for chap in self.to_chapters(fps, None)]
 
-        qpfile.write_text('\n'.join([f"{f} K" for f in sorted(keyf)]), encoding='utf-8')
+        qpfile.write_text('\n'.join(f"{f} K" for f in sorted(keyf)), encoding='utf-8')
 
-        Status.info(f'Qpfile sucessfully created at: "{qpfile.absolute().to_str()}"')
+        Status.info(f'{self.__class__.__name__}:Qpfile sucessfully created at: "{qpfile.absolute().to_str()}"')
 
     def _logging(self, action: str) -> None:
-        Status.info(f'Chapter file sucessfully {action} at: "{self.chapter_file.absolute().to_str()}"')
+        Status.info(
+            f'{self.__class__.__name__}: Chapter file sucessfully {action} at: '
+            f'"{self.chapter_file.absolute().to_str()}"'
+        )
 
 
 class OGMChapters(Chapters):
@@ -159,9 +163,6 @@ class OGMChapters(Chapters):
         with self.chapter_file.open('r') as file:
             data = file.readlines()
         return data
-
-
-
 
 
 
@@ -339,8 +340,6 @@ class MatroskaXMLChapters(Chapters):
             Status.fail('_get_tree: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
 
 
-
-
 class MplsChapters(Chapters):
     """MplsChapters object"""
     m2ts: VPath
@@ -376,7 +375,7 @@ class IfoChapters(Chapters):
         return self.chapters
 
 
-class MplsReader():
+class MplsReader:
     """Mpls reader"""
     bd_folder: VPath
 
@@ -525,7 +524,7 @@ class MplsReader():
         ]
 
 
-class IfoReader():
+class IfoReader:
     """Mpls reader"""
     dvd_folder: VPath
 
