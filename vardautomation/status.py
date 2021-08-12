@@ -15,12 +15,12 @@ class Colours:
 
 class Status:
     @staticmethod
-    def fail(string: str, /, *, exception: Type[Exception] = Exception, chain_err: Optional[Exception] = None) -> NoReturn:
+    def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
         raise exception(f'{Colours.FAIL}{string}{Colours.RESET}') from chain_err
 
     @staticmethod
     def warn(string: str, /, raise_error: bool = False, *,
-             exception: Optional[Type[Exception]] = Exception, chain_err: Optional[Exception] = None) -> None:
+             exception: Optional[Type[BaseException]] = Exception, chain_err: Optional[BaseException] = None) -> None:
         if not raise_error:
             print(f'{Colours.WARN}{string}{Colours.RESET}')
         else:
@@ -29,7 +29,7 @@ class Status:
 
     @staticmethod
     def info(string: str, /, raise_error: bool = False, *,
-             exception: Optional[Type[Exception]] = Exception, chain_err: Optional[Exception] = None) -> None:
+             exception: Optional[Type[BaseException]] = Exception, chain_err: Optional[BaseException] = None) -> None:
         if not raise_error:
             print(f'{Colours.INFO}{string}{Colours.RESET}')
         else:

@@ -15,6 +15,7 @@ import asyncio
 import os
 import re
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pprint import pformat
@@ -89,14 +90,22 @@ class Tool(ABC):
         """Set variables in the settings"""
 
     def _get_settings(self) -> None:
+        params: List[str] = []
+
         if isinstance(self.settings, dict):
             for k, v in self.settings.items():
-                self.params += [k] + ([str(v)] if v else [])
+                params += [k] + ([str(v)] if v else [])
         elif isinstance(self.settings, list):
-            self.params = self.settings
+            params = self.settings
         else:
             with open(self.settings, 'r') as sttgs:
-                self.params = re.split(r'[\n\s]\s*', sttgs.read())
+                params_re = re.split(r'[\n\s]\s*', sttgs.read())
+                params = [p for p in params_re if isinstance(p, str)]
+
+                if len(params_re) != len(params):
+                    not_str_p = [p for p in params_re if not isinstance(p, str)]
+                    string = f' "{not_str_p.pop()}" is ' if len(not_str_p) == 1 else 's "' + ', '.join(not_str_p) + '" are '
+                    Status.fail(f'{self.__class__.__name__}: param{string} not a str object')
 
         try:
             subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
@@ -106,8 +115,22 @@ class Tool(ABC):
                 exception=FileNotFoundError, chain_err=file_not_found
             )
 
-        self.params.insert(0, self.binary.to_str())
-        self.params = [p.format(**self.set_variable()) for p in self.params]
+        self.params += [self.binary.to_str()]
+        for p in params:
+            try:
+                p = p.format(**self.set_variable())
+            except AttributeError:
+                Status.warn(f'{self.__class__.__name__}: param {p} is not a str object; trying to convert to str...')
+                p = str(p).format(**self.set_variable())
+            # pylint: disable=bare-except
+            except:  # noqa: E722, PLW0702
+                # pylint: enable=bare-except
+                exception = sys.exc_info()[0]
+                Status.fail(
+                    f'{self.__class__.__name__}: Unexpected exception!',
+                    exception=exception if exception is not None else BaseException
+                )
+            self.params.append(p)
 
 
 class BasicTool(Tool):
@@ -1012,11 +1035,11 @@ class MediaStream(Stream, ABC):
 
 
 class VideoStream(MediaStream):
-    pass
+    ...
 
 
 class AudioStream(MediaStream):
-    pass
+    ...
 
 
 class ChapterStream(Stream):
