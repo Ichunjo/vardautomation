@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__ = [
     'Tool', 'BasicTool',
+    'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FfmpegAudioExtracter',
     'AudioEncoder', 'QAACEncoder', 'OpusEncoder', 'FlacCompressionLevel', 'FlacEncoder',
     'AudioCutter', 'EztrimCutter', 'SoxCutter',
     'VideoEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
@@ -16,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pprint import pformat
@@ -137,7 +139,6 @@ class Tool(ABC):
         self.params = [self.binary.to_str()] + params_parsed
 
 
-
 class BasicTool(Tool):
     """BasicTool interface"""
 
@@ -169,42 +170,158 @@ class BasicTool(Tool):
 
 
 class AudioExtracter(BasicTool):
+    """Audio extracter interface"""
+
     file: FileInfo
-    track: int
+    """FileInfo object"""
 
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 file: FileInfo, *, track: int) -> None:
-        """[summary]
+    track_in: Sequence[int]
+    """Track number of the input file"""
 
-        Args:
-            binary (AnyPath): [description]
-            settings (Union[AnyPath, List[str], Dict[str, Any]]): [description]
-            file (FileInfo): [description]
-            track (int): [description]
+    track_out: Sequence[int]
+    """Track number of the output file"""
+
+    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /, file: FileInfo) -> None:
         """
+        Base class for audio extration
+
+        :param binary:          See :py:attr:`Tool.binary`
+        :param settings:        See :py:attr:`Tool.settings`
+        :param file:            FileInfo object, needed
+        """
+        if file.a_src is None:
+            Status.fail(f'{self.__class__.__name__}: `file.a_src` is needed!', exception=ValueError)
         super().__init__(binary, settings, file=file)
 
-        if self.file.a_src is None:
-            Status.fail('AudioEncoder: `file.a_src` is needed!', exception=ValueError)
 
-        if track > 0:
-            self.track = track
-        else:
-            Status.fail('AudioEncoder: `track` must be > 0', exception=ValueError)
+class _AutoSetTrack(AudioExtracter, ABC):
+    def __init__(self, binary: AnyPath, settings: List[str], /, file: FileInfo,
+                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
+
+        track_in = [track_in] if isinstance(track_in, int) else track_in
+        track_out = [track_out] if isinstance(track_out, int) else track_out
+
+        if len(track_in) != len(track_out):
+            Status.fail(f'{self.__class__.__name__}: number of `track_in` and `track_out` must be the same!')
+        if any(t < 0 for t in track_in) or any(t < 0 for t in track_out):
+            Status.fail(f'{self.__class__.__name__}: `track_in` and `track_out` must be > 0', exception=ValueError)
+
+        self.track_in = track_in
+        self.track_out = track_out
+
+        super().__init__(binary, settings, file=file)
+
+    def run(self) -> None:
+        self._get_settings()
+        self.set_tracks_number()
+        self._do_tooling()
+
+    @abstractmethod
+    def set_tracks_number(self) -> None:
+        """Internal function for setting the track(s) number"""
 
     def set_variable(self) -> Dict[str, Any]:
+        return dict(path=self.file.path.to_str())
+
+
+class _SimpleSetTrack(_AutoSetTrack, ABC):
+    def set_tracks_number(self) -> None:
         assert self.file.a_src
-        return dict(track=self.track,
-                    a_src_cut=self.file.path.to_str(),
-                    a_enc_cut=self.file.a_src.format(self.track).to_str())
+        # Set the tracks for eac3to and mkvmerge since they share the same pattern
+        for t_in, t_out in zip(self.track_in, self.track_out):
+            self.params.append(f'{t_in}:{self.file.a_src.set_track(t_out).to_str():s}')
 
 
-class FfmpegExtracter(AudioExtracter):
-    pass
+class _FfmpegSetTrack(_AutoSetTrack, ABC):
+    def set_tracks_number(self) -> None:
+        # ffmpeg is a bit more annoying since it can't guess the bitdepth
+        # I'm using mediainfo here because it's already implemented in FileInfo
+        # but I guess using ffprobe could be nice too.
+        acodecs = {24: 'pcm_s24le', 16: 'pcm_s16le'}
+
+        assert self.file.a_src
+
+        media_info = self.file.media_info.to_data()
+        try:
+            mi_tracks = media_info['tracks']
+        except AttributeError as attr_err:
+            Status.fail(
+                f'{self.__class__.__name__}: can\'t find any tracks in this file',
+                exception=AttributeError, chain_err=attr_err
+            )
+
+        for t_in, t_out in zip(self.track_in, self.track_out):
+            if mi_tracks[1 + t_in]['track_type'] == 'Audio':
+                try:
+                    t_format = mi_tracks[1 + t_in]['format']
+                except AttributeError as attr_err:
+                    Status.fail(
+                        f'{self.__class__.__name__}: can\'t find the format of the track number "{t_in}"!',
+                        exception=AttributeError, chain_err=attr_err
+                    )
+                if t_format in {'PCM', 'DTS'}:
+                    ac = acodecs[int(mi_tracks[1 + t_in]['bit_depth'])]
+                else:
+                    ac = 'copy'
+                self.params += ['-map', f'0:{t_in}', '-acodec', ac, self.file.a_src.set_track(t_out).to_str()]
+            else:
+                Status.fail(
+                    f'{self.__class__.__name__}: specified track number "{t_in}" is not a audio type track!',
+                    exception=ValueError
+                )
 
 
-class Eac3toExtracter(AudioExtracter):
-    pass
+class MKVAudioExtracter(_SimpleSetTrack):
+    """AudioExtracter using MKVExtract"""
+
+    _mkvextract_path: VPath = VPath('mkvextract')
+
+    def __init__(self, file: FileInfo, /, *,
+                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
+                 mkvextract_args: Optional[List[str]] = None) -> None:
+        """
+        :param file:                FileInfo object, needed
+        :param track_in:            Input track(s) number
+        :param track_out:           Output track(s) number
+        :param mkvextract_args:     https://mkvtoolnix.download/doc/mkvextract.html, defaults to None
+        """
+        settings = ['{path:s}', '--abort-on-warnings', 'tracks'] + (mkvextract_args if mkvextract_args is not None else [])
+        super().__init__(self._mkvextract_path, settings, file, track_in=track_in, track_out=track_out)
+
+
+class Eac3toAudioExtracter(_SimpleSetTrack):
+    """AudioExtracter using Eac3to"""
+
+    _eac3to_path: VPath = VPath('eac3to')
+
+    def __init__(self, file: FileInfo, /, *,
+                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
+                 eac3to_args: Optional[List[str]] = None) -> None:
+        """
+        :param file:                FileInfo object, needed
+        :param track_in:            Input track(s) number
+        :param track_out:           Output track(s) number
+        :param eac3to_args:         https://en.wikibooks.org/wiki/Eac3to/How_to_Use, defaults to None
+        """
+        settings = ['{path:s}']
+        super().__init__(self._eac3to_path, settings, file, track_in=track_in, track_out=track_out)
+        self.params.extend(eac3to_args if eac3to_args else [])
+
+
+class FfmpegAudioExtracter(_FfmpegSetTrack):
+    """AudioExtracter using Ffmpeg"""
+
+    _ffmpeg_path: VPath = VPath('ffmpeg')
+
+    def __init__(self, file: FileInfo, /, *,
+                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
+        """
+        :param file:                FileInfo object, needed
+        :param track_in:            Input track(s) number
+        :param track_out:           Output track(s) number
+        """
+        settings = ['-i', '{path:s}', '-y']
+        super().__init__(self._ffmpeg_path, settings, file, track_in=track_in, track_out=track_out)
 
 
 class AudioEncoder(BasicTool):

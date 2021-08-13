@@ -12,8 +12,8 @@ import vapoursynth as vs
 
 from .config import FileInfo
 from .status import Status
-from .tooling import (AudioCutter, AudioEncoder, BasicTool, LosslessEncoder,
-                      Mux, VideoEncoder)
+from .tooling import (AudioCutter, AudioEncoder, AudioExtracter,
+                      LosslessEncoder, Mux, VideoEncoder)
 from .types import AnyPath
 
 core = vs.core
@@ -58,7 +58,7 @@ class RunnerConfig(NamedTuple):
     """Config for the SelfRunner"""
     v_encoder: VideoEncoder
     v_lossless_encoder: Optional[LosslessEncoder] = None
-    a_extracters: Union[BasicTool, Sequence[BasicTool], None] = None
+    a_extracters: Union[AudioExtracter, Sequence[AudioExtracter], None] = None
     a_cutters: Union[AudioCutter, Sequence[AudioCutter], None] = None
     a_encoders: Union[AudioEncoder, Sequence[AudioEncoder], None] = None
     muxer: Optional[Mux] = None
