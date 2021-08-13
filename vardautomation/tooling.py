@@ -561,6 +561,7 @@ class FlacCompressionLevel(IntEnum):
 
 class FlacEncoder(AudioEncoder):
     """AudioEncoder using FLAC, Free Lossless Audio Codec"""
+
     def __init__(self, file: FileInfo, *,
                  track: int = -1, xml_tag: Optional[AnyPath] = None,
                  level: FlacCompressionLevel = FlacCompressionLevel.VARDOU,
