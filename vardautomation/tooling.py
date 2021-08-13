@@ -44,8 +44,10 @@ class Tool(ABC):
     Abstract Tool interface
     Most of the tools inherit from it
     """
+
     binary: VPath
     """Binary path"""
+
     settings: Union[AnyPath, List[str], Dict[str, Any]]
     """
     Path to your settings file or list of string or a dict containing your settings.
@@ -68,6 +70,7 @@ class Tool(ABC):
             '--crf': 51
         }
     """
+
     params: List[str]
     """Settings normalised and parsed"""
 
@@ -82,7 +85,7 @@ class Tool(ABC):
         super().__init__()
 
     @abstractmethod
-    def run(self) -> None:
+    def run(self) -> Union[None, NoReturn]:
         """Tooling chain"""
 
     @abstractmethod
@@ -94,11 +97,11 @@ class Tool(ABC):
             for k, v in self.settings.items():
                 self.params += [k] + ([str(v)] if v else [])
         elif isinstance(self.settings, list):
-            self.params = self.settings
+            self.params += self.settings
         else:
             with open(self.settings, 'r') as sttgs:
                 params_re = re.split(r'[\n\s]\s*', sttgs.read())
-                self.params = [p for p in params_re if isinstance(p, str)]
+                self.params += [p for p in params_re if isinstance(p, str)]
 
                 if len(params_re) != len(self.params):
                     not_str_p = [p for p in params_re if not isinstance(p, str)]
@@ -122,11 +125,12 @@ class Tool(ABC):
                 Status.warn(f'{self.__class__.__name__}: param {p} is not a str object; trying to convert to str...')
                 p = str(p).format(**self.set_variable())
             except:  # noqa: E722
-                excp_type, excp_val, traceback = sys.exc_info()
+                excp_type, excp_val, trback = sys.exc_info()
                 Status.fail(
-                    f'{self.__class__.__name__}: Unexpected exception from the following traceback: "{traceback}"',
-                    exception=excp_type if excp_type is not None else BaseException,
-                    chain_err=excp_val
+                    f'{self.__class__.__name__}: Unexpected exception from the following traceback:\n'
+                    + ''.join(traceback.format_tb(trback))
+                    + (excp_type.__name__ if excp_type else Exception.__name__) + ': '
+                    + str(excp_val), exception=Exception, chain_err=excp_val
                 )
             params_parsed.append(p)
         self.params.clear()
@@ -882,7 +886,7 @@ class VideoEncoder(Tool):
 
         self._do_encode(y4m)
 
-    def run(self) -> NoReturn:  # type: ignore
+    def run(self) -> NoReturn:
         """
         Shouldn't be used in VideoEncoder object.
         Use :py:func:`run_enc` instead
