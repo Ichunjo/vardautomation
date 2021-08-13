@@ -61,6 +61,44 @@ Video encoders
    :inherited-members:
    :show-inheritance:
 
+Audio extracters
+----------------
+.. autoclass:: vardautomation.tooling.AudioExtracter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.MKVAudioExtracter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.Eac3toAudioExtracter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.FfmpegAudioExtracter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+Audio cutters
+----------------
+.. autoclass:: vardautomation.tooling.AudioCutter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.EztrimCutter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.SoxCutter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.PassthroughCutter
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
 Audio encoders
 ----------------
 .. autoclass:: vardautomation.tooling.AudioEncoder
@@ -82,25 +120,6 @@ Audio encoders
 .. autoclass:: vardautomation.tooling.FlacCompressionLevel
    :members:
 .. autoclass:: vardautomation.tooling.FlacEncoder
-   :members:
-   :inherited-members:
-   :show-inheritance:
-
-Audio cutters
-----------------
-.. autoclass:: vardautomation.tooling.AudioCutter
-   :members:
-   :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.EztrimCutter
-   :members:
-   :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.SoxCutter
-   :members:
-   :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.PassthroughCutter
    :members:
    :inherited-members:
    :show-inheritance:
