@@ -557,7 +557,7 @@ class FDKAACEncoder(AudioEncoder):
         :param track:           Track number
         :param mode:            Bitrate mode, fdkaac supports CBR and VBR, defaults to BitrateMode.CBR
         :param bitrate:         Matches the bitrate for CBR in kbit/s and quality Q for VBR, defaults to 256
-        :param cutoff:          Set cutoff frequency. If not specified (or explicitly set to 0) it will use a value automatically computed by the library.
+        :param cutoff:          Set cutoff frequency. If not specified (or explicitly set to 0) it will use a value automatically computed by the library.  # noqa: E501
                                 Correspond to frequency bandwidth in Hz in fdkaac library, defaults to 20000
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         :param use_ffmpeg:      Use ``fdkaac`` if False, defaults to True
