@@ -1164,10 +1164,13 @@ class Stream(ABC):
 
 class MediaStream(Stream, ABC):
     """Class representing a media stream to be passed to mkvmerge"""
+
     name: Optional[str] = None
     """Stream's name"""
+
     lang: Lang = UNDEFINED
     """Stream's language"""
+
     tag_file: Optional[VPath] = None
     """XML tag file"""
 
@@ -1198,7 +1201,8 @@ class AudioStream(MediaStream):
 
 class ChapterStream(Stream):
     """Class representing a chapter stream to be passed to mkvmerge"""
-    lang: Lang = UNDEFINED
+
+    lang: Lang
     """Chapter's language"""
 
     charset: Optional[str] = None
