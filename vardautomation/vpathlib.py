@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 class VPath(Path):
-    """Vardë Path"""
+    """Vardë pathlib.Path"""
     # pylint: disable=no-member
     _flavour = type(Path())._flavour  # type: ignore
 

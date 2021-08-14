@@ -4,7 +4,7 @@ __all__ = ['make_comps', 'Writer']
 
 import random
 import subprocess
-from enum import Enum
+from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Sequence
 
 import vapoursynth as vs
@@ -23,10 +23,15 @@ from .vpathlib import VPath
 
 class Writer(Enum):
     """Writer to be used to extract frames"""
-    FFMPEG = 0
+
+    FFMPEG = auto()
     """ffmpeg encoder"""
-    IMWRI = 1
+
+    IMWRI = auto()
     """core.imwri.Write Vapoursynth plugin"""
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}.{self.name}>'
 
 
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
@@ -191,7 +196,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 
         url_file = path / 'slow.pics.url'
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
-        Status.info(f'url file copied to {url_file}')
+        Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:

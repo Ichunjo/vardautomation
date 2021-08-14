@@ -60,11 +60,11 @@ class Chapters(ABC):
     def copy(self, destination: AnyPath) -> None:
         """Copy source chapter to destination and change target of chapter_file to the destination one."""
         destination = VPath(destination)
-        copyfile(self.chapter_file.absolute(), destination.absolute())
+        copyfile(self.chapter_file.resolve(), destination.resolve())
         self.chapter_file = destination
         Status.info(
-            f'{self.__class__.__name__}:Chapter file sucessfully copied from: '
-            f'"{self.chapter_file.absolute().to_str()}" to "{destination.absolute().to_str()}"'
+            f'{self.__class__.__name__}: Chapter file sucessfully copied from: '
+            + f'"{self.chapter_file.resolve().to_str()}" to "{destination.resolve().to_str()}"'
         )
 
     def create_qpfile(self, qpfile: AnyPath, fps: Fraction) -> None:
@@ -75,12 +75,12 @@ class Chapters(ABC):
 
         qpfile.write_text('\n'.join(f"{f} K" for f in sorted(keyf)), encoding='utf-8')
 
-        Status.info(f'{self.__class__.__name__}:Qpfile sucessfully created at: "{qpfile.absolute().to_str()}"')
+        Status.info(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
 
     def _logging(self, action: str) -> None:
         Status.info(
             f'{self.__class__.__name__}: Chapter file sucessfully {action} at: '
-            f'"{self.chapter_file.absolute().to_str()}"'
+            + f'"{self.chapter_file.resolve().to_str()}"'
         )
 
 
@@ -111,7 +111,7 @@ class OGMChapters(Chapters):
         old = data[1::2]
 
         if len(names) > len(old):
-            Status.fail('set_names: too many names!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: too many names!', exception=ValueError)
         if len(names) < len(old):
             names += [None] * (len(old) - len(names))
 
@@ -170,19 +170,19 @@ class MatroskaXMLChapters(Chapters):
     """MatroskaXMLChapters object """
     fps: Fraction
 
-    __ed_entry = 'EditionEntry'
-    __ed_uid = 'EditionUID'
+    __ED_ENTRY = 'EditionEntry'
+    __ED_UID = 'EditionUID'
 
-    __chap_atom = 'ChapterAtom'
-    __chap_start = 'ChapterTimeStart'
-    __chap_end = 'ChapterTimeEnd'
-    __chap_uid = 'ChapterUID'
-    __chap_disp = 'ChapterDisplay'
-    __chap_name = 'ChapterString'
-    __chap_ietf = 'ChapLanguageIETF'
-    __chap_iso639 = 'ChapterLanguage'
+    __CHAP_ATOM = 'ChapterAtom'
+    __CHAP_START = 'ChapterTimeStart'
+    __CHAP_END = 'ChapterTimeEnd'
+    __CHAP_UID = 'ChapterUID'
+    __CHAP_DISP = 'ChapterDisplay'
+    __CHAP_NAME = 'ChapterString'
+    __CHAP_IETF = 'ChapLanguageIETF'
+    __CHAP_ISO639 = 'ChapterLanguage'
 
-    __doctype = '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->'
+    __DOCTYPE = '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->'
 
     def __init__(self, chapter_file: AnyPath) -> None:
         super().__init__(chapter_file)
@@ -194,8 +194,8 @@ class MatroskaXMLChapters(Chapters):
 
         root = etree.Element('Chapters')
 
-        edit_entry = etree.SubElement(root, self.__ed_entry)
-        etree.SubElement(edit_entry, self.__ed_uid).text = str(random.getrandbits(64))
+        edit_entry = etree.SubElement(root, self.__ED_ENTRY)
+        etree.SubElement(edit_entry, self.__ED_UID).text = str(random.getrandbits(64))
 
         # Append chapters
         for chap in [self._make_chapter_xml(c) for c in chapters]:
@@ -206,7 +206,7 @@ class MatroskaXMLChapters(Chapters):
 
         self.chapter_file.write_bytes(
             etree.tostring(root, encoding='utf-8', xml_declaration=True,
-                           pretty_print=True, doctype=self.__doctype)
+                           pretty_print=True, doctype=self.__DOCTYPE)
         )
 
         self._logging('created')
@@ -215,10 +215,10 @@ class MatroskaXMLChapters(Chapters):
         tree = self._get_tree()
         names = list(names)
 
-        olds = tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_disp}/{self.__chap_name}')
+        olds = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}')
 
         if len(names) > len(olds):
-            Status.fail('set_names: too many names!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: too many names!', exception=ValueError)
         if len(names) < len(olds):
             names += [None] * (len(olds) - len(names))
 
@@ -237,8 +237,8 @@ class MatroskaXMLChapters(Chapters):
         shifttime = Convert.f2seconds(frames, fps)
 
 
-        timestarts = tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_start}')
-        timeends = tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_end}')
+        timestarts = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}')
+        timeends = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}')
 
         for t_s in timestarts:
             if isinstance(t_s.text, str):
@@ -258,23 +258,23 @@ class MatroskaXMLChapters(Chapters):
         """Convert XML Chapters to a list of Chapter"""
         tree = self._get_tree()
 
-        timestarts = tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_start}')
+        timestarts = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}')
 
 
         timeends: List[Optional[Element]] = []
-        timeends += tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_end}')
+        timeends += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}')
         if len(timeends) != len(timestarts):
             timeends += [None] * (len(timestarts) - len(timeends))
 
 
         names: List[Optional[Element]] = []
-        names += tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_disp}/{self.__chap_name}')
+        names += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}')
         if len(names) != len(timestarts):
             names += [None] * (len(timestarts) - len(names))
 
 
         ietfs: List[Optional[Element]] = []
-        ietfs += tree.xpath(f'/Chapters/{self.__ed_entry}/{self.__chap_atom}/{self.__chap_disp}/{self.__chap_ietf}')
+        ietfs += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_IETF}')
         if len(ietfs) != len(timestarts):
             ietfs += [None] * (len(timestarts) - len(ietfs))
 
@@ -290,7 +290,10 @@ class MatroskaXMLChapters(Chapters):
             if isinstance(timestart.text, str):
                 start_frame = Convert.ts2f(timestart.text, fps)
             else:
-                Status.fail('xml_to_chapters: timestart.text is not a str, wtf are u doin', exception=ValueError)
+                Status.fail(
+                    f'{self.__class__.__name__}: timestart.text is not a str, wtf are u doin',
+                    exception=ValueError
+                )
 
             end_frame: Optional[int] = None
             try:
@@ -315,21 +318,18 @@ class MatroskaXMLChapters(Chapters):
 
     def _make_chapter_xml(self, chapter: Chapter) -> Element:
 
-        atom = etree.Element(self.__chap_atom)
+        atom = etree.Element(self.__CHAP_ATOM)
 
-
-        etree.SubElement(atom, self.__chap_start).text = Convert.f2ts(chapter.start_frame, self.fps, precision=9)
+        etree.SubElement(atom, self.__CHAP_START).text = Convert.f2ts(chapter.start_frame, self.fps, precision=9)
         if chapter.end_frame:
-            etree.SubElement(atom, self.__chap_end).text = Convert.f2ts(chapter.end_frame, self.fps, precision=9)
+            etree.SubElement(atom, self.__CHAP_END).text = Convert.f2ts(chapter.end_frame, self.fps, precision=9)
 
-        etree.SubElement(atom, self.__chap_uid).text = str(random.getrandbits(64))
+        etree.SubElement(atom, self.__CHAP_UID).text = str(random.getrandbits(64))
 
-
-        disp = etree.SubElement(atom, self.__chap_disp)
-        etree.SubElement(disp, self.__chap_name).text = chapter.name
-        etree.SubElement(disp, self.__chap_ietf).text = chapter.lang.ietf
-        etree.SubElement(disp, self.__chap_iso639).text = chapter.lang.iso639
-
+        disp = etree.SubElement(atom, self.__CHAP_DISP)
+        etree.SubElement(disp, self.__CHAP_NAME).text = chapter.name
+        etree.SubElement(disp, self.__CHAP_IETF).text = chapter.lang.ietf
+        etree.SubElement(disp, self.__CHAP_ISO639).text = chapter.lang.iso639
 
         return atom
 
@@ -337,7 +337,7 @@ class MatroskaXMLChapters(Chapters):
         try:
             return cast(ElementTree, etree.parse(self.chapter_file.to_str()))
         except OSError as oserr:
-            Status.fail('_get_tree: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
+            Status.fail(f'{self.__class__.__name__}: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
 
 
 class MplsChapters(Chapters):
@@ -347,10 +347,10 @@ class MplsChapters(Chapters):
     fps: Fraction
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
-        Status.fail('Can\'t create a mpls file!', exception=NotImplementedError)
+        Status.fail(f'{self.__class__.__name__}: Can\'t create a mpls file!', exception=NotImplementedError)
 
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
-        Status.fail('Can\'t change name from a mpls file!', exception=NotImplementedError)
+        Status.fail(f'{self.__class__.__name__}: Can\'t change name from a mpls file!', exception=NotImplementedError)
 
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
@@ -364,10 +364,10 @@ class IfoChapters(Chapters):
     fps: Fraction
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
-        Status.fail('Can\'t create an ifo file!', exception=NotImplementedError)
+        Status.fail(f'{self.__class__.__name__}: Can\'t create an ifo file!', exception=NotImplementedError)
 
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
-        Status.fail('Can\'t change name from an ifo file!', exception=NotImplementedError)
+        Status.fail(f'{self.__class__.__name__}: Can\'t change name from an ifo file!', exception=NotImplementedError)
 
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
@@ -463,14 +463,14 @@ class MplsReader:
             playlist = mpls.load_playlist(file)
 
             if not playlist.play_items:
-                Status.fail('There is no play items in this file!', exception=ValueError)
+                Status.fail(f'{self.__class__.__name__}: There is no play items in this file!', exception=ValueError)
 
             file.seek(header.playlist_mark_start_address, os.SEEK_SET)
             playlist_mark = mpls.load_playlist_mark(file)
             if (plsmarks := playlist_mark.playlist_marks) is not None:
                 marks = plsmarks
             else:
-                Status.fail('There is no playlist marks in this file!', exception=ValueError)
+                Status.fail(f'{self.__class__.__name__}: There is no playlist marks in this file!', exception=ValueError)
 
         mpls_chaps: List[MplsChapters] = []
 
@@ -496,12 +496,12 @@ class MplsReader:
                 # Extract the fps and store it
                 if playitem.stn_table and playitem.stn_table.prim_video_stream_entries \
                         and (fps_n := playitem.stn_table.prim_video_stream_entries[0][1].framerate):
-                    if fps_n in mpls.FRAMERATE:
+                    try:
                         mpls_chap.fps = mpls.FRAMERATE[fps_n]
-                    else:
-                        Status.fail('Unknown framerate!', exception=ValueError)
+                    except AttributeError as attr_err:
+                        Status.fail(f'{self.__class__.__name__}: Unknown framerate!', exception=ValueError, chain_err=attr_err)
                 else:
-                    Status.fail('No STNTable in playitem!', exception=AttributeError)
+                    Status.fail(f'{self.__class__.__name__}: No STNTable in playitem!', exception=AttributeError)
 
                 # Finally extract the chapters
                 mpls_chap.chapters = self._mplschapters_to_chapters(linked_marks, offset, mpls_chap.fps)
@@ -606,7 +606,7 @@ class IfoReader:
             if all(dvd_fpss[0] == dvd_fps for dvd_fps in dvd_fpss):
                 ifo_chap.fps = vts_ifo.FRAMERATE[dvd_fpss[0]]
             else:
-                Status.fail('parse_ifo: No VFR allowed!', exception=ValueError)
+                Status.fail(f'{self.__class__.__name__}: No VFR allowed!', exception=ValueError)
 
             # Add a zero PlaybackTime and the duration which is the last chapter
             playback_times = [vts_ifo.vts_pgci.PlaybackTime(dvd_fpss[0], 0, 0, 0, 0)]
