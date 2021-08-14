@@ -6,8 +6,8 @@ from .language import Lang
 from .types import AnyPath, DuplicateFrame, Trim, UpdateFunc
 from .vpathlib import VPath
 from abc import ABC, abstractmethod
-from enum import IntEnum
-from typing import Any, Dict, List, NoReturn, Optional, Sequence, Set, Tuple, Union
+from enum import Enum, IntEnum
+from typing import Any, Dict, List, Literal, NoReturn, Optional, Sequence, Set, Tuple, Union
 
 class Tool(ABC, metaclass=abc.ABCMeta):
     binary: VPath
@@ -15,7 +15,7 @@ class Tool(ABC, metaclass=abc.ABCMeta):
     params: List[str]
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None: ...
     @abstractmethod
-    def run(self) -> None: ...
+    def run(self) -> Union[None, NoReturn]: ...
     @abstractmethod
     def set_variable(self) -> Dict[str, Any]: ...
 
@@ -25,6 +25,36 @@ class BasicTool(Tool):
     def run(self) -> None: ...
     def set_variable(self) -> Dict[str, Any]: ...
 
+class AudioExtracter(BasicTool):
+    file: FileInfo
+    track_in: Sequence[int]
+    track_out: Sequence[int]
+    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], file: FileInfo) -> None: ...
+
+class _AutoSetTrack(AudioExtracter, ABC, metaclass=abc.ABCMeta):
+    track_in: Any
+    track_out: Any
+    def __init__(self, binary: AnyPath, settings: List[str], file: FileInfo, track_in: Union[int, Sequence[int]] = ..., track_out: Union[int, Sequence[int]] = ...) -> None: ...
+    def run(self) -> None: ...
+    @abstractmethod
+    def set_tracks_number(self) -> None: ...
+    def set_variable(self) -> Dict[str, Any]: ...
+
+class _SimpleSetTrack(_AutoSetTrack, ABC):
+    def set_tracks_number(self) -> None: ...
+
+class _FfmpegSetTrack(_AutoSetTrack, ABC):
+    def set_tracks_number(self) -> None: ...
+
+class MKVAudioExtracter(_SimpleSetTrack):
+    def __init__(self, file: FileInfo, *, track_in: Union[int, Sequence[int]] = ..., track_out: Union[int, Sequence[int]] = ..., mkvextract_args: Optional[List[str]] = ...) -> None: ...
+
+class Eac3toAudioExtracter(_SimpleSetTrack):
+    def __init__(self, file: FileInfo, *, track_in: Union[int, Sequence[int]] = ..., track_out: Union[int, Sequence[int]] = ..., eac3to_args: Optional[List[str]] = ...) -> None: ...
+
+class FfmpegAudioExtracter(_FfmpegSetTrack):
+    def __init__(self, file: FileInfo, *, track_in: Union[int, Sequence[int]] = ..., track_out: Union[int, Sequence[int]] = ...) -> None: ...
+
 class AudioEncoder(BasicTool):
     track: int
     xml_tag: Optional[AnyPath]
@@ -33,14 +63,29 @@ class AudioEncoder(BasicTool):
     def set_variable(self) -> Dict[str, Any]: ...
 
 class PassthroughAudioEncoder(AudioEncoder):
-    def __init__(self, file: FileInfo, *, track: int = ..., xml_tag: Optional[AnyPath] = ...) -> None: ...
+    def __init__(self, file: FileInfo, *, track: int = ...) -> None: ...
     def run(self) -> None: ...
 
+class BitrateMode(Enum):
+    ABR: object
+    CBR: object
+    VBR: object
+    CVBR: object
+    TVBR: object
+    HARD_CBR: object
+
+QAAC_BITRATE_MODE = Literal[BitrateMode.ABR, BitrateMode.CBR, BitrateMode.CVBR, BitrateMode.TVBR]
+OPUS_BITRATE_MODE = Literal[BitrateMode.VBR, BitrateMode.CVBR, BitrateMode.HARD_CBR]
+FDK_BITRATE_MODE = Literal[BitrateMode.CBR, BitrateMode.VBR]
+
 class QAACEncoder(AudioEncoder):
-    def __init__(self, file: FileInfo, *, track: int = ..., xml_tag: Optional[AnyPath] = ..., tvbr_quality: int = ..., qaac_args: Optional[List[str]] = ...) -> None: ...
+    def __init__(self, file: FileInfo, *, track: int = ..., mode: QAAC_BITRATE_MODE = ..., bitrate: int = ..., xml_tag: Optional[AnyPath] = ..., qaac_args: Optional[List[str]] = ...) -> None: ...
 
 class OpusEncoder(AudioEncoder):
-    def __init__(self, file: FileInfo, *, track: int = ..., xml_tag: Optional[AnyPath] = ..., bitrate: int = ..., use_ffmpeg: bool = ..., opus_args: Optional[List[str]] = ...) -> None: ...
+    def __init__(self, file: FileInfo, *, track: int = ..., mode: OPUS_BITRATE_MODE = ..., bitrate: int = ..., xml_tag: Optional[AnyPath] = ..., use_ffmpeg: bool = ..., opus_args: Optional[List[str]] = ...) -> None: ...
+
+class FDKAACEncoder(AudioEncoder):
+    def __init__(self, file: FileInfo, *, track: int = ..., mode: FDK_BITRATE_MODE = ..., bitrate: int = ..., cutoff: int = ..., xml_tag: Optional[AnyPath] = ..., use_ffmpeg: bool = ..., fdk_args: Optional[List[str]] = ...) -> None: ...
 
 class FlacCompressionLevel(IntEnum):
     ZERO: int
@@ -72,7 +117,7 @@ class AudioCutter(ABC, metaclass=abc.ABCMeta):
     def run(self) -> None: ...
     @classmethod
     @abstractmethod
-    def generate_silence(cls, s: float, output: AnyPath, num_ch: int = ..., sample_rate: int = ..., bitdepth: int = ...) -> None: ...
+    def generate_silence(cls, s: float, output: AnyPath, num_ch: int = ..., sample_rate: int = ..., bitdepth: int = ...) -> Union[None, NoReturn]: ...
 
 class EztrimCutter(AudioCutter):
     force_eztrim: bool
@@ -153,7 +198,6 @@ class Mux:
     chapters: Optional[ChapterStream]
     deterministic_seed: Optional[Union[int, str]]
     merge_args: Dict[str, Any]
-    mkvmerge_path: VPath
     def __init__(self, file: FileInfo, streams: Optional[Tuple[VideoStream, Optional[Union[AudioStream, Sequence[AudioStream]]], Optional[ChapterStream]]] = ..., *, deterministic_seed: Union[int, str, None] = ..., merge_args: Optional[Dict[str, Any]] = ...) -> None: ...
     def run(self) -> Set[VPath]: ...
 

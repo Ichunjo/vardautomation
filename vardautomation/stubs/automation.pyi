@@ -1,6 +1,6 @@
 import vapoursynth as vs
 from .config import FileInfo
-from .tooling import AudioCutter, AudioEncoder, BasicTool, LosslessEncoder, Mux, VideoEncoder
+from .tooling import AudioCutter, AudioEncoder, AudioExtracter, LosslessEncoder, Mux, VideoEncoder
 from .types import AnyPath
 from typing import Any, NamedTuple, Optional, Sequence, Set, Tuple, Union
 
@@ -12,7 +12,7 @@ class Parser:
 class RunnerConfig(NamedTuple):
     v_encoder: VideoEncoder
     v_lossless_encoder: Optional[LosslessEncoder]
-    a_extracters: Union[BasicTool, Sequence[BasicTool], None]
+    a_extracters: Union[AudioExtracter, Sequence[AudioExtracter], None]
     a_cutters: Union[AudioCutter, Sequence[AudioCutter], None]
     a_encoders: Union[AudioEncoder, Sequence[AudioEncoder], None]
     muxer: Optional[Mux]

@@ -1,9 +1,5 @@
-from __future__ import annotations
-
-from typing import Optional
-
 from langcodes import Language
-
+from typing import Optional
 
 class Lang:
     name: str

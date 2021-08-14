@@ -6,8 +6,6 @@ from typing import List, Optional, Tuple, Union
 from vardefunc.types import Range
 
 class Patch:
-    ffmsindex: VPath
-    mkvmerge: VPath
     encoder: VideoEncoder
     clip: vs.VideoNode
     file: FileInfo

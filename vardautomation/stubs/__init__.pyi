@@ -1,4 +1,5 @@
 from .automation import *
+from .binary_path import *
 from .chapterisation import *
 from .comp import *
 from .config import *
