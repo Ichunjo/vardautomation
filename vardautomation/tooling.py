@@ -394,13 +394,13 @@ class AudioEncoder(BasicTool):
 class PassthroughAudioEncoder(AudioEncoder):
     """Special AudioEncoder that will copy :py:attr:`FileInfo.a_src_cut` to :py:attr:`FileInfo.a_enc_cut`"""
 
-    def __init__(self, /, file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
+    def __init__(self, /, file: FileInfo, *, track: int = -1) -> None:
         """
         :param file:        FileInfo object
         :param track:       Track number
         :param xml_tag:     See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         """
-        super().__init__('', [''], file, track=track, xml_tag=xml_tag)
+        super().__init__('', [''], file, track=track)
 
     def run(self) -> None:
         assert self.file
