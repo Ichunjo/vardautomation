@@ -5,8 +5,11 @@ from __future__ import annotations
 __all__ = [
     'Tool', 'BasicTool',
     'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FfmpegAudioExtracter',
-    'AudioEncoder', 'QAACEncoder', 'OpusEncoder', 'FlacCompressionLevel', 'FlacEncoder',
-    'AudioCutter', 'EztrimCutter', 'SoxCutter',
+
+    'AudioEncoder', 'BitrateMode', 'QAACEncoder', 'OpusEncoder', 'FDKAACEncoder', 'FlacCompressionLevel', 'FlacEncoder',
+    'PassthroughAudioEncoder',
+
+    'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
     'VideoEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
     'progress_update_func',
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
@@ -19,11 +22,11 @@ import subprocess
 import sys
 import traceback
 from abc import ABC, abstractmethod
-from enum import IntEnum
+from enum import Enum, IntEnum, auto
 from pprint import pformat
 from shutil import copyfile
-from typing import (Any, BinaryIO, Dict, List, NoReturn, Optional, Sequence,
-                    Set, Tuple, Union, cast)
+from typing import (Any, BinaryIO, Dict, List, Literal, NoReturn, Optional,
+                    Sequence, Set, Tuple, Union, cast)
 
 import vapoursynth as vs
 from acsuite import eztrim
@@ -413,56 +416,188 @@ class PassthroughAudioEncoder(AudioEncoder):
             self.file.a_enc_cut.set_track(self.track).absolute().to_str()
         )
 
-        if self.xml_tag:
-            self._write_encoder_name_file()
+
+class BitrateMode(Enum):
+    """Common bitrate mode enumeration"""
+
+    ABR = auto()
+    """Average BitRate"""
+
+    CBR = auto()
+    """Constant BitRate"""
+
+    VBR = auto()
+    """Variable BitRate"""
+
+    CVBR = auto()
+    """Constrained Variable BitRate"""
+
+    TVBR = auto()
+    """True Variable BitRate"""
+
+    HARD_CBR = CBR
+    """Hard Constant BitRate"""
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}.{self.name}>'
+
+
+QAAC_BITRATE_MODE = Literal[BitrateMode.ABR, BitrateMode.CBR, BitrateMode.CVBR, BitrateMode.TVBR]
+OPUS_BITRATE_MODE = Literal[BitrateMode.VBR, BitrateMode.CVBR, BitrateMode.HARD_CBR]
+FDK_BITRATE_MODE = Literal[BitrateMode.CBR, BitrateMode.VBR]
 
 
 class QAACEncoder(AudioEncoder):
     """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder"""
 
+    _bitrate_mode_map: Dict[BitrateMode, str] = {
+        BitrateMode.ABR: '--abr',
+        BitrateMode.CBR: '--cbr',
+        BitrateMode.CVBR: '--cvbr',
+        BitrateMode.TVBR: '--tvbr'
+    }
+
     def __init__(self, /, file: FileInfo, *,
-                 track: int = -1, xml_tag: Optional[AnyPath] = None,
-                 tvbr_quality: int = 127, qaac_args: Optional[List[str]] = None) -> None:
+                 track: int = -1, mode: QAAC_BITRATE_MODE = BitrateMode.TVBR, bitrate: int = 127,
+                 xml_tag: Optional[AnyPath] = None, qaac_args: Optional[List[str]] = None) -> None:
         """
+        These following options are automatically added:
+
+            - ``--no-delay --no-optimize --threading``
+
         :param file:            FileInfo object
         :param track:           Track number
+        :param mode:            Bitrate mode. QAAC supports ABR, CBR, CVBR and TVBR, defaults to BitrateMode.TVBR
+        :param bitrate:         Matches the bitrate for ABR, CBR and CVBR in kbit/s and quality Q for TVBR, defaults to 127
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
-        :param tvbr_quality:    AAC True VBR mode, defaults to 127
-        :param qaac_args:       https://github.com/nu774/qaac/wiki/Command-Line-Options, defaults to None
+        :param qaac_args:       Additional options, see https://github.com/nu774/qaac/wiki/Command-Line-Options, defaults to None
         """
-        binary = 'qaac'
-        settings = ['{a_src_cut:s}', '-V', str(tvbr_quality), '--no-delay', '-o', '{a_enc_cut:s}']
+        settings = ['{a_src_cut:s}']
+        # There is a Literal type but just in case never underestimate the people's stupidity
+        try:
+            settings += [self._bitrate_mode_map[mode]]
+        except AttributeError as attr_err:
+            Status.fail(
+                f'{self.__class__.__name__}: The mode "{mode._name_}" is not supported!',
+                exception=TypeError, chain_err=attr_err
+            )
+        settings += [str(bitrate), '--no-delay', '--no-optimize', '--threading', '-o', '{a_enc_cut:s}']
+
         if qaac_args is not None:
-            settings.extend(qaac_args)
-        super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
+            settings += qaac_args
+
+        super().__init__(BinaryPath.qaac, settings, file, track=track, xml_tag=xml_tag)
 
 
 class OpusEncoder(AudioEncoder):
     """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec """
 
+    _bitrate_mode_opusenc_map: Dict[BitrateMode, str] = {
+        BitrateMode.VBR: '--vbr',
+        BitrateMode.CVBR: '--cvbr',
+        BitrateMode.HARD_CBR: '--hard-cbr',
+    }
+    _bitrate_mode_ffmpeg_map: Dict[BitrateMode, str] = {
+        BitrateMode.VBR: 'on',
+        BitrateMode.CVBR: 'constrained',
+        BitrateMode.HARD_CBR: 'off',
+    }
+
     def __init__(self, /, file: FileInfo, *,
-                 track: int = -1, xml_tag: Optional[AnyPath] = None,
-                 bitrate: int = 192,
-                 use_ffmpeg: bool = True, opus_args: Optional[List[str]] = None) -> None:
+                 track: int = -1, mode: OPUS_BITRATE_MODE = BitrateMode.VBR, bitrate: int = 160,
+                 xml_tag: Optional[AnyPath] = None, use_ffmpeg: bool = True, opus_args: Optional[List[str]] = None) -> None:
         """
         :param file:            FileInfo object
         :param track:           Track number
+        :param mode:            Bitrate mode. libopus supports VBR, CVBR, and HARD_CBR (aka CBR), defaults to BitrateMode.VBR
+        :param bitrate:         Target bitrate in kbit/s, defaults to 160
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
-        :param bitrate:         Opus bitrate in vbr mode, defaults to 192
-        :param use_ffmpeg:      Will use opusenc if false, defaults to True
+        :param use_ffmpeg:      Use ``opusenc`` if False, defaults to True
         :param opus_args:       Additionnal arguments, defaults to None
         """
         if use_ffmpeg:
-            binary = 'ffmpeg'
-            settings = ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-o', '{a_enc_cut:s}']
+            binary = BinaryPath.ffmpeg
+            settings = ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-vbr']
+            settings += self._set_mode(self._bitrate_mode_ffmpeg_map, mode, opus_args)
+            settings += ['-o', '{a_enc_cut:s}']
         else:
-            binary = 'opusenc'
-            settings = ['--bitrate', str(bitrate), '{a_src_cut:s}', '{a_enc_cut:s}']
+            binary = BinaryPath.opusenc
+            settings = ['--bitrate', str(bitrate)]
+            settings += self._set_mode(self._bitrate_mode_opusenc_map, mode, opus_args)
+            settings += ['{a_src_cut:s}', '{a_enc_cut:s}']
+        super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
+    def _set_mode(self, layout_map: Dict[BitrateMode, str], mode: OPUS_BITRATE_MODE, opus_args: Optional[List[str]]) -> List[str]:
+        settings: List[str] = []
+        # There is a Literal type but just in case never underestimate the people's stupidity
+        try:
+            settings += [layout_map[mode]]
+        except AttributeError as attr_err:
+            Status.fail(
+                f'{self.__class__.__name__}: The mode "{mode._name_}" is not supported!',
+                exception=TypeError, chain_err=attr_err
+            )
         if opus_args is not None:
-            settings.extend(opus_args)
+            settings += opus_args
+        return settings
+
+
+class FDKAACEncoder(AudioEncoder):
+    """
+    AudioEncoder using fdkaac.
+    The libfdk-aac library is based on the Fraunhofer FDK AAC code from the Android project
+    """
+
+    def __init__(self, /, file: FileInfo, *,
+                 track: int = -1, mode: FDK_BITRATE_MODE = BitrateMode.CBR, bitrate: int = 256, cutoff: int = 20000,
+                 xml_tag: Optional[AnyPath] = None, use_ffmpeg: bool = True, fdk_args: Optional[List[str]] = None) -> None:
+        """
+        :param file:            FileInfo object
+        :param track:           Track number
+        :param mode:            Bitrate mode, fdkaac supports CBR and VBR, defaults to BitrateMode.CBR
+        :param bitrate:         Matches the bitrate for CBR in kbit/s and quality Q for VBR, defaults to 256
+        :param cutoff:          Set cutoff frequency. If not specified (or explicitly set to 0) it will use a value automatically computed by the library.
+                                Correspond to frequency bandwidth in Hz in fdkaac library, defaults to 20000
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        :param use_ffmpeg:      Use ``fdkaac`` if False, defaults to True
+        :param fdk_args:        Additional options see https://www.ffmpeg.org/ffmpeg-codecs.html#Options-11
+                                or https://github.com/nu774/fdkaac/blob/master/README, defaults to None
+        """
+        if use_ffmpeg:
+            binary = BinaryPath.ffmpeg
+            settings = ['-i', '{a_src_cut:s}', '-c:a', 'libfdk_aac', '-cutoff', str(cutoff)]
+            settings += self._set_mode(mode, bitrate, fdk_args, ['-b:a', f'{bitrate}k'], ['-vbr', f'{bitrate}'])
+            settings += ['{a_enc_cut:s}']
+        else:
+            binary = BinaryPath.fdkaac
+            settings = ['{a_src_cut:s}', '--bandwidth', str(cutoff)]
+            settings += self._set_mode(mode, bitrate, fdk_args, ['--bitrate', str(bitrate)], ['--bitrate-mode', str(bitrate)])
+            settings += ['-o', '{a_enc_cut:s}']
 
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
+
+    def _set_mode(self, mode: FDK_BITRATE_MODE, bitrate: int, fdk_args: Optional[List[str]],
+                  cbr_settings: List[str], vbr_settings: List[str]) -> List[str]:
+        settings: List[str] = []
+        # CBR Mode
+        if mode == BitrateMode.CBR:
+            settings += cbr_settings
+        # VBR Mode
+        elif mode == BitrateMode.VBR:
+            if bitrate in range(1, 6):
+                settings += vbr_settings
+            else:
+                Status.fail(
+                    f'{self.__class__.__name__}: when using vbr mode, quality should be > 0 and <= 5!',
+                    exception=ValueError
+                )
+        # Pretty sure this is useless
+        else:
+            Status.fail(f'{self.__class__.__name__}: mode not supported!', exception=TypeError)
+        # Additional argument
+        if fdk_args is not None:
+            settings += fdk_args
+        return settings
 
 
 class FlacCompressionLevel(IntEnum):

@@ -117,12 +117,18 @@ Audio encoders
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.FlacCompressionLevel
+.. autoclass:: vardautomation.tooling.FDKAACEncoder
    :members:
+   :inherited-members:
+   :show-inheritance:
 .. autoclass:: vardautomation.tooling.FlacEncoder
    :members:
    :inherited-members:
    :show-inheritance:
+.. autoclass:: vardautomation.tooling.BitrateMode
+   :members:
+.. autoclass:: vardautomation.tooling.FlacCompressionLevel
+   :members:
 
 Muxing
 -------
