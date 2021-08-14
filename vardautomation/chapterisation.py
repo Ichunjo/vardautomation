@@ -254,7 +254,7 @@ class MatroskaXMLChapters(Chapters):
 
         self._logging('shifted')
 
-    def to_chapters(self, fps: Fraction, lang: Optional[Lang] = None) -> List[Chapter]:
+    def to_chapters(self, fps: Fraction, lang: Optional[Lang] = None) -> List[Chapter]:  # noqa: C901
         """Convert XML Chapters to a list of Chapter"""
         tree = self._get_tree()
 

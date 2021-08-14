@@ -114,13 +114,7 @@ class Tool(ABC):
                     string = f' "{not_str_p.pop()}" is ' if len(not_str_p) == 1 else 's "' + ', '.join(not_str_p) + '" are '
                     Status.fail(f'{self.__class__.__name__}: param{string} not a str object')
 
-        try:
-            subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        except FileNotFoundError as file_not_found:
-            Status.fail(
-                f'{self.__class__.__name__}: {self.binary.to_str()} was not found!',
-                exception=FileNotFoundError, chain_err=file_not_found
-            )
+        self._check_binary()
 
         params_parsed: List[str] = []
         for p in self.params:
@@ -141,6 +135,15 @@ class Tool(ABC):
             params_parsed.append(p)
         self.params.clear()
         self.params = [self.binary.to_str()] + params_parsed
+
+    def _check_binary(self) -> None:
+        try:
+            subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except FileNotFoundError as file_not_found:
+            Status.fail(
+                f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!',
+                exception=FileNotFoundError, chain_err=file_not_found
+            )
 
 
 class BasicTool(Tool):

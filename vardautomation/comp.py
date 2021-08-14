@@ -34,7 +34,7 @@ class Writer(Enum):
         return f'<{self.__class__.__name__}.{self.name}>'
 
 
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
                num: int = 15, frames: Optional[Sequence[int]] = None, *,
                force_bt709: bool = False,
                writer: Writer = Writer.FFMPEG,
