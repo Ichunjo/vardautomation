@@ -551,6 +551,7 @@ class FDKAACEncoder(AudioEncoder):
     def __init__(self, /, file: FileInfo, *,
                  track: int = -1, mode: FDK_BITRATE_MODE = BitrateMode.CBR, bitrate: int = 256, cutoff: int = 20000,
                  xml_tag: Optional[AnyPath] = None, use_ffmpeg: bool = True, fdk_args: Optional[List[str]] = None) -> None:
+        # pylint: disable=line-too-long
         """
         :param file:            FileInfo object
         :param track:           Track number
@@ -563,6 +564,7 @@ class FDKAACEncoder(AudioEncoder):
         :param fdk_args:        Additional options see https://www.ffmpeg.org/ffmpeg-codecs.html#Options-11
                                 or https://github.com/nu774/fdkaac/blob/master/README, defaults to None
         """
+        # pylint: enable=line-too-long
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
             settings = ['-i', '{a_src_cut:s}', '-c:a', 'libfdk_aac', '-cutoff', str(cutoff)]
