@@ -14,6 +14,7 @@ from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
 from vardefunc.util import select_frames
 
+from .binary_path import BinaryPath
 from .status import Status
 from .tooling import SubProcessAsync, VideoEncoder
 from .types import AnyPath
@@ -108,7 +109,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                 '-i', 'pipe:', *outputs
             ]
 
-            VideoEncoder('ffmpeg', settings, progress_update=None).run_enc(clip, None, y4m=False)
+            VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=None).run_enc(clip, None, y4m=False)
             print('\n')
 
         else:

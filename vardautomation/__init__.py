@@ -1,6 +1,8 @@
 """Collection of classes and functions helping to automate encoding"""
 # flake8: noqa
+from ._metadata import __author__, __version__
 from .automation import *
+from .binary_path import *
 from .chapterisation import *
 from .comp import *
 from .config import *
@@ -9,11 +11,9 @@ from .patch import *
 from .tooling import *
 from .types import *
 from .vpathlib import *
-from ._metadata import __author__, __version__
-
 
 # for wildcard imports
-_mods = ['automation', 'chapterisation', 'comp', 'config', 'language', 'patch', 'tooling', 'types', 'vpathlib']
+_mods = ['automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language', 'patch', 'tooling', 'types', 'vpathlib']
 
 __all__ = []
 for _pkg in _mods:

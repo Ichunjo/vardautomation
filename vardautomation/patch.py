@@ -10,17 +10,15 @@ import vapoursynth as vs
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
 
-from .tooling import BasicTool, VideoEncoder
+from .binary_path import BinaryPath
 from .config import FileInfo
 from .status import Status
+from .tooling import BasicTool, VideoEncoder
 from .vpathlib import VPath
 
 
 class Patch:
     """Allow easy video patching"""
-    ffmsindex: VPath = VPath('ffmsindex')
-    mkvmerge: VPath = VPath('mkvmerge')
-
     encoder: VideoEncoder
     clip: vs.VideoNode
     file: FileInfo
@@ -74,7 +72,7 @@ class Patch:
         kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
 
         BasicTool(
-            self.ffmsindex,
+            BinaryPath.ffmsindex,
             ['-k', '-f', self._file_to_fix.to_str(), idx_file.to_str()]
         ).run()
 
@@ -111,7 +109,7 @@ class Patch:
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
 
-            BasicTool(self.mkvmerge, ['-o', fix.with_suffix('.mkv').to_str(), fix.to_str()]).run()
+            BasicTool(BinaryPath.mkvmerge, ['-o', fix.with_suffix('.mkv').to_str(), fix.to_str()]).run()
 
     def _cut_and_merge(self) -> None:
         tmp = self.workdir / 'tmp.mkv'
@@ -124,7 +122,7 @@ class Patch:
         split_args = ['--split', 'frames:' + ','.join(map(str, rng))]
 
         BasicTool(
-            self.mkvmerge,
+            BinaryPath.mkvmerge,
             ['-o', tmp.to_str(), '--no-audio', '--no-track-tags', '--no-chapters',
              self._file_to_fix.to_str(), *split_args]
         ).run()
@@ -144,14 +142,14 @@ class Patch:
         ]
 
         BasicTool(
-            self.mkvmerge,
+            BinaryPath.mkvmerge,
             ['-o', tmpnoaudio.to_str(),
              '--no-audio', '--no-track-tags', '--no-chapters',
              '[', *merge_args, ']',
              '--append-to', ','.join([f'{i+1}:0:{i}:0' for i in range(len(merge_args) - 1)])]
         ).run()
         BasicTool(
-            self.mkvmerge,
+            BinaryPath.mkvmerge,
             ['-o', self.output_filename.to_str(), tmpnoaudio.to_str(), '--no-video', self._file_to_fix.to_str()]
         ).run()
 

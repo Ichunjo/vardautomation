@@ -32,6 +32,7 @@ from lxml import etree
 from pymediainfo import MediaInfo
 from vardefunc.util import normalise_ranges
 
+from .binary_path import BinaryPath
 from .config import FileInfo
 from .language import UNDEFINED, Lang
 from .status import Status
@@ -274,8 +275,6 @@ class _FfmpegSetTrack(_AutoSetTrack, ABC):
 class MKVAudioExtracter(_SimpleSetTrack):
     """AudioExtracter using MKVExtract"""
 
-    _mkvextract_path: VPath = VPath('mkvextract')
-
     def __init__(self, file: FileInfo, /, *,
                  track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
                  mkvextract_args: Optional[List[str]] = None) -> None:
@@ -286,13 +285,11 @@ class MKVAudioExtracter(_SimpleSetTrack):
         :param mkvextract_args:     https://mkvtoolnix.download/doc/mkvextract.html, defaults to None
         """
         settings = ['{path:s}', '--abort-on-warnings', 'tracks'] + (mkvextract_args if mkvextract_args is not None else [])
-        super().__init__(self._mkvextract_path, settings, file, track_in=track_in, track_out=track_out)
+        super().__init__(BinaryPath.mkvextract, settings, file, track_in=track_in, track_out=track_out)
 
 
 class Eac3toAudioExtracter(_SimpleSetTrack):
     """AudioExtracter using Eac3to"""
-
-    _eac3to_path: VPath = VPath('eac3to')
 
     def __init__(self, file: FileInfo, /, *,
                  track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
@@ -304,14 +301,12 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
         :param eac3to_args:         https://en.wikibooks.org/wiki/Eac3to/How_to_Use, defaults to None
         """
         settings = ['{path:s}']
-        super().__init__(self._eac3to_path, settings, file, track_in=track_in, track_out=track_out)
+        super().__init__(BinaryPath.eac3to, settings, file, track_in=track_in, track_out=track_out)
         self.params.extend(eac3to_args if eac3to_args else [])
 
 
 class FfmpegAudioExtracter(_FfmpegSetTrack):
     """AudioExtracter using Ffmpeg"""
-
-    _ffmpeg_path: VPath = VPath('ffmpeg')
 
     def __init__(self, file: FileInfo, /, *,
                  track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
@@ -321,7 +316,7 @@ class FfmpegAudioExtracter(_FfmpegSetTrack):
         :param track_out:           Output track(s) number
         """
         settings = ['-i', '{path:s}', '-y']
-        super().__init__(self._ffmpeg_path, settings, file, track_in=track_in, track_out=track_out)
+        super().__init__(BinaryPath.ffmpeg, settings, file, track_in=track_in, track_out=track_out)
 
 
 class AudioEncoder(BasicTool):
@@ -576,7 +571,7 @@ class FlacEncoder(AudioEncoder):
         :param flac_args:       Additionnal arguments, defaults to None
         """
         if use_ffmpeg:
-            binary = 'ffmpeg'
+            binary = BinaryPath.ffmpeg
             if level == FlacCompressionLevel.VARDOU:
                 level_args = ['-compression_level', '12', '-lpc_type', 'cholesky',
                               '-lpc_passes', '3', '-exact_rice_parameters', '1']
@@ -587,7 +582,7 @@ class FlacEncoder(AudioEncoder):
                 settings.extend(flac_args)
             settings.append('{a_enc_cut:s}')
         else:
-            binary = 'flac'
+            binary = BinaryPath.flac
             if level <= FlacCompressionLevel.EIGHT:
                 settings = [*flac_args] if flac_args is not None else []
                 settings.extend([f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}'])
@@ -671,7 +666,6 @@ class EztrimCutter(AudioCutter):
     eztrim will be used anyway.
     """
 
-    _ffmpeg_path: VPath = VPath('ffmpeg')
     _ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
 
     def run(self) -> None:
@@ -753,7 +747,7 @@ class EztrimCutter(AudioCutter):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
                 BasicTool(
-                    cls._ffmpeg_path.to_str(),
+                    BinaryPath.ffmpeg,
                     cls._ffmpeg_quiet
                     + ['-i', src.to_str(), '-vn', '-ss', f2ts(start, fps), '-to', f2ts(end, fps)]
                     + ['-c:a', 'copy', '-rf64', 'auto']
@@ -772,7 +766,7 @@ class EztrimCutter(AudioCutter):
                 tmp_files.add(tmp_silence.set_track(i))
                 # Encode in source format
                 BasicTool(
-                    cls._ffmpeg_path.to_str(),
+                    BinaryPath.ffmpeg,
                     cls._ffmpeg_quiet
                     + ['-i', tmp_silence.set_track(i).to_str()]
                     + ['-acodec', str(ext), '-ab', str(bitrate), tmp.set_track(i).to_str()]
@@ -791,7 +785,7 @@ class EztrimCutter(AudioCutter):
                     for af in concat_files
                 )
             BasicTool(
-                cls._ffmpeg_path.to_str(),
+                BinaryPath.ffmpeg,
                 cls._ffmpeg_quiet
                 + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', output.to_str()]
             ).run()
@@ -814,7 +808,7 @@ class EztrimCutter(AudioCutter):
             Status.fail(f'{cls.__name__}: channel layout unknown!', exception=ValueError, chain_err=att_err)
 
         BasicTool(
-            cls._ffmpeg_path.to_str(),
+            BinaryPath.ffmpeg,
             cls._ffmpeg_quiet
             + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
             + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
@@ -823,7 +817,6 @@ class EztrimCutter(AudioCutter):
 
 class SoxCutter(AudioCutter):
     """Audio cutter using Sox"""
-    _sox_path: VPath = VPath('sox')
 
     def run(self) -> None:
         assert self.file.a_src
@@ -889,7 +882,7 @@ class SoxCutter(AudioCutter):
             if isinstance(trim, tuple):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 BasicTool(
-                    cls._sox_path.to_str(),
+                    BinaryPath.sox,
                     [src.to_str(), tmp.set_track(i).to_str(),
                      'trim', str(f2s(start, fps)), str(f2s(end - start, fps))]
                 ).run()
@@ -906,7 +899,7 @@ class SoxCutter(AudioCutter):
         if combine:
             tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
-                cls._sox_path.to_str(),
+                BinaryPath.sox,
                 ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
             ).run()
             if cleanup:
@@ -919,7 +912,7 @@ class SoxCutter(AudioCutter):
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         BasicTool(
-            cls._sox_path.to_str(),
+            BinaryPath.sox,
             ['-n', '-r', str(sample_rate), '-c', str(num_ch), '-b', str(bitdepth),
              VPath(output).with_suffix('.wav').to_str(), 'trim', '0.0', str(s)]
         ).run()
@@ -1059,7 +1052,7 @@ class NvenccEncoder(LosslessEncoder):
         Lossless mode in HEVC. Hardcoded path: 'nvencc'
         """
         super().__init__(
-            'nvencc',
+            BinaryPath.nvencc,
             ['-i', '-', '--y4m',
              '--lossless',
              '-c', 'hevc',
@@ -1072,11 +1065,10 @@ class NvenccEncoder(LosslessEncoder):
 class FFV1Encoder(LosslessEncoder):
     def __init__(self, *, threads: int = 16) -> None:
         """
-        Built-in FFV1 encoder
-        Lossless mode in FFV1. Hardcoded path: 'ffmpeg'
+        Built-in FFV1 encoder. Lossless mode in FFV1.
         """
         super().__init__(
-            'ffmpeg',
+            BinaryPath.ffmpeg,
             ['-i', '-',
              '-vcodec', 'ffv1',
              '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
@@ -1133,7 +1125,7 @@ class X265Encoder(VideoLanEncoder):
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__('x265', settings, zones, progress_update=progress_update)
+        super().__init__(BinaryPath.x265, settings, zones, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
         min_luma, max_luma = Properties.get_color_range(self.params, self.clip)
@@ -1148,7 +1140,7 @@ class X264Encoder(VideoLanEncoder):
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__('x264', settings, zones, progress_update=progress_update)
+        super().__init__(BinaryPath.x264, settings, zones, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
         return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
@@ -1249,9 +1241,6 @@ class Mux:
     merge_args: Dict[str, Any]
     """Additional arguments to be passed to mkvmerge"""
 
-    mkvmerge_path: VPath = VPath('mkvmerge')
-    """Path of mkvmerge"""
-
     __workfiles: Set[VPath]
 
     def __init__(
@@ -1336,7 +1325,7 @@ class Mux:
         for k, v in self.merge_args.items():
             cmd += [k] + ([str(v)] if v else [])
 
-        BasicTool(self.mkvmerge_path.to_str(), cmd).run()
+        BasicTool(BinaryPath.mkvmerge, cmd).run()
 
         return self.__workfiles
 
