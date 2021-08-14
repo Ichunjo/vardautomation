@@ -1,5 +1,7 @@
 """Logger module"""
-from typing import NoReturn, Optional, Type
+import sys
+import traceback
+from typing import List, NoReturn, Optional, Type
 
 import colorama
 
@@ -7,31 +9,40 @@ colorama.init()
 
 
 class Colours:
-    FAIL: str = f'{colorama.Back.RED}{colorama.Fore.BLACK}'
-    WARN: str = f'{colorama.Back.YELLOW}{colorama.Fore.BLACK}'
-    INFO: str = f'{colorama.Back.BLUE}{colorama.Fore.WHITE}{colorama.Style.BRIGHT}'
+    FAIL_DIM: str = colorama.Back.RED + colorama.Fore.BLACK + colorama.Style.NORMAL
+    FAIL_BRIGHT: str = colorama.Back.RED + colorama.Fore.WHITE + colorama.Style.NORMAL
+    WARN: str = colorama.Back.YELLOW + colorama.Fore.BLACK + colorama.Style.NORMAL
+    INFO: str = colorama.Back.BLUE + colorama.Fore.WHITE + colorama.Style.BRIGHT
     RESET: str = colorama.Style.RESET_ALL
+    FAILS: List[str] = [FAIL_DIM, FAIL_BRIGHT]
 
 
 class Status:
     @staticmethod
     def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
-        raise exception(f'{Colours.FAIL}{string}{Colours.RESET}') from chain_err
+        curr_split: List[str] = []
+
+        if chain_err:
+            class _Exception(BaseException):
+                __cause__ = chain_err
+
+            curr = _Exception()
+
+            for p in traceback.format_exception(None, curr, None)[:-1]:
+                curr_split.extend(p.splitlines(keepends=True))
+
+        for p in traceback.format_stack()[:-2]:
+            curr_split.extend(p.splitlines(keepends=True))
+
+        curr_split.append(f'{exception.__name__}: {string}')
+
+        curr_split = [Colours.FAILS[i % 2] + line + Colours.RESET for i, line in enumerate(curr_split[::-1])][::-1]
+        sys.exit(''.join(curr_split))
 
     @staticmethod
-    def warn(string: str, /, raise_error: bool = False, *,
-             exception: Optional[Type[BaseException]] = Exception, chain_err: Optional[BaseException] = None) -> None:
-        if not raise_error:
-            print(f'{Colours.WARN}{string}{Colours.RESET}')
-        else:
-            if exception:
-                raise exception(f'{Colours.WARN}{string}{Colours.RESET}') from chain_err
+    def warn(string: str, /) -> None:
+        print(f'{Colours.WARN}{string}{Colours.RESET}')
 
     @staticmethod
-    def info(string: str, /, raise_error: bool = False, *,
-             exception: Optional[Type[BaseException]] = Exception, chain_err: Optional[BaseException] = None) -> None:
-        if not raise_error:
-            print(f'{Colours.INFO}{string}{Colours.RESET}')
-        else:
-            if exception:
-                raise exception(f'{Colours.INFO}{string}{Colours.RESET}') from chain_err
+    def info(string: str, /) -> None:
+        print(f'{Colours.INFO}{string}{Colours.RESET}')
