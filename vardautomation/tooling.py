@@ -328,6 +328,9 @@ class FfmpegAudioExtracter(_FfmpegSetTrack):
 class AudioEncoder(BasicTool):
     """BasicTool interface for audio encoding"""
 
+    file: FileInfo
+    """FileInfo object"""
+
     track: int
     """Track number"""
 
@@ -337,6 +340,8 @@ class AudioEncoder(BasicTool):
     Curently only write the encoder name
     More info here: https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.tags
     """
+
+    _ffmpeg_info = ['-hide_banner', '-loglevel', 'info']
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
@@ -351,7 +356,6 @@ class AudioEncoder(BasicTool):
                                 If specified, will write a file containing the encoder info to be passed to the muxer.
         """
         super().__init__(binary, settings, file=file)
-        assert self.file
 
         if self.file.a_src_cut is None:
             Status.fail(f'{self.__class__.__name__}: `file.a_src_cut` is needed!', exception=ValueError)
@@ -371,7 +375,6 @@ class AudioEncoder(BasicTool):
             self._write_encoder_name_file()
 
     def set_variable(self) -> Dict[str, Any]:
-        assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
         return dict(
@@ -380,7 +383,6 @@ class AudioEncoder(BasicTool):
         )
 
     def _write_encoder_name_file(self) -> None:
-        assert self.file
         assert (a_enc_cut := self.file.a_enc_cut)
 
         tags = etree.Element('Tags')
@@ -409,7 +411,6 @@ class PassthroughAudioEncoder(AudioEncoder):
         super().__init__('', [''], file, track=track)
 
     def run(self) -> None:
-        assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
 
@@ -520,7 +521,7 @@ class OpusEncoder(AudioEncoder):
         """
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
-            settings = ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-vbr']
+            settings = self._ffmpeg_info + ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-vbr']
             settings += self._set_mode(self._bitrate_mode_ffmpeg_map, mode, opus_args)
             settings += ['-o', '{a_enc_cut:s}']
         else:
@@ -570,7 +571,7 @@ class FDKAACEncoder(AudioEncoder):
         # pylint: enable=line-too-long
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
-            settings = ['-i', '{a_src_cut:s}', '-c:a', 'libfdk_aac', '-cutoff', str(cutoff)]
+            settings = self._ffmpeg_info + ['-i', '{a_src_cut:s}', '-c:a', 'libfdk_aac', '-cutoff', str(cutoff)]
             settings += self._set_mode(mode, bitrate, fdk_args, ['-b:a', f'{bitrate}k'], ['-vbr', f'{bitrate}'])
             settings += ['{a_enc_cut:s}']
         else:
@@ -796,7 +797,7 @@ Only "mono", "stereo" and "5.1" are currently supported
 class EztrimCutter(AudioCutter):
     """
     AudioCutter using :py:func:`acsuite.eztrim`
-    If fallback on :py:func:`EztrimCutter.ezpztrim` if some DuplicateFrame object are detected
+    It fallbacks on :py:func:`EztrimCutter.ezpztrim` if some DuplicateFrame objects are detected
     in the FileInfo object specified.
     """
     force_eztrim: bool = False
@@ -806,7 +807,7 @@ class EztrimCutter(AudioCutter):
     eztrim will be used anyway.
     """
 
-    _ffmpeg_quiet = ['-hide_banner', '-loglevel', 'quiet']
+    _ffmpeg_warning = ['-hide_banner', '-loglevel', 'warning']
 
     def run(self) -> None:
         assert self.file.a_src
@@ -888,7 +889,7 @@ class EztrimCutter(AudioCutter):
                 # Just trim
                 BasicTool(
                     BinaryPath.ffmpeg,
-                    cls._ffmpeg_quiet
+                    cls._ffmpeg_warning
                     + ['-i', src.to_str(), '-vn', '-ss', f2ts(start, fps), '-to', f2ts(end, fps)]
                     + ['-c:a', 'copy', '-rf64', 'auto']
                     + [tmp.set_track(i).to_str()]
@@ -907,7 +908,7 @@ class EztrimCutter(AudioCutter):
                 # Encode in source format
                 BasicTool(
                     BinaryPath.ffmpeg,
-                    cls._ffmpeg_quiet
+                    cls._ffmpeg_warning
                     + ['-i', tmp_silence.set_track(i).to_str()]
                     + ['-acodec', str(ext), '-ab', str(bitrate), tmp.set_track(i).to_str()]
                 ).run()
@@ -926,7 +927,7 @@ class EztrimCutter(AudioCutter):
                 )
             BasicTool(
                 BinaryPath.ffmpeg,
-                cls._ffmpeg_quiet
+                cls._ffmpeg_warning
                 + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', output.to_str()]
             ).run()
 
@@ -949,7 +950,7 @@ class EztrimCutter(AudioCutter):
 
         BasicTool(
             BinaryPath.ffmpeg,
-            cls._ffmpeg_quiet
+            cls._ffmpeg_warning
             + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
             + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
         ).run()
