@@ -248,7 +248,7 @@ class FileInfo:
                                 defaults to :py:data:`.PresetGeneric`
         :param workdir:         Work directory. Default to the current directorie where the script is launched.
         """
-        self.workdir = VPath(workdir)
+        self.workdir = VPath(workdir).resolve()
 
         self.path = VPath(path)
         self.path_without_ext = self.path.with_suffix('')
@@ -270,13 +270,13 @@ class FileInfo:
             self.clip = self.idx(str(path))
             self.trims_or_dfs = trims_or_dfs
 
-            self.name_clip_output = VPath(self.name + '.265')
+            self.name_clip_output = self.workdir / VPath(self.name + '.265')
             self.name_file_final = VPath(self.name + '.mkv')
 
-            self.name_clip_output_lossless = VPath(self.name + '_lossless.mkv')
+            self.name_clip_output_lossless = self.workdir / VPath(self.name + '_lossless.mkv')
             self.do_lossless = False
 
-            self.qpfile = VPath(self.name + '_qpfile.log')
+            self.qpfile = self.workdir / VPath(self.name + '_qpfile.log')
             self.do_qpfile = False
 
         super().__init__()
