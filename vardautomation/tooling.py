@@ -1048,15 +1048,16 @@ class SoxCutter(AudioCutter):
                 )
                 tmp_files.add(tmp.set_track(i).to_str())
 
+        tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
+
         if combine:
-            tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
                 BinaryPath.sox,
                 ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
             ).run()
-            if cleanup:
-                for tmp in tmps:
-                    os.remove(tmp)
+        if cleanup:
+            for tmp in tmps:
+                os.remove(tmp)
 
     @classmethod
     def generate_silence(
