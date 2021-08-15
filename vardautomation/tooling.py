@@ -105,14 +105,17 @@ class Tool(ABC):
         elif isinstance(self.settings, list):
             self.params += self.settings
         else:
-            with open(self.settings, 'r') as sttgs:
-                params_re = re.split(r'[\n\s]\s*', sttgs.read())
-                self.params += [p for p in params_re if isinstance(p, str)]
+            try:
+                with open(self.settings, 'r') as sttgs:
+                    params_re = re.split(r'[\n\s]\s*', sttgs.read())
+            except FileNotFoundError as file_err:
+                Status.fail(
+                    f'{self.__class__.__name__}: settings file not found',
+                    exception=FileNotFoundError, chain_err=file_err
+                )
+            self.params += [p for p in params_re if isinstance(p, str)]
 
-                if len(params_re) != len(self.params):
-                    not_str_p = [p for p in params_re if not isinstance(p, str)]
-                    string = f' "{not_str_p.pop()}" is ' if len(not_str_p) == 1 else 's "' + ', '.join(not_str_p) + '" are '
-                    Status.fail(f'{self.__class__.__name__}: param{string} not a str object')
+            self._not_str_settings(params_re)
 
         self._check_binary()
 
@@ -144,6 +147,12 @@ class Tool(ABC):
                 f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!',
                 exception=FileNotFoundError, chain_err=file_not_found
             )
+
+    def _not_str_settings(self, params_re: List[Any]) -> None:
+        if len(params_re) != len(self.params):
+            not_str_p = [p for p in params_re if not isinstance(p, str)]
+            string = f' "{not_str_p.pop()}" is ' if len(not_str_p) == 1 else 's "' + ', '.join(not_str_p) + '" are '
+            Status.fail(f'{self.__class__.__name__}: param{string} not a str object')
 
 
 class BasicTool(Tool):
