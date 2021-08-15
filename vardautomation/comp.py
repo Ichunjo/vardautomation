@@ -10,6 +10,7 @@ from typing import (Any, Collection, Dict, Iterable, List, Optional, Set,
 
 import vapoursynth as vs
 from lvsfunc.render import clip_async_render
+from lvsfunc.util import get_prop
 from requests import Session
 from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
@@ -33,6 +34,38 @@ class Writer(Enum):
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}.{self.name}>'
+
+
+@overload
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
+               num: int = 15, frames: Optional[Iterable[int]] = None) -> None:
+    """
+    Extract frames, make diff between two clips and upload to slow.pics
+
+    :param clips:               Named clips.
+    :param path:                Path to your comparison folder, defaults to 'comps'
+    :param num:                 Number of frames to extract, defaults to 15
+    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
+    """
+    ...
+
+
+@overload
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
+               num: int = 15, frames: Optional[Iterable[int]] = None, *,
+               slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
+    """
+    Extract frames, make diff between two clips and upload to slow.pics
+
+    :param clips:               Named clips.
+    :param path:                Path to your comparison folder, defaults to 'comps'
+    :param num:                 Number of frames to extract, defaults to 15
+    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
+    :param slowpics:            Upload to slow.pics, defaults to False
+    :param collection_name:     Slowpics's collection name, defaults to ''
+    :param public:              Make the comparison public, defaults to True
+    """
+    ...
 
 
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
@@ -68,7 +101,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         Status.info('Make samples according to specified picture types...')
         samples = _select_samples_with_picture_type(clips.values(), lens.pop(), num, picture_type)
     else:
-    samples = set(random.sample(range(lens.pop()), num))
+        samples = set(random.sample(range(lens.pop()), num))
 
     # Add additionnal frames if frame exists
     if frames:
