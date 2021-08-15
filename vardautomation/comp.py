@@ -68,7 +68,8 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     ...
 
 
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
+@overload
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
                picture_type: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
@@ -91,6 +92,16 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
     :param collection_name:     Slowpics's collection name, defaults to ''
     :param public:              Make the comparison public, defaults to True
     """
+    ...
+
+
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
+               num: int = 15, frames: Optional[Iterable[int]] = None, *,
+               picture_type: Optional[Iterable[str]] = None,
+               force_bt709: bool = False,
+               writer: Writer = Writer.FFMPEG,
+               magick_compare: bool = False,
+               slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
     if len(lens) != 1:
