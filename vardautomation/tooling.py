@@ -323,6 +323,8 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
 class FfmpegAudioExtracter(_FfmpegSetTrack):
     """AudioExtracter using Ffmpeg"""
 
+    _ffmpeg_warning = ['-hide_banner', '-loglevel', 'info']
+
     def __init__(self, file: FileInfo, /, *,
                  track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
         """
@@ -330,7 +332,7 @@ class FfmpegAudioExtracter(_FfmpegSetTrack):
         :param track_in:            Input track(s) number
         :param track_out:           Output track(s) number
         """
-        settings = ['-i', '{path:s}', '-y']
+        settings = self._ffmpeg_warning + ['-i', '{path:s}', '-y']
         super().__init__(BinaryPath.ffmpeg, settings, file, track_in=track_in, track_out=track_out)
 
 
