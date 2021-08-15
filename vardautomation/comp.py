@@ -5,7 +5,8 @@ __all__ = ['make_comps', 'Writer']
 import random
 import subprocess
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Sequence
+from typing import (Any, Collection, Dict, Iterable, List, Optional, Set,
+                    overload)
 
 import vapoursynth as vs
 from lvsfunc.render import clip_async_render
@@ -35,7 +36,8 @@ class Writer(Enum):
 
 
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
-               num: int = 15, frames: Optional[Sequence[int]] = None, *,
+               num: int = 15, frames: Optional[Iterable[int]] = None, *,
+               picture_type: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
                writer: Writer = Writer.FFMPEG,
                magick_compare: bool = False,
@@ -47,6 +49,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
     :param path:                Path to your comparison folder, defaults to 'comps'
     :param num:                 Number of frames to extract, defaults to 15
     :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
+    :param picture_type         Select picture types to pick, default to None
     :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
     :param writer:              Writer method to be used, defaults to Writer.FFMPEG
     :param magick_compare:      Make diffs between the first and second clip
@@ -61,6 +64,10 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         Status.fail('generate_comp: "clips" must be equal length!', exception=ValueError)
 
     # Make samples
+    if picture_type is not None:
+        Status.info('Make samples according to specified picture types...')
+        samples = _select_samples_with_picture_type(clips.values(), lens.pop(), num, picture_type)
+    else:
     samples = set(random.sample(range(lens.pop()), num))
 
     # Add additionnal frames if frame exists
@@ -197,6 +204,21 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         url_file = path / 'slow.pics.url'
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
         Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
+
+
+def _select_samples_with_picture_type(clips: Collection[vs.VideoNode], num_frames: int, k: int, picture_type: Iterable[str]) -> Set[int]:
+    samples: Set[int] = set()
+    p_type = [p.upper() for p in picture_type]
+    for _ in range(k):
+        while True:
+            rnum = random.randrange(0, num_frames)
+            if all(
+                get_prop(c.get_frame(rnum), '_PictType', bytes).decode('utf-8') in p_type
+                for c in clips
+            ) and rnum not in samples:
+                break
+        samples.add(rnum)
+    return samples
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
