@@ -21,6 +21,7 @@ from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_clip_frames
 
+from .status import Status
 from .types import AnyPath
 from .types import DuplicateFrame as DF
 from .types import Trim, VPSIdx
@@ -204,8 +205,7 @@ class FileInfo:
     """Audio source trimmed/cut path"""
     a_enc_cut: Optional[VPath]
     """Audio source encoded (and trimmed) path"""
-    chapter: Optional[VPath]
-    """Chapter file path"""
+    _chapter: Optional[VPath]
 
     clip: vs.VideoNode
     """VideoNode object loaded by the indexer"""
@@ -258,7 +258,7 @@ class FileInfo:
 
         self.name = VPath(sys.argv[0]).stem
 
-        self.a_src, self.a_src_cut, self.a_enc_cut, self.chapter = (None, ) * 4
+        self.a_src, self.a_src_cut, self.a_enc_cut, self._chapter = (None, ) * 4
         if isinstance(preset, Preset):
             self.preset = [preset]
         else:
@@ -313,10 +313,34 @@ class FileInfo:
                 )
 
         if self.chapter is None and p.chapter is not None:
-            self.chapter = self.workdir / p.chapter.format(name=self.name)
+            self._chapter = self.workdir / p.chapter.format(name=self.name)
+
+    @property
+    def chapter(self) -> Optional[VPath]:
+        """
+        Chapter file path
+
+        :setter:
+        """
+        return self._chapter
+
+    @chapter.setter
+    def chapter(self, chap: Optional[VPath]) -> None:
+        if chap and chap.suffix not in {'.txt', '.xml'}:
+            Status.warn(f'{self.__class__.__name__}: Chapter extension "{chap.suffix}" is not recognised!')
+        self._chapter = chap
+
+    @chapter.deleter
+    def chapter(self) -> None:
+        del self._chapter
 
     @property
     def trims_or_dfs(self) -> Union[List[Union[Trim, DF]], Trim, None]:
+        """
+        Trims or DuplicateFrame objects of the current FileInfo
+
+        :setter:
+        """
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
