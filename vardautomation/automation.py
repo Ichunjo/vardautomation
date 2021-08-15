@@ -70,13 +70,13 @@ class SelfRunner:
     file: FileInfo
     config: RunnerConfig
 
-    cleanup: Set[AnyPath]
+    cleanup_files: Set[AnyPath]
 
     def __init__(self, clip: vs.VideoNode, file: FileInfo, /, config: RunnerConfig) -> None:
         self.clip = clip
         self.file = file
         self.config = config
-        self.cleanup = set()
+        self.cleanup_files = set()
 
 
     def run(self) -> None:
@@ -98,9 +98,9 @@ class SelfRunner:
 
         if not self.file.name_clip_output.exists():
             self.config.v_encoder.run_enc(self.clip, self.file)
-            self.cleanup.add(self.file.name_clip_output)
+            self.cleanup_files.add(self.file.name_clip_output)
             if self.file.do_qpfile:
-                self.cleanup.add(self.file.qpfile)
+                self.cleanup_files.add(self.file.qpfile)
 
     def _audio_getter(self) -> None:
         if a_extracters := self.config.a_extracters:
@@ -108,30 +108,30 @@ class SelfRunner:
             for i, a_extracter in enumerate(a_extracters, start=1):
                 if self.file.a_src and not self.file.a_src.set_track(i).exists():
                     a_extracter.run()
-                    self.cleanup.add(self.file.a_src.set_track(i))
+                    self.cleanup_files.add(self.file.a_src.set_track(i))
 
         if a_cutters := self.config.a_cutters:
             a_cutters = a_cutters if isinstance(a_cutters, Sequence) else [a_cutters]
             for i, a_cutter in enumerate(a_cutters, start=1):
                 if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
                     a_cutter.run()
-                    self.cleanup.add(self.file.a_src_cut.set_track(i))
+                    self.cleanup_files.add(self.file.a_src_cut.set_track(i))
 
         if a_encoders := self.config.a_encoders:
             a_encoders = a_encoders if isinstance(a_encoders, Sequence) else [a_encoders]
             for i, a_encoder in enumerate(a_encoders, start=1):
                 if self.file.a_enc_cut and not self.file.a_enc_cut.set_track(i).exists():
                     a_encoder.run()
-                    self.cleanup.add(self.file.a_enc_cut.set_track(i))
+                    self.cleanup_files.add(self.file.a_enc_cut.set_track(i))
 
     def _muxer(self) -> None:
         if self.config.muxer:
             wfs = self.config.muxer.run()
-            self.cleanup.update(wfs)
+            self.cleanup_files.update(wfs)
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """Delete working files"""
-        self.cleanup.update(extra_files)
-        for files in self.cleanup:
+        self.cleanup_files.update(extra_files)
+        for files in self.cleanup_files:
             remove(files)
-        self.cleanup.clear()
+        self.cleanup_files.clear()
