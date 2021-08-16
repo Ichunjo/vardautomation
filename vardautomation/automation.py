@@ -78,13 +78,19 @@ class SelfRunner:
         self.config = config
         self.cleanup_files = set()
 
-
     def run(self) -> None:
         """Tool chain"""
         self._parsing()
         self._encode()
         self._audio_getter()
         self._muxer()
+
+    def do_cleanup(self, *extra_files: AnyPath) -> None:
+        """Delete working files"""
+        self.cleanup_files.update(extra_files)
+        for files in self.cleanup_files:
+            remove(files)
+        self.cleanup_files.clear()
 
     def _parsing(self) -> None:
         parser = Parser(self.file)
@@ -128,10 +134,3 @@ class SelfRunner:
         if self.config.muxer:
             wfs = self.config.muxer.run()
             self.cleanup_files.update(wfs)
-
-    def do_cleanup(self, *extra_files: AnyPath) -> None:
-        """Delete working files"""
-        self.cleanup_files.update(extra_files)
-        for files in self.cleanup_files:
-            remove(files)
-        self.cleanup_files.clear()
