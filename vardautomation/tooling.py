@@ -784,6 +784,15 @@ class AudioCutter(ABC):
         :param bitdepth:        Bit depth, defaults to 16
         """
 
+    @staticmethod
+    def _cleanup(*files: AnyPath) -> None:
+        for f in files:
+            try:
+                os.remove(f)
+            except FileNotFoundError:
+                pass
+
+
 
 FFMPEG_CHANNEL_LAYOUT_MAP: Dict[int, str] = {
     1: 'mono',
@@ -935,14 +944,9 @@ class EztrimCutter(AudioCutter):
             ).run()
 
         if cleanup:
-            try:
-                os.remove('_conf_concat.txt')
-            except FileNotFoundError:
-                pass
-            for tmpf in tmp_files:
-                os.remove(tmpf)
+            cls._cleanup(*tmp_files, '_conf_concat.txt')
 
-        tmp_files.clear()
+        del tmp_files
 
     @classmethod
     def generate_silence(
@@ -1043,16 +1047,17 @@ class SoxCutter(AudioCutter):
                 )
                 tmp_files.add(tmp.set_track(i).to_str())
 
-        tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
-
         if combine:
+            tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
             BasicTool(
                 BinaryPath.sox,
                 ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
             ).run()
+
         if cleanup:
-            for tmp in tmps:
-                os.remove(tmp)
+            cls._cleanup(*tmp_files)
+
+        del tmp_files
 
     @classmethod
     def generate_silence(
