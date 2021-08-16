@@ -37,7 +37,7 @@ class Status:
         curr_split.append(f'{exception.__name__}: {string}')
 
         curr_split = [Colours.FAILS[i % 2] + line + Colours.RESET for i, line in enumerate(curr_split[::-1])][::-1]
-        sys.exit(''.join(curr_split))
+        sys.exit(''.join(curr_split) + Colours.RESET)
 
     @staticmethod
     def warn(string: str, /) -> None:
