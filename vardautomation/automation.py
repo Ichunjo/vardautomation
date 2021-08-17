@@ -22,14 +22,7 @@ core = vs.core
 
 
 class Parser:
-    """Parser implementation. Still WIP"""
-
     def __init__(self, file: FileInfo) -> None:
-        """[summary]
-
-        :param file: [description]
-        :type file: FileInfo
-        """
         parser = argparse.ArgumentParser(description=f'Encode {file.name}')
         parser.add_argument('-L', '--lossless', action='store_true', default=False,
                             help='Write a lossless file instead of piping the pre-processing.')
@@ -41,7 +34,6 @@ class Parser:
         super().__init__()
 
     def parsing(self, file: FileInfo, clip: vs.VideoNode) -> Tuple[FileInfo, vs.VideoNode]:
-        """Parse the args from the constructor"""
         # Lossless check
         if self.args.lossless:
             file.do_lossless = True
@@ -57,48 +49,83 @@ class Parser:
 
 
 class RunnerConfig(NamedTuple):
-    """Config for the SelfRunner"""
+    """
+    Config for the SelfRunner
+    """
     v_encoder: VideoEncoder
+    """Video encoder"""
     v_lossless_encoder: Optional[LosslessEncoder] = None
+    """Lossless video encoder"""
     a_extracters: Union[AudioExtracter, Sequence[AudioExtracter], None] = None
+    """Audio extracter(s)"""
     a_cutters: Union[AudioCutter, Sequence[AudioCutter], None] = None
+    """Audio cutter(s)"""
     a_encoders: Union[AudioEncoder, Sequence[AudioEncoder], None] = None
+    """Audio encoder(s)"""
     muxer: Optional[Mux] = None
+    """Muxer"""
 
 
 class SelfRunner:
     """Self runner interface"""
+
     clip: vs.VideoNode
+    """Clip to be encoded"""
+
     file: FileInfo
+    """FileInfo object"""
+
     config: RunnerConfig
+    """Confif of the runner"""
 
     cleanup_files: Set[AnyPath]
+    """Files to be deleted"""
 
     def __init__(self, clip: vs.VideoNode, file: FileInfo, /, config: RunnerConfig) -> None:
+        """
+        :param clip:        Clip to be encoded
+        :param file:        FileInfo object
+        :param config:      Confif of the runner
+        """
         self.clip = clip
         self.file = file
         self.config = config
         self.cleanup_files = set()
 
     def run(self) -> None:
-        """Tool chain"""
+        """Main tooling chain"""
         self._parsing()
         self._encode()
         self._audio_getter()
         self._muxer()
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
-        """Delete working files"""
+        """
+        Delete working files
+
+        :param extra_files:     Additional files to be deleted
+        """
         self.cleanup_files.update(extra_files)
         for files in self.cleanup_files:
             remove(files)
         self.cleanup_files.clear()
 
     def rename_final_file(self, name: AnyPath) -> None:
-        """Rename the file.name_file_final"""
+        """
+        Rename the file.name_file_final
+
+        :param name:            New filename
+        """
         self.file.name_file_final = self.file.name_file_final.replace(VPath(name))
 
     def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: Optional[List[str]] = None) -> None:
+        """
+        Upload the ``name_file_final`` to a given FTP using rclone
+
+        :param ftp_name:        FTP name
+        :param destination:     Path destination
+        :param rclone_args:     Additionnal otpions, defaults to None
+        """
         BasicTool(
             BinaryPath.rclone, ['copy', '--progress'] + (rclone_args if rclone_args else [])
             + [self.file.name_file_final.absolute().as_posix(), f'{ftp_name}:{VPath(destination).to_str()}']

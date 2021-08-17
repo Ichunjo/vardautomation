@@ -154,6 +154,13 @@ Muxing
    :inherited-members:
    :show-inheritance:
 
+Automation
+============
+.. autoclass:: vardautomation.automation.SelfRunner
+   :members:
+.. autoclass:: vardautomation.automation.RunnerConfig
+   :members:
+
 Binary Path
 ============
 .. autoclass:: vardautomation.binary_path.BinaryPath
