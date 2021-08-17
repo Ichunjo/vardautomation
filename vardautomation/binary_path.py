@@ -18,6 +18,7 @@ class BinaryPath:
     nvencc: VPath = VPath('nvencc')
     opusenc: VPath = VPath('opusenc')
     qaac: VPath = VPath('qaac')
+    rclone: VPath = VPath('rclone')
     sox: VPath = VPath('sox')
     x264: VPath = VPath('x264')
     x265: VPath = VPath('x265')

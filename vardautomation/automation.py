@@ -6,15 +6,17 @@ __all__ = [
 
 import argparse
 from os import remove
-from typing import NamedTuple, Optional, Sequence, Set, Tuple, Union
+from typing import List, NamedTuple, Optional, Sequence, Set, Tuple, Union
 
 import vapoursynth as vs
 
+from .binary_path import BinaryPath
 from .config import FileInfo
 from .status import Status
-from .tooling import (AudioCutter, AudioEncoder, AudioExtracter,
+from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
                       LosslessEncoder, Mux, VideoEncoder)
 from .types import AnyPath
+from .vpathlib import VPath
 
 core = vs.core
 
@@ -91,6 +93,12 @@ class SelfRunner:
         for files in self.cleanup_files:
             remove(files)
         self.cleanup_files.clear()
+
+    def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: Optional[List[str]] = None) -> None:
+        BasicTool(
+            BinaryPath.rclone, ['copy', '--progress'] + (rclone_args if rclone_args else [])
+            + [self.file.name_file_final.absolute().as_posix(), f'{ftp_name}:{VPath(destination).to_str()}']
+        ).run()
 
     def _parsing(self) -> None:
         parser = Parser(self.file)
