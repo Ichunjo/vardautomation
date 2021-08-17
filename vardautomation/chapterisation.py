@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
 from shutil import copyfile
-from typing import (Any, List, NamedTuple, NoReturn, Optional, Sequence, Type,
+from typing import (List, NamedTuple, NoReturn, Optional, Sequence, Type,
                     Union, cast)
 
 from lxml import etree
@@ -394,9 +394,9 @@ class MatroskaXMLChapters(Chapters):
             Status.fail(f'{self.__class__.__name__}: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
 
 
-def _not_implemented_func(*args: Any, **kwargs: Any) -> NoReturn:
+def _not_implemented_func() -> NoReturn:
     """This function is not implemented"""
-    Status.fail('', exception=NotImplementedError, chain_err=NotImplementedError(*args, **kwargs))
+    Status.fail('', exception=NotImplementedError, chain_err=NotImplementedError())
 
 
 class MplsChapters(Chapters):
