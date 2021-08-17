@@ -396,7 +396,7 @@ class AudioEncoder(BasicTool):
         etree.SubElement(simple, 'String').text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
 
         assert self.xml_tag
-        with open(self.file.workdir / self.xml_tag, 'wb') as f:
+        with open(self.xml_tag, 'wb') as f:
             f.write(
                 etree.tostring(tags, encoding='utf-8', xml_declaration=True, pretty_print=True)
             )
