@@ -7,4 +7,7 @@
 - OpusEncoder handles all modes for both ffmpeg and opusenc implementation
 - Add FDKAACEncoder for both ffmpeg and fdkaac implementation
 - Improve errors printing
-- use workdir attribute where it should be used in FileInfo
+- Use workdir attribute where it should be used in FileInfo
+- Fix incorrect xml tag file path in AudioEncoder objects
+- Add an optional uploading method in SelfRunner
+- Add an optional renaming method in SelfRunner
