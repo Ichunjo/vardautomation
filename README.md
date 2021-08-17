@@ -1,6 +1,6 @@
 # Vardautomation
 
-Package I used for my automation stuff
+Package I'm using for my encoding stuff
 
 # How to install vardautomation
 
