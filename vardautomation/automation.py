@@ -94,6 +94,10 @@ class SelfRunner:
             remove(files)
         self.cleanup_files.clear()
 
+    def rename_final_file(self, name: AnyPath) -> None:
+        """Rename the file.name_file_final"""
+        self.file.name_file_final = self.file.name_file_final.replace(VPath(name))
+
     def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: Optional[List[str]] = None) -> None:
         BasicTool(
             BinaryPath.rclone, ['copy', '--progress'] + (rclone_args if rclone_args else [])
