@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
 from shutil import copyfile
-from typing import (List, NamedTuple, NoReturn, Optional, Sequence, Type,
+from typing import (Any, List, NamedTuple, NoReturn, Optional, Sequence, Type,
                     Union, cast)
 
 from lxml import etree
@@ -21,44 +21,81 @@ from .language import UNDEFINED, Lang
 from .status import Status
 from .timeconv import Convert
 from .types import AnyPath, Element, ElementTree
-from .utils import recursive_dict
+from .utils import copy_docstring_from, recursive_dict
 from .vpathlib import VPath
 
 
 class Chapter(NamedTuple):
     """Chapter object"""
     name: str
+    """Name of the chapter"""
     start_frame: int
+    """Start frame"""
     end_frame: Optional[int]
+    """Optional end frame"""
     lang: Lang = UNDEFINED
+    """Language of the chapter"""
 
 
 class Chapters(ABC):
-    """Abtract chapters interface"""
+    """Abtract Chapters interface"""
+
     chapter_file: VPath
+    """Chapters file path"""
 
     def __init__(self, chapter_file: AnyPath) -> None:
-        """Chapter file path as parameter"""
+        """
+        Register a new Chapters object
+
+        :param chapter_file:    Chapters file path
+        """
         self.chapter_file = VPath(chapter_file)
-        super().__init__()
 
     def __str__(self) -> str:
         return pformat(recursive_dict(self), indent=1, width=200, sort_dicts=False)
 
     @abstractmethod
     def create(self, chapters: List[Chapter], fps: Fraction) -> Union[None, NoReturn]:
-        """Create a chapter"""
+        """
+        Create the current Chapters object by passing a list of Chapter
+
+        :param chapters:        List of Chapter
+        :param fps:             Framerate Per Second
+        """
 
     @abstractmethod
     def set_names(self, names: Sequence[Optional[str]]) -> Union[None, NoReturn]:
-        """Change chapter names."""
+        """
+        Change/set names of the current Chapters object
+
+        :param names:           List of optional names. A ``None`` won't change the name of the current chapter list
+        """
+
+    @abstractmethod
+    def shift_times(self, frames: int, fps: Fraction) -> Union[None, NoReturn]:
+        """
+        Shift timestamps by given number of frames.
+
+        :param frames:          Corresponding number of frames to be shifted
+        :param fps:             Framerate Per Second
+        """
 
     @abstractmethod
     def to_chapters(self, fps: Fraction, lang: Optional[Lang]) -> List[Chapter]:
-        """Convert the Chapters object to a list of chapter"""
+        """
+        Convert the Chapters object to a list of chapter
+
+        :param fps:             Framerate Per Second
+        :param lang:            Language of the chapter.
+                                If specified it will override the current language of the Chapters object
+        """
 
     def copy(self, destination: AnyPath) -> None:
-        """Copy source chapter to destination and change target of chapter_file to the destination one."""
+        """
+        Copy source chapter to destination and change target of chapter_file to the destination one.
+
+        :param destination:     Destination path
+        """
         destination = VPath(destination)
         copyfile(self.chapter_file.resolve(), destination.resolve())
         self.chapter_file = destination
@@ -68,12 +105,18 @@ class Chapters(ABC):
         )
 
     def create_qpfile(self, qpfile: AnyPath, fps: Fraction) -> None:
-        """Create a qp file from the current Chapters object"""
+        """
+        Create a qp file from the current Chapters object
+
+        :param qpfile:      Qpfile path
+        :param fps:         Framerate Per Second
+        """
         qpfile = VPath(qpfile)
 
-        keyf = [chap.start_frame for chap in self.to_chapters(fps, None)]
-
-        qpfile.write_text('\n'.join(f"{f} K" for f in sorted(keyf)), encoding='utf-8')
+        qpfile.write_text(
+            '\n'.join(f"{f} K" for f in sorted(chap.start_frame for chap in self.to_chapters(fps, None))),
+            encoding='utf-8'
+        )
 
         Status.info(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
 
@@ -85,15 +128,21 @@ class Chapters(ABC):
 
 
 class OGMChapters(Chapters):
-    """OGMChapters object"""
+    """
+    OGMChapters object
+    An OGM based Chapters is a .txt file
+    """
 
     def __init__(self, chapter_file: AnyPath) -> None:
+        """
+        Register a new OGMChapters object
+
+        :param chapter_file:    Chapters file path
+        """
         super().__init__(chapter_file)
         self.chapter_file = self.chapter_file.with_suffix('.txt')
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
-        """Create a txt chapter file."""
-
         if not (par := self.chapter_file.parent).exists():
             par.mkdir(parents=True, exist_ok=True)
 
@@ -123,7 +172,6 @@ class OGMChapters(Chapters):
         self._logging('updated')
 
     def shift_times(self, frames: int, fps: Fraction) -> None:
-        """Shift times by given number of frames."""
         data = self._get_data()
 
         shifttime = Convert.f2seconds(frames, fps)
@@ -141,7 +189,6 @@ class OGMChapters(Chapters):
         self._logging('shifted')
 
     def to_chapters(self, fps: Fraction, lang: Optional[Lang]) -> List[Chapter]:
-        """Convert OGM Chapters to a list of Chapter"""
         data = self._get_data()
 
         chaptimes = data[::2]
@@ -167,8 +214,11 @@ class OGMChapters(Chapters):
 
 
 class MatroskaXMLChapters(Chapters):
-    """MatroskaXMLChapters object """
-    fps: Fraction
+    """
+    MatroskaXMLChapters object
+    An MatroskaXML based Chapters is a .xml file
+    """
+    _fps: Fraction
 
     __ED_ENTRY = 'EditionEntry'
     __ED_UID = 'EditionUID'
@@ -185,12 +235,16 @@ class MatroskaXMLChapters(Chapters):
     __DOCTYPE = '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->'
 
     def __init__(self, chapter_file: AnyPath) -> None:
+        """
+        Register a new MatroskaXMLChapters object
+
+        :param chapter_file:    Chapters file path
+        """
         super().__init__(chapter_file)
         self.chapter_file = self.chapter_file.with_suffix('.xml')
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
-        """Create a xml chapter file."""
-        self.fps = fps
+        self._fps = fps
 
         root = etree.Element('Chapters')
 
@@ -320,9 +374,9 @@ class MatroskaXMLChapters(Chapters):
 
         atom = etree.Element(self.__CHAP_ATOM)
 
-        etree.SubElement(atom, self.__CHAP_START).text = Convert.f2ts(chapter.start_frame, self.fps, precision=9)
+        etree.SubElement(atom, self.__CHAP_START).text = Convert.f2ts(chapter.start_frame, self._fps, precision=9)
         if chapter.end_frame:
-            etree.SubElement(atom, self.__CHAP_END).text = Convert.f2ts(chapter.end_frame, self.fps, precision=9)
+            etree.SubElement(atom, self.__CHAP_END).text = Convert.f2ts(chapter.end_frame, self._fps, precision=9)
 
         etree.SubElement(atom, self.__CHAP_UID).text = str(random.getrandbits(64))
 
@@ -340,17 +394,32 @@ class MatroskaXMLChapters(Chapters):
             Status.fail(f'{self.__class__.__name__}: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
 
 
+def _not_implemented_func(*args: Any, **kwargs: Any) -> NoReturn:
+    """This function is not implemented"""
+    Status.fail('', exception=NotImplementedError, chain_err=NotImplementedError(*args, **kwargs))
+
+
 class MplsChapters(Chapters):
     """MplsChapters object"""
-    m2ts: VPath
-    chapters: List[Chapter]
-    fps: Fraction
 
+    m2ts: VPath
+    """Associated m2ts file name"""
+    chapters: List[Chapter]
+    """Current list of chapters of this MplsChapters"""
+    fps: Fraction
+    """Framerate Per Second"""
+
+    @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t create a mpls file!', exception=NotImplementedError)
 
+    @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t change name from a mpls file!', exception=NotImplementedError)
+
+    @copy_docstring_from(_not_implemented_func)
+    def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
+        Status.fail(f'{self.__class__.__name__}: Can\'t shift times from a mpls file!', exception=NotImplementedError)
 
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
@@ -360,14 +429,23 @@ class MplsChapters(Chapters):
 
 class IfoChapters(Chapters):
     """IfoChapters object"""
-    chapters: List[Chapter]
-    fps: Fraction
 
+    chapters: List[Chapter]
+    """Current list of chapters of this IfoChapters"""
+    fps: Fraction
+    """Framerate Per Second"""
+
+    @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t create an ifo file!', exception=NotImplementedError)
 
+    @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t change name from an ifo file!', exception=NotImplementedError)
+
+    @copy_docstring_from(_not_implemented_func)
+    def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
+        Status.fail(f'{self.__class__.__name__}: Can\'t shift times from an ifo file!', exception=NotImplementedError)
 
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
@@ -376,36 +454,37 @@ class IfoChapters(Chapters):
 
 
 class MplsReader:
-    """Mpls reader"""
+    """MPLS reader"""
+
     bd_folder: VPath
+    """Bluray Disc folder path (usually ``PLAYLIST``)"""
 
     mpls_folder: VPath
+    """MPLS folder path"""
     m2ts_folder: VPath
+    """M2TS folder path (usually ``STREAMS``)"""
 
     lang: Lang
+    """Language"""
     default_chap_name: str
+    """Prefix used as default name for the generated chapters"""
 
     class MplsFile(NamedTuple):
+        """Class for MPLS file"""
         mpls_file: VPath
+        """MPLS file path"""
         mpls_chapters: List[MplsChapters]
+        """MPLS Chapters list"""
 
-    def __init__(self, bd_folder: AnyPath = VPath(), lang: Lang = UNDEFINED, default_chap_name: str = 'Chapter') -> None:
-        """Initialise a MplsReader.
-           All parameters are optionnal if you just want to use the `parse_mpls` method.
-
-        Args:
-            bd_folder (AnyPath, optional):
-                A valid bluray folder path should contain a BDMV and CERTIFICATE folders.
-                Defaults to VPath().
-
-            lang (Language, optional):
-                Language to be set. Defaults to UNDEFINED.
-
-            default_chap_name (str, optional):
-                Prefix used as default name for the generated chapters.
-                Defaults to 'Chapter'.
+    def __init__(self, bd_folder: AnyPath, lang: Lang = UNDEFINED, default_chap_name: str = 'Chapter') -> None:
         """
-        self.bd_folder = VPath(bd_folder)
+        Initialise a MplsReader.
+
+        :param bd_folder:           A valid bluray folder path should contain a BDMV and CERTIFICATE folders
+        :param lang:                Language to be set, defaults to UNDEFINED
+        :param default_chap_name:   Prefix used as default name for the generated chapters, defaults to 'Chapter'
+        """
+        self.bd_folder = VPath(bd_folder).resolve()
 
         self.mpls_folder = self.bd_folder / 'BDMV/PLAYLIST'
         self.m2ts_folder = self.bd_folder / 'BDMV/STREAM'
@@ -425,15 +504,12 @@ class MplsReader:
 
     def write_playlist(self, output_folder: Optional[AnyPath] = None, *,
                        chapters_obj: Type[Chapters] = MatroskaXMLChapters) -> None:
-        """Extract and write the playlist folder.
+        """
+        Extract and write the playlist folder
 
-        Args:
-            output_folder (Optional[AnyPath], optional):
-                Will write in the mpls folder if not specified.
-                Defaults to None.
-
-            chapters_obj (Type[Chapters], optional):
-                Defaults to MatroskaXMLChapters.
+        :param output_folder:           Output path where the chapters will be written.
+                                        If not specified will write in the MPLS folder, defaults to None
+        :param chapters_obj:            Type of wanted chapters, defaults to MatroskaXMLChapters
         """
         playlist = self.get_playlist()
 
@@ -452,9 +528,12 @@ class MplsReader:
                     chaps = chapters_obj(output_folder / f'{mpls_file.mpls_file.stem}_{mpls_chapters.m2ts.stem}')
                     chaps.create(chapters, mpls_chapters.fps)
 
-
     def parse_mpls(self, mpls_file: AnyPath) -> List[MplsChapters]:
-        """Parse a mpls file and return a list of chapters that were in the mpls file."""
+        """
+        Parse a mpls file and return a list of chapters that were in the MPLS file.
+
+        :param mpls_file: MPL file path
+        """
         mpls_file = VPath(mpls_file)
         with mpls_file.open('rb') as file:
             header = mpls.load_movie_playlist(file)
@@ -511,7 +590,6 @@ class MplsReader:
 
         return mpls_chaps
 
-
     def _mplschapters_to_chapters(self, marks: List[mpls.playlist_mark.PlaylistMark], offset: int, fps: Fraction) -> List[Chapter]:
         return [
             Chapter(
@@ -525,29 +603,26 @@ class MplsReader:
 
 
 class IfoReader:
-    """Mpls reader"""
+    """IFO reader"""
+
     dvd_folder: VPath
+    """DVD Folder path"""
 
     ifo_folder: VPath
+    """Current IFO folder path"""
 
     lang: Lang
+    """Language"""
     default_chap_name: str
+    """Prefix used as default name for the generated chapters"""
 
-    def __init__(self, dvd_folder: AnyPath = VPath(), lang: Lang = UNDEFINED, default_chap_name: str = 'Chapter') -> None:
-        """Initialise a IfoReader.
-           All parameters are optionnal if you just want to use the `parse_ifo` method.
+    def __init__(self, dvd_folder: AnyPath, lang: Lang = UNDEFINED, default_chap_name: str = 'Chapter') -> None:
+        """
+        Initialise a IfoReader
 
-        Args:
-            dvd_folder (AnyPath, optional):
-                A valid dvd folder path should contain at least a VIDEO_TS folder.
-                Defaults to VPath().
-
-            lang (Language, optional):
-                Language to be set. Defaults to UNDEFINED.
-
-            default_chap_name (str, optional):
-                Prefix used as default name for the generated chapters.
-                Defaults to 'Chapter'.
+        :param dvd_folder:          A valid dvd folder path should contain at least a VIDEO_TS folder.
+        :param lang:                Language to be set, defaults to UNDEFINED
+        :param default_chap_name:   Prefix used as default name for the generated chapters, defaults to 'Chapter'
         """
         self.dvd_folder = VPath(dvd_folder)
 
@@ -558,18 +633,13 @@ class IfoReader:
 
     def write_programs(self, output_folder: Optional[AnyPath] = None, *,
                        chapters_obj: Type[Chapters] = MatroskaXMLChapters, ifo_file: str = 'VTS_01_0.IFO') -> None:
-        """Extract and write the programs from the IFO file to XML chapters files.
+        """
+        Extract and write the programs from the IFO file to chapters files
 
-        Args:
-            output_folder (Optional[AnyPath], optional):
-                Will write in the IFO folder if not specified.
-                Defaults to None.
-
-            chapters_obj (Type[Chapters], optional):
-                Defaults to MatroskaXMLChapters.
-
-            ifo_file (str, optional):
-                Name of the ifo file. Defaults to VTS_01_0.IFO.
+        :param output_folder:           Output path where the chapters will be written.
+                                        If not specified will write in the IFO folder, defaults to None
+        :param chapters_obj:            Type of wanted chapters, defaults to MatroskaXMLChapters
+        :param ifo_file:                Name of the ifo file, defaults to 'VTS_01_0.IFO'
         """
         ifo_chapters = self.parse_ifo(self.ifo_folder / ifo_file)
 
@@ -589,7 +659,11 @@ class IfoReader:
 
 
     def parse_ifo(self, ifo_file: AnyPath) -> List[IfoChapters]:
-        """Parse a mpls file and return a list of chapters that were in the ifo file."""
+        """
+        Parse a mpls file and return a list of chapters that were in the ifo file.
+
+        :param ifo_file: IFO file path
+        """
         ifo_file = VPath(ifo_file)
 
         with ifo_file.open('rb') as file:

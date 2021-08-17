@@ -161,6 +161,34 @@ Automation
 .. autoclass:: vardautomation.automation.RunnerConfig
    :members:
 
+Chapters stuff
+===============
+.. autoclass:: vardautomation.chapterisation.Chapter
+   :members:
+.. autoclass:: vardautomation.chapterisation.Chapters
+   :members:
+   :show-inheritance:
+.. autoclass:: vardautomation.chapterisation.OGMChapters
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.chapterisation.MatroskaXMLChapters
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.chapterisation.MplsChapters
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.chapterisation.IfoChapters
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.chapterisation.MplsReader
+   :members:
+.. autoclass:: vardautomation.chapterisation.IfoReader
+   :members:
+
 Binary Path
 ============
 .. autoclass:: vardautomation.binary_path.BinaryPath
