@@ -22,6 +22,8 @@ from .tooling import SubProcessAsync, VideoEncoder
 from .types import AnyPath
 from .vpathlib import VPath
 
+_MAX_ATTEMPTS_PER_PICTURE_TYPE: Final[int] = 50
+
 
 class Writer(Enum):
     """Writer to be used to extract frames"""
@@ -71,7 +73,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 @overload
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
-               picture_type: Optional[Iterable[str]] = None,
+               picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
                writer: Writer = Writer.FFMPEG,
                magick_compare: bool = False,
@@ -83,7 +85,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     :param path:                Path to your comparison folder, defaults to 'comps'
     :param num:                 Number of frames to extract, defaults to 15
     :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-    :param picture_type         Select picture types to pick, default to None
+    :param picture_types        Select picture types to pick, default to None
     :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
     :param writer:              Writer method to be used, defaults to Writer.FFMPEG
     :param magick_compare:      Make diffs between the first and second clip
@@ -97,7 +99,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
 
 def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
-               picture_type: Optional[Iterable[str]] = None,
+               picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
                writer: Writer = Writer.FFMPEG,
                magick_compare: bool = False,
@@ -108,9 +110,9 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         Status.fail('generate_comp: "clips" must be equal length!', exception=ValueError)
 
     # Make samples
-    if picture_type is not None:
-        Status.info('Make samples according to specified picture types...')
-        samples = _select_samples_with_picture_type(clips.values(), lens.pop(), num, picture_type)
+    if picture_types:
+        Status.info('make_comps: Make samples according to specified picture types...')
+        samples = _select_samples_with_picture_types(clips.values(), lens.pop(), num, picture_types)
     else:
         samples = set(random.sample(range(lens.pop()), num))
 
@@ -250,19 +252,54 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
 
-def _select_samples_with_picture_type(clips: Collection[vs.VideoNode], num_frames: int, k: int, picture_type: Iterable[str]) -> Set[int]:
+def _select_samples_with_picture_types(clips: Collection[vs.VideoNode], num_frames: int, k: int, picture_types: Iterable[str]) -> Set[int]:
     samples: Set[int] = set()
-    p_type = [p.upper() for p in picture_type]
-    for _ in range(k):
+    p_type = [p.upper() for p in picture_types]
+
+    _max_attempts = 0
+    _rnum_checked: Set[int] = set()
+    while len(samples) < k:
+        _attempts = 0
+
         while True:
-            rnum = random.randrange(0, num_frames)
+            # Check if we don't exceed the length of the clips
+            # if yes then that means we checked all the frames
+            if len(_rnum_checked) < num_frames:
+                rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
+                _rnum_checked.add(rnum)
+            else:
+                Status.fail(f'make_comps: There are not enough of {p_type} in these clips', exception=ValueError)
+
+            # Check _PictType
             if all(
-                get_prop(c.get_frame(rnum), '_PictType', bytes).decode('utf-8') in p_type
-                for c in clips
-            ) and rnum not in samples:
+                get_prop(f, '_PictType', bytes).decode('utf-8') in p_type
+                for f in vs.core.std.Splice([select_frames(c, [rnum]) for c in clips], mismatch=True).frames()
+            ):
                 break
-        samples.add(rnum)
+            _attempts += 1
+            _max_attempts += 1
+
+            if _attempts > _MAX_ATTEMPTS_PER_PICTURE_TYPE:
+                Status.warn(
+                    f'make_comps: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
+                    f'and no match found for {p_type}; stopping iteration...'
+                )
+                break
+
+        if _max_attempts > (curr_max_att := _MAX_ATTEMPTS_PER_PICTURE_TYPE * k):
+            Status.fail(f'make_comps: attempts max of {curr_max_att} has been reached!', exception=RecursionError)
+
+        if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
+            samples.add(rnum)
+
     return samples
+
+
+def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
+    rnum = rand_func()
+    while rnum in checked:
+        rnum = rand_func()
+    return rnum
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
