@@ -106,7 +106,7 @@ class Tool(ABC):
             self.params += self.settings
         else:
             try:
-                with open(self.settings, 'r') as sttgs:
+                with open(self.settings, 'r', encoding='utf-8') as sttgs:
                     params_re = re.split(r'[\n\s]\s*', sttgs.read())
             except FileNotFoundError as file_err:
                 Status.fail(
@@ -932,7 +932,7 @@ class EztrimCutter(AudioCutter):
             # Write a config concat file
             # paths should be in poxix format and space character escaped
             # this is so annoying
-            with open('_conf_concat.txt', 'w') as _conf_concat:
+            with open('_conf_concat.txt', 'w', encoding='utf-8') as _conf_concat:
                 _conf_concat.writelines(
                     'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
                     for af in concat_files
