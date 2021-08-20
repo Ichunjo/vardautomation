@@ -2,14 +2,17 @@
 
 __all__ = ['make_comps', 'Writer']
 
+import os
 import random
 import subprocess
 from enum import Enum, auto
-from typing import (Any, Collection, Dict, Iterable, List, Optional, Set,
-                    overload)
+from functools import partial
+from typing import (Any, Callable, Collection, Dict, Final, Iterable, List,
+                    Optional, Set, overload)
 
+import cv2
+import numpy as np
 import vapoursynth as vs
-from lvsfunc.render import clip_async_render
 from lvsfunc.util import get_prop
 from requests import Session
 from requests_toolbelt import MultipartEncoder
@@ -33,6 +36,9 @@ class Writer(Enum):
 
     IMWRI = auto()
     """core.imwri.Write Vapoursynth plugin"""
+
+    OPENCV = auto()
+    """opencv + numpy library"""
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}.{self.name}>'
@@ -75,7 +81,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
                picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
-               writer: Writer = Writer.FFMPEG,
+               writer: Writer = Writer.OPENCV,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     """
@@ -87,7 +93,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
     :param picture_types        Select picture types to pick, default to None
     :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
-    :param writer:              Writer method to be used, defaults to Writer.FFMPEG
+    :param writer:              Writer method to be used, defaults to Writer.OPENCV
     :param magick_compare:      Make diffs between the first and second clip
                                 Will raise an exception if more than 2 clips are passed to clips, defaults to False
     :param slowpics:            Upload to slow.pics, defaults to False
@@ -101,13 +107,13 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
                picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
-               writer: Writer = Writer.FFMPEG,
+               writer: Writer = Writer.OPENCV,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
     if len(lens) != 1:
-        Status.fail('generate_comp: "clips" must be equal length!', exception=ValueError)
+        Status.fail('make_comps: "clips" must be equal length!', exception=ValueError)
 
     # Make samples
     if picture_types:
@@ -126,18 +132,16 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
     try:
         path.mkdir(parents=True)
     except FileExistsError as file_err:
-        Status.fail('make_comps: "path" already exists!', exception=ValueError, chain_err=file_err)
+        Status.fail(f'make_comps: path "{path.to_str()}" already exists!', exception=ValueError, chain_err=file_err)
 
     # Extracts the requested frames using ffmpeg
     # imwri lib is slower even asynchronously requested
     for name, clip in clips.items():
-
         path_name = path / name
         try:
             path_name.mkdir(parents=True)
         except FileExistsError as file_err:
-            Status.fail(f'make_comps: {path_name.to_str()} already exists!',
-                        exception=FileExistsError, chain_err=file_err)
+            Status.fail(f'make_comps: {path_name.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
         clip = clip.resize.Bicubic(
             format=vs.RGB24, matrix_in=Zimg.Matrix.BT709 if force_bt709 else None,
@@ -167,16 +171,36 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                 '-i', 'pipe:', *outputs
             ]
 
-            VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=None).run_enc(clip, None, y4m=False)
-            print('\n')
+            VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=_progress_update_func).run_enc(clip, None, y4m=False)
 
-        else:
+        elif writer == Writer.IMWRI:
             reqs = clip.imwri.Write(
-                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str()
+                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str(),
             )
             clip = select_frames(reqs, frames)
             # zzzzzzzzz soooo slow
-            clip_async_render(clip)
+            with open(os.devnull, 'wb') as devnull:
+                clip.output(devnull, y4m=False, progress_update=_progress_update_func)
+
+        else:
+            clip = select_frames(clip, frames)
+            path_images = [
+                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
+                for f in frames
+            ]
+
+            def _save_cv_image(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+                vector = cv2.merge(
+                    [np.array(f.get_read_array(i), copy=False)  # type: ignore
+                     for i in range(f.format.num_planes - 1, -1, -1)]
+                )
+                cv2.imwrite(path_images[n].to_str(), vector)
+                return f
+
+            clip = clip.std.ModifyFrame(clip, partial(_save_cv_image, path_images=path_images))
+
+            with open(os.devnull, 'wb') as devnull:
+                clip.output(devnull, y4m=False, progress_update=_progress_update_func)
 
 
     # Make diff images
@@ -184,22 +208,17 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         if len(clips) > 2:
             Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
 
+        path_diff = path / 'diffs'
         try:
             subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            path_diff.mkdir(parents=True)
         except FileNotFoundError as file_not_found:
-            Status.fail(
-                'make_comps: "magick compare" was not found!',
-                exception=FileNotFoundError, chain_err=file_not_found
-            )
+            Status.fail('make_comps: "magick compare" was not found!', exception=FileNotFoundError, chain_err=file_not_found)
+        except FileExistsError as file_err:
+            Status.fail(f'make_comps: {path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
         all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
         images_a, images_b = all_images
-
-        path_diff = path / 'diffs'
-        try:
-            path_diff.mkdir(parents=True)
-        except FileExistsError as file_err:
-            Status.fail(f'make_comps: {path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
         cmds = [
             f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % max_num)) + '.png"'
@@ -316,3 +335,7 @@ def _get_slowpics_header(content_length: str, content_type: str, sess: Session) 
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "X-XSRF-TOKEN": sess.cookies.get_dict()["XSRF-TOKEN"]
     }
+
+
+def _progress_update_func(value: int, endvalue: int) -> None:
+    return print(f"\rExtrating image: {value}/{endvalue} ~ {100 * value // endvalue}%", end="")
