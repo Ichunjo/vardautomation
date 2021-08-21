@@ -190,11 +190,8 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
             ]
 
             def _save_cv_image(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-                vector = cv2.merge(
-                    [np.array(f.get_read_array(i), copy=False)  # type: ignore
-                     for i in range(f.format.num_planes - 1, -1, -1)]
-                )
-                cv2.imwrite(path_images[n].to_str(), vector)
+                frame_array = np.dstack([f.get_read_array(i) for i in range(f.format.num_planes - 1, -1, -1)])  # type: ignore
+                cv2.imwrite(path_images[n].to_str(), frame_array)
                 return f
 
             clip = clip.std.ModifyFrame(clip, partial(_save_cv_image, path_images=path_images))
