@@ -161,6 +161,11 @@ Automation
 .. autoclass:: vardautomation.automation.RunnerConfig
    :members:
 
+Patch
+============
+.. autoclass:: vardautomation.patch.Patch
+   :members:
+
 Chapters stuff
 ===============
 .. autoclass:: vardautomation.chapterisation.Chapter
@@ -194,6 +199,25 @@ Binary Path
 .. autoclass:: vardautomation.binary_path.BinaryPath
    :members:
 
+Language
+============
+.. autoclass:: vardautomation.language.Lang
+   :members:
+.. autodata:: vardautomation.language.FRENCH
+.. autodata:: vardautomation.language.ENGLISH
+.. autodata:: vardautomation.language.JAPANESE
+.. autodata:: vardautomation.language.UNDEFINED
+
+Time conversion
+============
+.. autoclass:: vardautomation.timeconv.Convert
+   :members:
+
+VPath
+============
+.. autoclass:: vardautomation.vpathlib.VPath
+   :members:
+
 Types
 ======
 .. autodata:: vardautomation.types.AnyPath
@@ -201,6 +225,11 @@ Types
 .. autodata:: vardautomation.types.Trim
 .. autodata:: vardautomation.types.UpdateFunc
 .. autodata:: vardautomation.types.VPSIdx
+
+Internal functions
+============
+.. autoclass:: vardautomation.utils.Properties
+   :members:
 
 Comparison
 ============

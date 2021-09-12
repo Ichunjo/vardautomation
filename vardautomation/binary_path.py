@@ -9,7 +9,7 @@ from .vpathlib import VPath
 class BinaryPath:
     """
     Class storing the path of the variable binaries used in vardautomation
-    Just edit one of these attributes if binary is not on your environment path
+    Just edit one of these attributes if the binary is not in your environment path
     """
 
     eac3to: VPath = VPath('eac3to')

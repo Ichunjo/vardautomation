@@ -18,22 +18,45 @@ from .vpathlib import VPath
 
 
 class Patch:
-    """Allow easy video patching"""
+    """Easy video patching interface"""
+
     encoder: VideoEncoder
+    """VideoEncoder to be used"""
+
     clip: vs.VideoNode
+    """Clip where the patch will pick the fixed ranges"""
+
     file: FileInfo
+    """
+    FileInfo object\n
+    The file that will be fixed is the file defined in :py:attr:`FileInfo.name_file_final`
+    """
+
     ranges: List[Tuple[int, int]]
+    """Normalised ranges"""
+
     debug: bool
+    """Debug boolean"""
 
     workdir: VPath
+    """Work directory path"""
     output_filename: VPath
+    """Output filename path"""
 
     _file_to_fix: VPath
 
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
                  ranges: Union[Range, List[Range]],
                  output_filename: Optional[str] = None, *, debug: bool = False) -> None:
-        """Patching your videos has never been so easy!"""
+        """
+        :param encoder:             VideoEncoder to be used
+        :param clip:                Clip where the patch will pick the fixed ranges
+        :param file:                FileInfo object. The file that will be fixed is the file defined
+                                    in :py:attr:`FileInfo.name_file_final`
+        :param ranges:              Ranges of frames that need to be fixed
+        :param output_filename:     Optional filename. If not specified a suffix ``_new`` wil be added, defaults to None
+        :param debug:               Debug argument, defaults to False
+        """
         self.encoder = encoder
         self.clip = clip
         self.file = file
@@ -53,7 +76,10 @@ class Patch:
             self.output_filename = final / f'{self._file_to_fix.stem}_new.mkv'
 
         if self.workdir.exists():
-            Status.fail(f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!', exception=FileExistsError)
+            Status.fail(
+                f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!',
+                exception=FileExistsError
+            )
 
     def run(self) -> None:
         """Launch patch"""
@@ -64,7 +90,7 @@ class Patch:
         self._cut_and_merge()
 
     def do_cleanup(self) -> None:
-        """Delete workdir folder"""
+        """Delete working directory folder"""
         shutil.rmtree(self.workdir, ignore_errors=True)
 
     def _resolve_range(self) -> None:

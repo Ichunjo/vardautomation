@@ -1281,7 +1281,7 @@ class X265Encoder(VideoLanEncoder):
         super().__init__(BinaryPath.x265, settings, zones, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
-        min_luma, max_luma = Properties.get_color_range(self.params, self.clip)
+        min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
         return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
 

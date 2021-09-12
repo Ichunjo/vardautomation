@@ -9,6 +9,7 @@ colorama.init()
 
 
 class Colours:
+    """Colour constants"""
     FAIL_DIM: str = colorama.Back.RED + colorama.Fore.BLACK + colorama.Style.NORMAL
     FAIL_BRIGHT: str = colorama.Back.RED + colorama.Fore.WHITE + colorama.Style.NORMAL
     WARN: str = colorama.Back.YELLOW + colorama.Fore.BLACK + colorama.Style.NORMAL
@@ -22,6 +23,7 @@ class Status:
     def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
         curr_split: List[str] = []
 
+        # All that stuff is just for alternating colours lmao
         if chain_err:
             class _Exception(BaseException):
                 __cause__ = chain_err

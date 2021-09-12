@@ -320,7 +320,7 @@ class FileInfo:
         """
         Chapter file path
 
-        :setter:
+        :setter:                Set the chapter path
         """
         return self._chapter
 
@@ -339,7 +339,7 @@ class FileInfo:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
-        :setter:
+        :setter:                Set trims or duplicate frames
         """
         return self._trims_or_dfs
 

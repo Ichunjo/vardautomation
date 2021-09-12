@@ -15,22 +15,14 @@ class Properties:
     """Collection of methods to get some properties from the parameters and/or the clip"""
 
     @classmethod
-    def get_color_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
-        """Get colour range.
+    def get_colour_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
+        """
+        Get the luma colour range specified in the params.
+        Fallback to the clip properties.
 
-        Args:
-            params (List[str]):
-                Settings of the encoder.
-
-            clip (vs.VideoNode):
-                Source clip.
-
-            bits (int):
-                Bitdepth
-
-        Returns:
-            Tuple[int, int]:
-                A tuple of min_luma and max_luma value
+        :param params:              Settings of the encoder.
+        :param clip:                Source
+        :return:                    A tuple of min_luma and max_luma value
         """
         bits = cls.get_depth(clip)
 
@@ -62,24 +54,33 @@ class Properties:
 
     @staticmethod
     def get_depth(clip: vs.VideoNode, /) -> int:
-        """Returns the bit depth of a VideoNode as an integer."""
+        """
+        Returns the bit depth of a VideoNode as an integer.
+
+        :param clip:            Source clip
+        :return:                Bitdepth
+        """
         assert clip.format
         return clip.format.bits_per_sample
 
     @staticmethod
     def get_csp(clip: vs.VideoNode) -> str:
-        """Get colourspaces
+        """
+        Get the colourspace a the given clip based on its format
 
-        Args:
-            clip (vs.VideoNode): Source clip.
-
-        Returns:
-            str: Colourspace suitable for x264
+        :param clip:            Source clip
+        :return:                Colourspace suitable for x264
         """
         def _get_csp_subsampled(format_clip: vs.Format) -> str:
             sub_w, sub_h = format_clip.subsampling_w, format_clip.subsampling_h
             csp_yuv_subs: Dict[Tuple[int, int], str] = {(0, 0): 'i444', (1, 0): 'i422', (1, 1): 'i420'}
-            return csp_yuv_subs[(sub_w, sub_h)]
+            try:
+                return csp_yuv_subs[(sub_w, sub_h)]
+            except KeyError as k_err:
+                Status.fail(
+                    f'{Properties.__name__}: wrong subsampling "{(sub_w, sub_h)}"',
+                    exception=ValueError, chain_err=k_err
+                )
 
         assert clip.format
 
@@ -92,6 +93,12 @@ class Properties:
 
     @staticmethod
     def get_encoder_name(path: AnyPath) -> str:
+        """
+        Get the encoder name from the file's tags
+
+        :param path:            File path
+        :return:                Encoder name
+        """
         ffprobe_args = ['ffprobe', '-loglevel', 'quiet', '-show_entries', 'format_tags=encoder',
                         '-print_format', 'default=nokey=1:noprint_wrappers=1', str(path)]
         return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
