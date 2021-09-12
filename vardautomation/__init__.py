@@ -1,4 +1,4 @@
-"""Collection of classes and functions helping to automate encoding"""
+"""Collection of classes and helper functions to automate encoding"""
 # flake8: noqa
 from ._metadata import __author__, __version__
 from .automation import *
