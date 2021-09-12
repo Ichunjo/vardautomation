@@ -236,7 +236,8 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         fields: Dict[str, Any] = {
             'collectionName': collection_name,
             'public': str(public).lower(),
-            'optimize-images': 'true'
+            'optimizeImages': 'true',
+            'hentai': 'false'
         }
 
         for i, (name, images) in enumerate(
