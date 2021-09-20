@@ -110,6 +110,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                writer: Writer = Writer.OPENCV,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
+    # pylint: disable=consider-using-f-string
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
     if len(lens) != 1:

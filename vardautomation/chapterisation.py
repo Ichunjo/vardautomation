@@ -146,7 +146,7 @@ class OGMChapters(Chapters):
         if not (par := self.chapter_file.parent).exists():
             par.mkdir(parents=True, exist_ok=True)
 
-        with self.chapter_file.open('w') as file:
+        with self.chapter_file.open('w', encoding='utf-8') as file:
             for i, chapter in enumerate(chapters, start=1):
                 file.writelines([f'CHAPTER{i:02.0f}={Convert.f2ts(chapter.start_frame, fps)}\n',
                                  f'CHAPTER{i:02.0f}NAME={chapter.name}\n'])
@@ -167,7 +167,7 @@ class OGMChapters(Chapters):
         new = [f'CHAPTER{i+1:02.0f}NAME={names[i]}\n' if names[i] is not None else chapname
                for i, chapname in enumerate(old)]
 
-        self.chapter_file.write_text('\n'.join([val for tup in zip(times, new) for val in tup]))
+        self.chapter_file.write_text('\n'.join([val for tup in zip(times, new) for val in tup]), encoding='utf-8')
 
         self._logging('updated')
 
@@ -184,7 +184,7 @@ class OGMChapters(Chapters):
             for chaptime in chaptimes
         ]
 
-        self.chapter_file.write_text('\n'.join([val for tup in zip(newchaptimes, chapnames) for val in tup]))
+        self.chapter_file.write_text('\n'.join([val for tup in zip(newchaptimes, chapnames) for val in tup]), encoding='utf-8')
 
         self._logging('shifted')
 
@@ -207,7 +207,7 @@ class OGMChapters(Chapters):
         return chapters
 
     def _get_data(self) -> List[str]:
-        with self.chapter_file.open('r') as file:
+        with self.chapter_file.open('r', encoding='utf-8') as file:
             data = file.readlines()
         return data
 

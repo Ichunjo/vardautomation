@@ -934,6 +934,7 @@ class EztrimCutter(AudioCutter):
             # this is so annoying
             with open('_conf_concat.txt', 'w', encoding='utf-8') as _conf_concat:
                 _conf_concat.writelines(
+                    # pylint: disable=consider-using-f-string
                     'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
                     for af in concat_files
                 )
