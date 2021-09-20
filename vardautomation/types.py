@@ -22,6 +22,7 @@ VPSIdx = Callable[[str], VideoNode]
 
 T = TypeVar('T')
 
+
 class ElementTree(etree._ElementTree):  # type: ignore
     def xpath(self, _path: Union[str, bytes],  # type: ignore
               namespaces: Optional[Union[Dict[str, str], Dict[bytes, bytes]]] = None,
