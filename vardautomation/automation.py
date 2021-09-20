@@ -124,7 +124,7 @@ class SelfRunner:
 
         :param ftp_name:        FTP name
         :param destination:     Path destination
-        :param rclone_args:     Additionnal otpions, defaults to None
+        :param rclone_args:     Additionnal options, defaults to None
         """
         BasicTool(
             BinaryPath.rclone, ['copy', '--progress'] + (rclone_args if rclone_args else [])
