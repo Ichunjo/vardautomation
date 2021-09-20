@@ -1,12 +1,15 @@
 """Automation module"""
+from __future__ import annotations
 
 __all__ = [
     'Parser', 'RunnerConfig', 'SelfRunner',
 ]
 
 import argparse
+from dataclasses import dataclass
+from enum import Enum, auto
 from os import remove
-from typing import List, NamedTuple, Optional, Sequence, Set, Tuple, Union
+from typing import List, Optional, Sequence, Set, Tuple, Union, cast
 
 import vapoursynth as vs
 
@@ -15,7 +18,7 @@ from .config import FileInfo
 from .status import Status
 from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
                       LosslessEncoder, Mux, VideoEncoder)
-from .types import AnyPath
+from .types import AnyPath, T
 from .vpathlib import VPath
 
 core = vs.core
@@ -48,10 +51,17 @@ class Parser:
         return file, clip
 
 
-class RunnerConfig(NamedTuple):
+@dataclass(repr=False, eq=False)
+class RunnerConfig:
     """
     Config for the SelfRunner
     """
+
+    class Order(Enum):
+        """Simple enum for priority order"""
+        VIDEO = auto()
+        AUDIO = auto()
+
     v_encoder: VideoEncoder
     """Video encoder"""
     v_lossless_encoder: Optional[LosslessEncoder] = None
@@ -64,6 +74,9 @@ class RunnerConfig(NamedTuple):
     """Audio encoder(s)"""
     muxer: Optional[Mux] = None
     """Muxer"""
+
+    order: RunnerConfig.Order = Order.VIDEO
+    """Priority order"""
 
 
 class SelfRunner:
@@ -95,8 +108,13 @@ class SelfRunner:
     def run(self) -> None:
         """Main tooling chain"""
         self._parsing()
-        self._encode()
-        self._audio_getter()
+
+        funcs = [self._encode, self._audio_getter]
+        if self.config.order == RunnerConfig.Order.AUDIO:
+            funcs.reverse()
+        for f in funcs:
+            f()
+
         self._muxer()
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
