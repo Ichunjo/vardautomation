@@ -3,7 +3,7 @@ from __future__ import annotations
 __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree']
 
 from os import PathLike
-from typing import Any, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 from lxml import etree
 from vapoursynth import VideoNode
@@ -20,6 +20,7 @@ UpdateFunc = Callable[[int, int], None]
 VPSIdx = Callable[[str], VideoNode]
 """Vapoursynth function indexer"""
 
+T = TypeVar('T')
 
 class ElementTree(etree._ElementTree):  # type: ignore
     def xpath(self, _path: Union[str, bytes],  # type: ignore

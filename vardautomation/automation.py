@@ -147,27 +147,32 @@ class SelfRunner:
             if self.file.do_qpfile:
                 self.cleanup_files.add(self.file.qpfile)
 
-    def _audio_getter(self) -> None:
-        if a_extracters := self.config.a_extracters:
-            a_extracters = a_extracters if isinstance(a_extracters, Sequence) else [a_extracters]
-            for i, a_extracter in enumerate(a_extracters, start=1):
-                if self.file.a_src and not self.file.a_src.set_track(i).exists():
+    def _audio_getter(self) -> None:  # noqa C901
+        if self.config.a_extracters:
+            a_extracters = self._check_if_sequence(self.config.a_extracters)
+            for a_extracter in a_extracters:
+                if self.file.a_src and not any(self.file.a_src.set_track(n).exists() for n in a_extracter.track_out):
                     a_extracter.run()
-                    self.cleanup_files.add(self.file.a_src.set_track(i))
+                    for n in a_extracter.track_out:
+                        self.cleanup_files.add(self.file.a_src.set_track(n))
 
-        if a_cutters := self.config.a_cutters:
-            a_cutters = a_cutters if isinstance(a_cutters, Sequence) else [a_cutters]
+        if self.config.a_cutters:
+            a_cutters = self._check_if_sequence(self.config.a_cutters)
             for i, a_cutter in enumerate(a_cutters, start=1):
                 if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
                     a_cutter.run()
                     self.cleanup_files.add(self.file.a_src_cut.set_track(i))
 
-        if a_encoders := self.config.a_encoders:
-            a_encoders = a_encoders if isinstance(a_encoders, Sequence) else [a_encoders]
+        if self.config.a_encoders:
+            a_encoders = self._check_if_sequence(self.config.a_encoders)
             for i, a_encoder in enumerate(a_encoders, start=1):
                 if self.file.a_enc_cut and not self.file.a_enc_cut.set_track(i).exists():
                     a_encoder.run()
                     self.cleanup_files.add(self.file.a_enc_cut.set_track(i))
+
+    @staticmethod
+    def _check_if_sequence(seq: Union[T, Sequence[T]]) -> Sequence[T]:
+        return cast(Sequence[T], seq) if isinstance(seq, Sequence) else cast(Sequence[T], [seq])
 
     def _muxer(self) -> None:
         if self.config.muxer:
