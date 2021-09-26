@@ -30,7 +30,6 @@ from typing import (Any, BinaryIO, Dict, List, Literal, NoReturn, Optional,
 
 import vapoursynth as vs
 from acsuite import eztrim
-from lvsfunc.render import SceneChangeMode, find_scene_changes
 from lxml import etree
 from pymediainfo import MediaInfo
 from vardefunc.util import normalise_ranges
@@ -1144,11 +1143,6 @@ class VideoEncoder(Tool):
         self.clip = clip
 
         self._get_settings()
-
-        if file and self.file.do_qpfile:
-            self._create_qpfile()
-            self.params += ['--qpfile', self.file.qpfile.to_str()]
-
         self._do_encode(y4m)
 
     def run(self) -> NoReturn:
@@ -1163,15 +1157,6 @@ class VideoEncoder(Tool):
             return dict(clip_output=self.file.name_clip_output.to_str(), filename=self.file.name)
         except AttributeError:
             return {}
-
-    def _create_qpfile(self) -> None:
-        if not (qpfile := self.file.qpfile).exists():
-            scenes = find_scene_changes(self.file.clip_cut, SceneChangeMode.WWXD_SCXVID_UNION)
-
-            with qpfile.open('w') as qpf:
-                qpf.writelines(f"{s} K\n" for s in scenes)
-        else:
-            Status.warn(f'{self.__class__.__name__}: a qpfile already exists at {self.file.qpfile.resolve().to_str()}')
 
     def _do_encode(self, y4m: bool) -> None:
         Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))

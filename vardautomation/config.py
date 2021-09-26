@@ -223,11 +223,6 @@ class FileInfo:
     do_lossless: bool
     """If lossless or not"""
 
-    qpfile: VPath
-    """Qpfile name path"""
-    do_qpfile: bool
-    """If Qpfile or not"""
-
     _num_prop: bool = False
     _num_prop_name: str = 'FileInfoFrameNumber'
 
@@ -275,9 +270,6 @@ class FileInfo:
 
             self.name_clip_output_lossless = self.workdir / VPath(self.name + '_lossless.mkv')
             self.do_lossless = False
-
-            self.qpfile = self.workdir / VPath(self.name + '_qpfile.log')
-            self.do_qpfile = False
 
         super().__init__()
 

@@ -60,7 +60,6 @@ class Patch:
         self.encoder = encoder
         self.clip = clip
         self.file = file
-        self.file.do_qpfile = False
 
         self.ranges = normalise_ranges(self.clip, ranges)
         self.debug = debug

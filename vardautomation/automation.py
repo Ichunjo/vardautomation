@@ -2,20 +2,18 @@
 from __future__ import annotations
 
 __all__ = [
-    'Parser', 'RunnerConfig', 'SelfRunner',
+    'RunnerConfig', 'SelfRunner',
 ]
 
-import argparse
 from dataclasses import dataclass
 from enum import Enum, auto
 from os import remove
-from typing import List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import List, Optional, Sequence, Set, Union, cast
 
 import vapoursynth as vs
 
 from .binary_path import BinaryPath
 from .config import FileInfo
-from .status import Status
 from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
                       LosslessEncoder, Mux, VideoEncoder)
 from .types import AnyPath, T
@@ -23,32 +21,6 @@ from .vpathlib import VPath
 
 core = vs.core
 
-
-class Parser:
-    def __init__(self, file: FileInfo) -> None:
-        parser = argparse.ArgumentParser(description=f'Encode {file.name}')
-        parser.add_argument('-L', '--lossless', action='store_true', default=False,
-                            help='Write a lossless file instead of piping the pre-processing.')
-        parser.add_argument('-Q', '--qpfile', action='store_true', default=False,
-                            help='Write a qpfile from scene changes before encoding')
-        parser.add_argument("-S", '--start', nargs='?', type=int, help='Start encode at frame START.')
-        parser.add_argument("-E", '--end', nargs='?', type=int, help='Stop encode at frame END (inclusive).')
-        self.args = parser.parse_args()
-        super().__init__()
-
-    def parsing(self, file: FileInfo, clip: vs.VideoNode) -> Tuple[FileInfo, vs.VideoNode]:
-        # Lossless check
-        if self.args.lossless:
-            file.do_lossless = True
-
-        # Qpfile check
-        if self.args.qpfile:
-            file.do_qpfile = True
-
-        if self.args.start or self.args.end:
-            Status.fail('', exception=NotImplementedError)
-
-        return file, clip
 
 
 @dataclass(repr=False, eq=False)
@@ -107,8 +79,6 @@ class SelfRunner:
 
     def run(self) -> None:
         """Main tooling chain"""
-        self._parsing()
-
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
             funcs.reverse()
@@ -149,10 +119,6 @@ class SelfRunner:
             + [self.file.name_file_final.absolute().as_posix(), f'{ftp_name}:{VPath(destination).to_str()}']
         ).run()
 
-    def _parsing(self) -> None:
-        parser = Parser(self.file)
-        self.file, self.clip = parser.parsing(self.file, self.clip)
-
     def _encode(self) -> None:
         if self.file.do_lossless and self.config.v_lossless_encoder:
             if not self.file.name_clip_output_lossless.exists():
@@ -162,8 +128,6 @@ class SelfRunner:
         if not self.file.name_clip_output.exists():
             self.config.v_encoder.run_enc(self.clip, self.file)
             self.cleanup_files.add(self.file.name_clip_output)
-            if self.file.do_qpfile:
-                self.cleanup_files.add(self.file.qpfile)
 
     def _audio_getter(self) -> None:  # noqa C901
         if self.config.a_extracters:
