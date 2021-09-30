@@ -4,6 +4,7 @@ import traceback
 from typing import List, NoReturn, Optional, Type
 
 import colorama
+import pkg_resources
 
 colorama.init()
 
@@ -48,3 +49,8 @@ class Status:
     @staticmethod
     def info(string: str, /) -> None:
         print(f'{Colours.INFO}{string}{Colours.RESET}')
+
+    @staticmethod
+    def logo() -> None:
+        with open(pkg_resources.resource_filename('vardautomation', 'logo.txt'), 'r', encoding='utf-8') as logo:
+            print(''.join(Colours.INFO + line + Colours.RESET for line in logo.readlines()), '\n')
