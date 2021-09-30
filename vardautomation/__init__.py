@@ -18,3 +18,13 @@ _mods = ['automation', 'binary_path', 'chapterisation', 'comp', 'config', 'langu
 __all__ = []
 for _pkg in _mods:
     __all__ += __import__(__name__ + '.' + _pkg, fromlist=_mods).__all__  # type: ignore
+
+
+def __check_vs_version() -> None:
+    from vapoursynth import __version__ as vs_version
+    if vs_version.release_major < 56:
+        from .status import Status
+        Status.fail('"vardautomation" only supports Vapoursynth R56 and above!', exception=OSError)
+
+
+__check_vs_version()
