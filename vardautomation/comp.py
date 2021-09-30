@@ -40,6 +40,9 @@ class Writer(Enum):
     OPENCV = auto()
     """opencv + numpy library"""
 
+    PILLOW = auto()
+    """Pillow + numpy library"""
+
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}.{self.name}>'
 
@@ -106,17 +109,17 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
             dither_type=Zimg.DitherType.ERROR_DIFFUSION
         )
 
+        path_images = [
+            path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
+            for f in frames
+        ]
+
         if writer == Writer.FFMPEG:
             clip = select_frames(clip, frames)
 
             # -> RGB -> GBR. Needed for ffmpeg
             # Also FPS=1/1. I'm just lazy, okay?
             clip = clip.std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
-
-            path_images = [
-                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
-                for f in frames
-            ]
 
             outputs: List[str] = []
             for i, path_image in enumerate(path_images):
@@ -141,19 +144,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                 clip.output(devnull, y4m=False, progress_update=_progress_update_func)
 
         else:
-            clip = select_frames(clip, frames)
-            path_images = [
-                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
-                for f in frames
-            ]
-
-            def _save_cv_image(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-                frame_array = np.dstack(tuple(reversed(f)))  # type: ignore
-                cv2.imwrite(path_images[n].to_str(), frame_array)
-                return f
-
-            clip = clip.std.ModifyFrame(clip, partial(_save_cv_image, path_images=path_images))
-
+            clip = select_frames(clip, frames).std.ModifyFrame(clip, partial(_saver(writer), path_images=path_images))
             with open(os.devnull, 'wb') as devnull:
                 clip.output(devnull, y4m=False, progress_update=_progress_update_func)
 
@@ -275,6 +266,28 @@ def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
     while rnum in checked:
         rnum = rand_func()
     return rnum
+
+
+def _saver(writer: Writer) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.VideoFrame]:
+    if writer == Writer.OPENCV:
+        def _opencv(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            frame_array = np.dstack(tuple(reversed(f)))  # type: ignore
+            cv2.imwrite(path_images[n].to_str(), frame_array)
+            return f
+        return _opencv
+
+    try:
+        # pylint: disable=import-outside-toplevel
+        from PIL import Image
+    except ImportError as imp_err:
+        Status.fail('make_comps: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
+
+    def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+        frame_array = np.dstack(tuple(f))  # type: ignore
+        img = Image.fromarray(frame_array, 'RGB')  # type: ignore
+        img.save(path_images[n], format='PNG', optimize=False, compress_level=1)
+        return f
+    return _pillow
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
