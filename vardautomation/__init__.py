@@ -1,7 +1,7 @@
 """Collection of classes and helper functions to automate encoding"""
 # flake8: noqa
 
-from vapoursynth import __version__ as vs_version
+from vapoursynth import __version__ as vs_version  # type: ignore[attr-defined]
 
 from ._metadata import __author__, __version__
 from .automation import *
