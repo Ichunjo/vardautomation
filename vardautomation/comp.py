@@ -102,7 +102,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
             Status.fail(f'make_comps: {path_name.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
         clip = clip.resize.Bicubic(
-            format=vs.RGB24, matrix_in=Zimg.Matrix.BT709 if force_bt709 else None,
+            format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
             dither_type=Zimg.DitherType.ERROR_DIFFUSION
         )
 
