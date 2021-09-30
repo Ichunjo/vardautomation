@@ -14,6 +14,7 @@ import vapoursynth as vs
 
 from .binary_path import BinaryPath
 from .config import FileInfo
+from .status import Status
 from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
                       LosslessEncoder, Mux, VideoEncoder)
 from .types import AnyPath, T
@@ -23,7 +24,7 @@ core = vs.core
 
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False, eq=False, order=False, unsafe_hash=False, frozen=True)
 class RunnerConfig:
     """
     Config for the SelfRunner
@@ -79,13 +80,14 @@ class SelfRunner:
 
     def run(self) -> None:
         """Main tooling chain"""
+        Status.logo()
+
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
             funcs.reverse()
+        funcs.append(self._muxer)
         for f in funcs:
             f()
-
-        self._muxer()
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """
