@@ -283,7 +283,7 @@ def _saver(writer: Writer) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.Vid
         Status.fail('make_comps: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
 
     def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-        frame_array = np.dstack(tuple(f))  # type: ignore
+        frame_array = np.dstack(f)  # type: ignore
         img = Image.fromarray(frame_array, 'RGB')  # type: ignore
         img.save(path_images[n], format='PNG', optimize=False, compress_level=1)
         return f
