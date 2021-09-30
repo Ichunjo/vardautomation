@@ -7,20 +7,24 @@ __all__ = [
     'PresetGeneric',
     'PresetBD', 'PresetWEB',
     'PresetAAC', 'PresetOpus', 'PresetEAC3', 'PresetFLAC',
-    'PresetChapOGM', 'PresetChapXML'
+    'PresetChapOGM', 'PresetChapXML',
+    'BlurayShow'
 ]
 
 import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from pprint import pformat
-from typing import Callable, List, Optional, Sequence, Union, cast
+from typing import (Callable, Dict, List, NamedTuple, Optional, Sequence,
+                    Union, cast)
 
 import vapoursynth as vs
 from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_clip_frames
 
+from .chapterisation import MplsReader
+from .language import UNDEFINED, Lang
 from .status import Status
 from .types import AnyPath
 from .types import DuplicateFrame as DF
@@ -371,3 +375,61 @@ class FileInfo:
             self.clip, self.clip_cut = [
                 c.std.SetFrameProp(self._num_prop_name, True) for c in [self.clip, self.clip_cut]
             ]
+
+
+class BlurayShow:
+    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
+                 idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
+                 lang: Lang = UNDEFINED) -> None:
+        """
+        Helper class for batching shows
+
+        :param episodes:            A dictionnary of episodes.
+                                    Keys are the path of each bdmv folder.
+                                    Values are the episodes inside the current bdmv folder key.
+        :param global_trims:        Adjust the clips length by trimming or duplicating frames. Python slicing. Defaults to None
+        :param idx:                 Indexer used to index the video track, defaults to None
+        :param preset:              Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes,
+                                    defaults to :py:data:`.PresetGeneric`
+        :param lang:                Chapters language, defaults to UNDEFINED
+        """
+        self.trims = global_trims
+        self.idx = idx
+        self.preset = preset
+
+        class File(NamedTuple):
+            file: VPath
+            chapter: Optional[VPath]
+
+        self.files: List[File] = []
+
+        for path, eps in episodes.items():
+            chap_folder = path / 'chapters'
+            chap_folder.mkdir(parents=True, exist_ok=True)
+            chaps = sorted(chap_folder.glob('*'))
+
+            if not chaps:
+                MplsReader(path, lang).write_playlist(chap_folder)
+                chaps = sorted(chap_folder.glob('*'))
+
+            for ep in eps:
+                chap_sel: Optional[VPath] = None
+                for chap in chaps:
+                    if chap.stem.split('_')[1] == ep.stem:
+                        chap_sel = chap
+                        break
+                self.files.append(File(path / ep, chap_sel))
+
+    def episodes(self) -> List[FileInfo]:
+        files_info: List[FileInfo] = []
+        for file in self.files:
+            file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
+            file_info.chapter = file.chapter
+            files_info.append(file_info)
+        return files_info
+
+    def episode(self, num: int, /, *, start_from: int = 1) -> FileInfo:
+        file = self.files[num - start_from]
+        file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
+        file_info.chapter = file.chapter
+        return file_info
