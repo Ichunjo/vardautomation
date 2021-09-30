@@ -71,7 +71,7 @@ class Properties:
         :param clip:            Source clip
         :return:                Colourspace suitable for x264
         """
-        def _get_csp_subsampled(format_clip: vs.Format) -> str:
+        def _get_csp_subsampled(format_clip: vs.VideoFormat) -> str:
             sub_w, sub_h = format_clip.subsampling_w, format_clip.subsampling_h
             csp_yuv_subs: Dict[Tuple[int, int], str] = {(0, 0): 'i444', (1, 0): 'i422', (1, 1): 'i420'}
             try:
