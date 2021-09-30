@@ -8,7 +8,7 @@ import subprocess
 from enum import Enum, auto
 from functools import partial
 from typing import (Any, Callable, Collection, Dict, Final, Iterable, List,
-                    Optional, Set, overload)
+                    Optional, Set)
 
 import cv2
 import numpy as np
@@ -20,7 +20,7 @@ from vardefunc.types import Zimg
 from vardefunc.util import select_frames
 
 from .binary_path import BinaryPath
-from .status import Status
+from .status import Colours, Status
 from .tooling import SubProcessAsync, VideoEncoder
 from .types import AnyPath
 from .vpathlib import VPath
@@ -44,40 +44,7 @@ class Writer(Enum):
         return f'<{self.__class__.__name__}.{self.name}>'
 
 
-@overload
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
-               num: int = 15, frames: Optional[Iterable[int]] = None) -> None:
-    """
-    Extract frames, make diff between two clips and upload to slow.pics
-
-    :param clips:               Named clips.
-    :param path:                Path to your comparison folder, defaults to 'comps'
-    :param num:                 Number of frames to extract, defaults to 15
-    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-    """
-    ...
-
-
-@overload
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
-               num: int = 15, frames: Optional[Iterable[int]] = None, *,
-               slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
-    """
-    Extract frames, make diff between two clips and upload to slow.pics
-
-    :param clips:               Named clips.
-    :param path:                Path to your comparison folder, defaults to 'comps'
-    :param num:                 Number of frames to extract, defaults to 15
-    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-    :param slowpics:            Upload to slow.pics, defaults to False
-    :param collection_name:     Slowpics's collection name, defaults to ''
-    :param public:              Make the comparison public, defaults to True
-    """
-    ...
-
-
-@overload
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
+def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
                picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
@@ -100,16 +67,6 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     :param collection_name:     Slowpics's collection name, defaults to ''
     :param public:              Make the comparison public, defaults to True
     """
-    ...
-
-
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
-               num: int = 15, frames: Optional[Iterable[int]] = None, *,
-               picture_types: Optional[Iterable[str]] = None,
-               force_bt709: bool = False,
-               writer: Writer = Writer.OPENCV,
-               magick_compare: bool = False,
-               slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     # pylint: disable=consider-using-f-string
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
@@ -191,7 +148,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
             ]
 
             def _save_cv_image(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-                frame_array = np.dstack([f.get_read_array(i) for i in range(f.format.num_planes - 1, -1, -1)])  # type: ignore
+                frame_array = np.dstack(tuple(reversed(f)))  # type: ignore
                 cv2.imwrite(path_images[n].to_str(), frame_array)
                 return f
 
@@ -337,4 +294,4 @@ def _get_slowpics_header(content_length: str, content_type: str, sess: Session) 
 
 
 def _progress_update_func(value: int, endvalue: int) -> None:
-    return print(f"\rExtrating image: {value}/{endvalue} ~ {100 * value // endvalue}%", end="")
+    return print(f"\r{Colours.INFO}Extrating image: {value}/{endvalue} ~ {round(100 * value / endvalue, 2)}%{Colours.RESET}", end="")
