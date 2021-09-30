@@ -373,7 +373,7 @@ class FileInfo:
             self.trims_or_dfs = self._trims_or_dfs
         else:
             self.clip, self.clip_cut = [
-                c.std.SetFrameProp(self._num_prop_name, True) for c in [self.clip, self.clip_cut]
+                c.std.RemoveFrameProps(self._num_prop_name) for c in [self.clip, self.clip_cut]
             ]
 
 
