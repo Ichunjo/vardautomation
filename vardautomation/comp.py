@@ -10,7 +10,6 @@ from functools import partial
 from typing import (Any, Callable, Collection, Dict, Final, Iterable, List,
                     Optional, Set)
 
-import cv2
 import numpy as np
 import vapoursynth as vs
 from lvsfunc.util import get_prop
@@ -38,10 +37,16 @@ class Writer(Enum):
     """core.imwri.Write Vapoursynth plugin"""
 
     OPENCV = auto()
-    """opencv + numpy library"""
+    """opencv library"""
 
     PILLOW = auto()
-    """Pillow + numpy library"""
+    """Pillow library"""
+
+    PYQT = auto()
+    """PyQt library"""
+
+    PYTHON = auto()
+    """Pure python implementation"""
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}.{self.name}>'
@@ -51,7 +56,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                num: int = 15, frames: Optional[Iterable[int]] = None, *,
                picture_types: Optional[Iterable[str]] = None,
                force_bt709: bool = False,
-               writer: Writer = Writer.OPENCV,
+               writer: Writer = Writer.PYTHON, compression: int = -1,
                magick_compare: bool = False,
                slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
     """
@@ -64,6 +69,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
     :param picture_types        Select picture types to pick, default to None
     :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
     :param writer:              Writer method to be used, defaults to Writer.OPENCV
+    :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
     :param magick_compare:      Make diffs between the first and second clip
                                 Will raise an exception if more than 2 clips are passed to clips, defaults to False
     :param slowpics:            Upload to slow.pics, defaults to False
@@ -123,7 +129,7 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
 
             outputs: List[str] = []
             for i, path_image in enumerate(path_images):
-                outputs += ['-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+                outputs += ['-compression_level', str(compression), '-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
 
             settings = [
                 '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
@@ -136,7 +142,8 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
 
         elif writer == Writer.IMWRI:
             reqs = clip.imwri.Write(
-                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.png')).to_str(),
+                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.jpg')).to_str(),
+                quality=compression if compression >= 0 else None
             )
             clip = select_frames(reqs, frames)
             # zzzzzzzzz soooo slow
@@ -144,7 +151,8 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                 clip.output(devnull, y4m=False, progress_update=_progress_update_func)
 
         else:
-            clip = select_frames(clip, frames).std.ModifyFrame(clip, partial(_saver(writer), path_images=path_images))
+            clip = select_frames(clip, frames)
+            clip = clip.std.ModifyFrame(clip, partial(_saver(writer, compression), path_images=path_images))
             with open(os.devnull, 'wb') as devnull:
                 clip.output(devnull, y4m=False, progress_update=_progress_update_func)
 
@@ -268,26 +276,81 @@ def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
     return rnum
 
 
-def _saver(writer: Writer) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.VideoFrame]:
+def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.VideoFrame]:  # noqa: C901
+    # pylint: disable=import-outside-toplevel
     if writer == Writer.OPENCV:
+        try:
+            import cv2
+        except ImportError as imp_err:
+            Status.fail('make_comps: you need opencv to use this writer', exception=ValueError, chain_err=imp_err)
+
+        opencv_compression = [cv2.IMWRITE_PNG_COMPRESSION, compression] if compression >= 0 else []
+
         def _opencv(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(tuple(reversed(f)))  # type: ignore
-            cv2.imwrite(path_images[n].to_str(), frame_array)
+            cv2.imwrite(path_images[n].to_str(), frame_array, opencv_compression)
             return f
         return _opencv
 
-    try:
-        # pylint: disable=import-outside-toplevel
-        from PIL import Image
-    except ImportError as imp_err:
-        Status.fail('make_comps: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
+    if writer == Writer.PILLOW:
+        try:
+            from PIL import Image
+        except ImportError as imp_err:
+            Status.fail('make_comps: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
 
-    def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-        frame_array = np.dstack(f)  # type: ignore
-        img = Image.fromarray(frame_array, 'RGB')  # type: ignore
-        img.save(path_images[n], format='PNG', optimize=False, compress_level=1)
-        return f
-    return _pillow
+        def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            frame_array = np.dstack(f)  # type: ignore
+            img = Image.fromarray(frame_array, 'RGB')  # type: ignore
+            img.save(path_images[n], format='PNG', optimize=False, compress_level=abs(compression))
+            return f
+        return _pillow
+
+    if writer == Writer.PYQT:
+        try:
+            from PyQt5.QtGui import QImage
+        except ImportError as imp_err:
+            Status.fail('make_comps: you need pyqt to use this writer', exception=ValueError, chain_err=imp_err)
+
+        def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            frame_array = np.dstack(f)  # type: ignore
+            image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format.Format_RGB888)
+            image.save(path_images[n].to_str(), 'PNG', -1)
+            return f
+        return _pyqt
+
+    if writer == Writer.PYTHON:
+        import struct
+        import zlib
+
+        def _write_png(buf: bytes, width: int, height: int) -> bytes:
+            # reverse the vertical line order and add null bytes at the start
+            width_byte_3 = width * 3
+            raw_data = b''.join(
+                b'\x00' + buf[span:span + width_byte_3]
+                for span in range((height - 1) * width_byte_3, -1, - width_byte_3)
+            )
+
+            def _png_pack(png_tag: bytes, data: bytes) -> bytes:
+                chunk_head = png_tag + data
+                return (struct.pack("!L", len(data))
+                        + chunk_head
+                        + struct.pack("!L", 0xFFFFFFFF & zlib.crc32(chunk_head)))
+
+            return b''.join([
+                # http://www.w3.org/TR/PNG/#5PNG-file-signature
+                struct.pack('8B', 137, 80, 78, 71, 13, 10, 26, 10),
+                # https://www.w3.org/TR/PNG/#11IHDR
+                _png_pack(b'IHDR', struct.pack("!2I5B", width, height, 8, 2, 0, 0, 0)),
+                _png_pack(b'IDAT', zlib.compress(raw_data, compression)),
+                _png_pack(b'IEND', b'')])
+
+        def _python_png(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            frame_bytes = _write_png(np.dstack(f).tobytes(), f.width, f.height)  # type: ignore
+            path_images[n].write_bytes(frame_bytes)
+            return f
+        return _python_png
+
+    Status.fail(f'make_comps: unknown writer! "{writer}"', exception=ValueError)
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
