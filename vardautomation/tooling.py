@@ -928,23 +928,10 @@ class EztrimCutter(AudioCutter):
         if combine:
             # Get the trimmed files
             concat_files = sorted(output.parent.glob(tmp_name.format(track_number='?')))
-            # Write a config concat file
-            # paths should be in poxix format and space character escaped
-            # this is so annoying
-            with open('_conf_concat.txt', 'w', encoding='utf-8') as _conf_concat:
-                _conf_concat.writelines(
-                    # pylint: disable=consider-using-f-string
-                    'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
-                    for af in concat_files
-                )
-            BasicTool(
-                BinaryPath.ffmpeg,
-                cls._ffmpeg_warning
-                + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', output.to_str()]
-            ).run()
+            cls.combine(concat_files, output)
 
         if cleanup:
-            cls._cleanup(*tmp_files, '_conf_concat.txt')
+            cls._cleanup(*tmp_files)
 
         del tmp_files
 
@@ -964,6 +951,25 @@ class EztrimCutter(AudioCutter):
             + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
             + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
         ).run()
+
+    @classmethod
+    def combine(cls, files: List[VPath], output: AnyPath) -> None:
+        # Write a config concat file
+        # paths should be in poxix format and space character escaped
+        # this is so annoying
+        with open('_conf_concat.txt', 'w', encoding='utf-8') as _conf_concat:
+            _conf_concat.writelines(
+                # pylint: disable=consider-using-f-string
+                'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
+                for af in files
+            )
+        BasicTool(
+            BinaryPath.ffmpeg,
+            cls._ffmpeg_warning
+            + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', str(output)]
+        ).run()
+
+        cls._cleanup('_conf_concat.txt')
 
 
 class SoxCutter(AudioCutter):
