@@ -206,17 +206,16 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
                 fields[f'comparisons[{j}].images[{i}].name'] = name
                 fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
 
-        sess = Session()
-        sess.get('https://slow.pics/api/comparison')
-        # TODO: yeet this
-        files = MultipartEncoder(fields)
+        with Session() as sess:
+            sess.get('https://slow.pics/api/comparison')
+            # TODO: yeet this
+            files = MultipartEncoder(fields)
 
-        Status.info('Uploading images...\n')
-        url = sess.post(
-            'https://slow.pics/api/comparison', data=files.to_string(),
-            headers=_get_slowpics_header(str(files.len), files.content_type, sess)
-        )
-        sess.close()
+            Status.info('Uploading images...\n')
+            url = sess.post(
+                'https://slow.pics/api/comparison', data=files.to_string(),
+                headers=_get_slowpics_header(str(files.len), files.content_type, sess)
+            )
 
         slowpics_url = f'https://slow.pics/c/{url.text}'
         Status.info(f'Slowpics url: {slowpics_url}')
