@@ -313,7 +313,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(f)  # type: ignore
             image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format.Format_RGB888)  # type: ignore
-            image.save(path_images[n].to_str(), 'PNG', -1)
+            image.save(path_images[n].to_str(), 'PNG', compression)
             return f
         return _pyqt
 
