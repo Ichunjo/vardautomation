@@ -26,6 +26,8 @@ from .vpathlib import VPath
 
 _MAX_ATTEMPTS_PER_PICTURE_TYPE: Final[int] = 50
 
+# pylint: disable=consider-using-f-string
+
 
 class Writer(Enum):
     """Writer to be used to extract frames"""
@@ -76,7 +78,6 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
     :param collection_name:     Slowpics's collection name, defaults to ''
     :param public:              Make the comparison public, defaults to True
     """
-    # pylint: disable=consider-using-f-string
     # Check length of all clips
     lens = set(c.num_frames for c in clips.values())
     if len(lens) != 1:
@@ -369,4 +370,11 @@ def _get_slowpics_header(content_length: str, content_type: str, sess: Session) 
 
 
 def _progress_update_func(value: int, endvalue: int) -> None:
-    return print(f"\r{Colours.INFO}Extrating image: {value}/{endvalue} ~ {round(100 * value / endvalue, 2)}%{Colours.RESET}", end="")
+    return print(
+        "\r%sExtrating image: %i/%i ~ %.2f %%%s" % (
+            Colours.INFO,
+            value, endvalue, 100 * value / endvalue,
+            Colours.RESET
+        ),
+        end=""
+    )

@@ -1106,7 +1106,13 @@ def progress_update_func(value: int, endvalue: int) -> None:
     :param value:       Current value
     :param endvalue:    End value
     """
-    return print(f"\rVapourSynth: {value}/{endvalue} ~ {100 * value // endvalue}% || Encoder: ", end="")
+    # pylint: disable=consider-using-f-string
+    return print(
+        "\rVapourSynth: %i/%i ~ %.2f%% || Encoder: " % (
+            value, endvalue, 100 * value / endvalue
+        ),
+        end=""
+    )
 
 
 class VideoEncoder(Tool):
