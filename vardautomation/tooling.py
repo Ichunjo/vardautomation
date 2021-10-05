@@ -12,6 +12,9 @@ __all__ = [
     'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
     'VideoEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
     'progress_update_func',
+
+    'make_qpfile', 'Qpfile',
+
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
 ]
 
@@ -25,11 +28,13 @@ from abc import ABC, abstractmethod
 from enum import Enum, IntEnum, auto
 from pprint import pformat
 from shutil import copyfile
-from typing import (Any, BinaryIO, Dict, List, Literal, NoReturn, Optional,
-                    Sequence, Set, Tuple, Union, cast)
+from typing import (Any, BinaryIO, Dict, List, Literal, NamedTuple, NoReturn,
+                    Optional, Sequence, Set, Tuple, Union, cast)
 
 import vapoursynth as vs
 from acsuite import eztrim
+from lvsfunc.render import SceneChangeMode as SCM
+from lvsfunc.render import find_scene_changes
 from lxml import etree
 from pymediainfo import MediaInfo
 from vardefunc.util import normalise_ranges
@@ -1295,6 +1300,31 @@ class X264Encoder(VideoLanEncoder):
 
     def set_variable(self) -> Dict[str, Any]:
         return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
+
+
+class Qpfile(NamedTuple):
+    path: VPath
+    frames: Optional[List[int]] = None
+
+
+def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVID_UNION) -> Qpfile:
+    """
+    Convenience function for making a qpfile
+
+    :param clip:            Source clip
+    :param path:            Path where the qpfile will be written
+    :param mode:            Scene change mode. See lvsfunc docs for more informations,
+                            defaults to SCM.WWXD_SCXVID_UNION
+    :return:                A Qpfile
+    """
+    path = VPath(path)
+    if path.exists():
+        Status.fail(f'make_qpfile: a qpfile already exists at {path.resolve().to_str()}')
+
+    scenes = find_scene_changes(clip, mode)
+    with path.open('w', encoding='utf-8') as file:
+        file.writelines(f'{s} K\n' for s in scenes)
+    return Qpfile(path, scenes)
 
 
 class Stream(ABC):

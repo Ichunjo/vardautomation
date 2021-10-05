@@ -29,6 +29,9 @@ Tools
    :members:
    :inherited-members:
    :show-inheritance:
+.. autoclass:: vardautomation.tooling.Qpfile
+   :members:
+.. autofunction:: vardautomation.tooling.make_qpfile
 
 Video encoders
 ----------------

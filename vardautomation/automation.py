@@ -16,12 +16,12 @@ from .binary_path import BinaryPath
 from .config import FileInfo
 from .status import Status
 from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
-                      LosslessEncoder, Mux, VideoEncoder)
+                      LosslessEncoder, Mux, Qpfile, VideoEncoder,
+                      VideoLanEncoder)
 from .types import AnyPath, T
 from .vpathlib import VPath
 
 core = vs.core
-
 
 
 @dataclass(repr=False, eq=False, order=False, unsafe_hash=False, frozen=True)
@@ -47,6 +47,9 @@ class RunnerConfig:
     """Audio encoder(s)"""
     muxer: Optional[Mux] = None
     """Muxer"""
+
+    qpfile: Optional[Qpfile] = None
+    """Qpfile NamedTuple"""
 
     order: RunnerConfig.Order = Order.VIDEO
     """Priority order"""
@@ -128,6 +131,15 @@ class SelfRunner:
             self.clip = core.lsmas.LWLibavSource(self.file.name_clip_output_lossless.to_str())
 
         if not self.file.name_clip_output.exists():
+            if self.config.qpfile:
+                if isinstance(self.config.v_encoder, VideoLanEncoder):
+                    self.config.v_encoder.params.extend(['--qpfile', self.config.qpfile.path.to_str()])
+                else:
+                    Status.warn(
+                        f'{self.__class__.__name__}: "{self.config.v_encoder.__class__.__name__}" '
+                        'is not an instance of VideoLanEncoder; qpfile skipped...'
+                    )
+
             self.config.v_encoder.run_enc(self.clip, self.file)
             self.cleanup_files.add(self.file.name_clip_output)
 
