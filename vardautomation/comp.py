@@ -371,7 +371,7 @@ def _get_slowpics_header(content_length: str, content_type: str, sess: Session) 
 
 def _progress_update_func(value: int, endvalue: int) -> None:
     return print(
-        "\r%sExtrating image: %i/%i ~ %.2f %%%s" % (
+        "\r%sExtracting image: %i/%i ~ %.2f %%%s" % (
             Colours.INFO,
             value, endvalue, 100 * value / endvalue,
             Colours.RESET

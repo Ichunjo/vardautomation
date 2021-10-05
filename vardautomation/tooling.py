@@ -1313,7 +1313,7 @@ def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVI
 
     :param clip:            Source clip
     :param path:            Path where the qpfile will be written
-    :param mode:            Scene change mode. See lvsfunc docs for more informations,
+    :param mode:            Scene change mode. See lvsfunc docs for more information,
                             defaults to SCM.WWXD_SCXVID_UNION
     :return:                A Qpfile
     """
