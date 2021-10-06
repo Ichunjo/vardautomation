@@ -885,7 +885,7 @@ class EztrimCutter(AudioCutter):
             srate = media_info['tracks'][1]['sampling_rate']
             bitrate = media_info['tracks'][0]['overall_bit_rate']
             nb_ch = media_info['tracks'][1]['channel_s']
-        except AttributeError as att_err:
+        except (AttributeError, KeyError) as att_err:
             Status.fail(
                 f'{cls.__name__}: file extension, sampling rate, bitrate or num channels not found',
                 exception=AttributeError, chain_err=att_err
@@ -1026,7 +1026,7 @@ class SoxCutter(AudioCutter):
             srate = media_info['tracks'][1]['sampling_rate']
             bitdepth = media_info['tracks'][1]['bit_depth']
             nb_ch = media_info['tracks'][1]['channel_s']
-        except AttributeError as att_err:
+        except (AttributeError, KeyError) as att_err:
             Status.fail(
                 f'{cls.__name__}: sampling rate, bit_depth or channel_s not found',
                 exception=AttributeError, chain_err=att_err
