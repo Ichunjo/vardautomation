@@ -140,16 +140,19 @@ class Comparison:
         # Check length of all clips
         lens = set(c.num_frames for c in clips.values())
         if len(lens) != 1:
-            Status.fail('make_comps: "clips" must be equal length!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: "clips" must be equal length!', exception=ValueError)
 
         try:
             self.path.mkdir(parents=True)
         except FileExistsError as file_err:
-            Status.fail(f'make_comps: path "{self.path.to_str()}" already exists!', exception=ValueError, chain_err=file_err)
+            Status.fail(
+                f'{self.__class__.__name__}: path "{self.path.to_str()}" already exists!',
+                exception=ValueError, chain_err=file_err
+            )
 
         # Make samples
         if picture_type:
-            Status.info('make_comps: Make samples according to specified picture types...')
+            Status.info(f'{self.__class__.__name__}: Make samples according to specified picture types...')
             samples = self._select_samples_ptypes(lens.pop(), num, picture_type.value)
         else:
             samples = set(random.sample(range(lens.pop()), num))
@@ -173,7 +176,10 @@ class Comparison:
             try:
                 path_name.mkdir(parents=True)
             except FileExistsError as file_err:
-                Status.fail(f'make_comps: {path_name.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+                Status.fail(
+                    f'{self.__class__.__name__}: {path_name.to_str()} already exists!',
+                    exception=FileExistsError, chain_err=file_err
+                )
 
             clip = clip.resize.Bicubic(
                 format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
@@ -232,16 +238,22 @@ class Comparison:
         """
         # Make diff images
         if len(self.clips) > 2:
-            Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: "magick_compare" can only be used with two clips!', exception=ValueError)
 
         self.path_diff = self.path / 'diffs'
         try:
             subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             self.path_diff.mkdir(parents=True)
         except FileNotFoundError as file_not_found:
-            Status.fail('make_comps: "magick compare" was not found!', exception=FileNotFoundError, chain_err=file_not_found)
+            Status.fail(
+                f'{self.__class__.__name__}: "magick compare" was not found!',
+                exception=FileNotFoundError, chain_err=file_not_found
+            )
         except FileExistsError as file_err:
-            Status.fail(f'make_comps: {self.path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+            Status.fail(
+                f'{self.__class__.__name__}: {self.path_diff.to_str()} already exists!',
+                exception=FileExistsError, chain_err=file_err
+            )
 
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
         images_a, images_b = all_images
@@ -261,7 +273,8 @@ class Comparison:
         """
         Upload to slow.pics with given configuration
 
-        :param config:              TypeDict which contains the uploading configuration, defaults to :py:data`.default_conf`
+        :param config:              TypeDict which contains the uploading configuration,
+                                    defaults to :py:data`.default_conf`
         """
         # Upload to slow.pics
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
@@ -312,7 +325,10 @@ class Comparison:
                     rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
                     _rnum_checked.add(rnum)
                 else:
-                    Status.fail(f'make_comps: There are not enough of {picture_types} in these clips', exception=ValueError)
+                    Status.fail(
+                        f'{self.__class__.__name__}: There are not enough of {picture_types} in these clips',
+                        exception=ValueError
+                    )
 
                 # Check _PictType
                 if all(
@@ -325,13 +341,16 @@ class Comparison:
 
                 if _attempts > _MAX_ATTEMPTS_PER_PICTURE_TYPE:
                     Status.warn(
-                        f'make_comps: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
+                        f'{self.__class__.__name__}: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
                         f'and no match found for {picture_types}; stopping iteration...'
                     )
                     break
 
             if _max_attempts > (curr_max_att := _MAX_ATTEMPTS_PER_PICTURE_TYPE * k):
-                Status.fail(f'make_comps: attempts max of {curr_max_att} has been reached!', exception=RecursionError)
+                Status.fail(
+                    f'{self.__class__.__name__}: attempts max of {curr_max_att} has been reached!',
+                    exception=RecursionError
+                )
 
             if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
                 samples.add(rnum)
