@@ -17,8 +17,8 @@ import random
 import subprocess
 from enum import Enum, auto
 from functools import partial
-from typing import (Any, Callable, Dict, Final, Iterable, Iterator, List,
-                    Literal, Optional, Sequence, Set, TypedDict, final)
+from typing import (Any, Callable, Dict, Final, Iterable, List, Literal,
+                    Optional, Set, TypedDict, Union)
 
 import numpy as np
 import vapoursynth as vs
@@ -64,34 +64,16 @@ class Writer(Enum):
         return f'<{self.__class__.__name__}.{self.name}>'
 
 
-@final
-class PictureTypes(Iterable[bytes]):
-    def __init__(self, iterable: Sequence[bytes]) -> None:
-        self.__ptseq = iterable
-
-    def __iter__(self) -> Iterator[bytes]:
-        return iter(self.__ptseq)
-
-
-class PictureType(Enum):
+class PictureType(bytes, Enum):
     """A simple enum to cover all the choices of the selected picture types."""
-    I = PictureTypes([b'I'])  # noqa E741
-    """I frames only"""
+    I = b'I'  # noqa E741
+    """I frames"""
 
-    IP = PictureTypes([b'I', b'P'])
-    """I and P frames"""
+    P = b'P'
+    """P frames"""
 
-    IPB = PictureTypes([b'I', b'P', b'B'])
-    """I, P and B frames"""
-
-    P = PictureTypes([b'P'])
-    """P frames only"""
-
-    PB = PictureTypes([b'P', b'B'])
-    """P and B frames"""
-
-    B = PictureTypes([b'B'])
-    """B frames only"""
+    B = b'B'
+    """B frames"""
 
 
 class SlowPicsConf(TypedDict, total=False):
@@ -125,7 +107,7 @@ class Comparison:
 
     def __init__(self, clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                  num: int = 15, frames: Optional[Iterable[int]] = None,
-                 picture_type: Optional[PictureType] = None) -> None:
+                 picture_type: Union[PictureType, List[PictureType], None] = None) -> None:
         """
         :param clips:               Named clips.
         :param path:                Path to your comparison folder, defaults to 'comps'
@@ -153,7 +135,7 @@ class Comparison:
         # Make samples
         if picture_type:
             Status.info(f'{self.__class__.__name__}: Make samples according to specified picture types...')
-            samples = self._select_samples_ptypes(lens.pop(), num, picture_type.value)
+            samples = self._select_samples_ptypes(lens.pop(), num, picture_type)
         else:
             samples = set(random.sample(range(lens.pop()), num))
 
@@ -313,10 +295,11 @@ class Comparison:
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
         Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
-    def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureTypes) -> Set[int]:
+    def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: Union[PictureType, List[PictureType]]) -> Set[int]:
         samples: Set[int] = set()
         _max_attempts = 0
         _rnum_checked: Set[int] = set()
+        picture_types = picture_types if isinstance(picture_types, list) else [picture_types]
         while len(samples) < k:
             _attempts = 0
 
