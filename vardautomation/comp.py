@@ -208,7 +208,7 @@ class Comparison:
 
                 encoder = VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=_progress_update_func)
                 encoder.y4m = False
-                encoder.run_enc(clip, None, prefetch=self.config.prefetch)
+                encoder.run_enc(clip, None)
             # imwri lib is slower even asynchronously requested
             elif writer == Writer.IMWRI:
                 reqs = clip.imwri.Write(

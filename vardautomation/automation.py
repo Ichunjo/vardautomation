@@ -140,7 +140,7 @@ class SelfRunner:
                         'is not an instance of VideoLanEncoder; qpfile skipped...'
                     )
 
-            self.config.v_encoder.run_enc(self.clip, self.file, prefetch=self.config.v_encoder.prefetch)
+            self.config.v_encoder.run_enc(self.clip, self.file)
             self.cleanup_files.add(self.file.name_clip_output)
 
     def _audio_getter(self) -> None:  # noqa C901
