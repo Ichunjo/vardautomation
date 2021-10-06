@@ -1135,7 +1135,7 @@ class VideoEncoder(Tool):
     y4m: bool = True
     """Y4M Output flag"""
 
-    prefetch: Optional[int] = None
+    prefetch: int = 0
     """Max number of concurrent rendered frames"""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
