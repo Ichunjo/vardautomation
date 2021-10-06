@@ -1132,6 +1132,12 @@ class VideoEncoder(Tool):
     clip: vs.VideoNode
     """Your filtered VideoNode clip"""
 
+    y4m: bool = True
+    """Y4M Output flag"""
+
+    prefetch: int = 0
+    """Max number of concurrent rendered frames"""
+
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
         """
@@ -1145,7 +1151,7 @@ class VideoEncoder(Tool):
         self.progress_update = progress_update
         super().__init__(binary, settings)
 
-    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *, y4m: bool = True) -> None:
+    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
         """
         Run encoding toolchain
 
@@ -1160,7 +1166,7 @@ class VideoEncoder(Tool):
         self.clip = clip
 
         self._get_settings()
-        self._do_encode(y4m)
+        self._do_encode()
 
     def run(self) -> NoReturn:
         """
@@ -1175,11 +1181,11 @@ class VideoEncoder(Tool):
         except AttributeError:
             return {}
 
-    def _do_encode(self, y4m: bool) -> None:
+    def _do_encode(self) -> None:
         Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
 
         with subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
-            self.clip.output(cast(BinaryIO, process.stdin), y4m=y4m, progress_update=self.progress_update)
+            self.clip.output(cast(BinaryIO, process.stdin), y4m=self.y4m, progress_update=self.progress_update, prefetch=self.prefetch)
 
 
 class LosslessEncoder(VideoEncoder):
