@@ -194,7 +194,10 @@ class Comparison:
 
                 outputs: List[str] = []
                 for i, path_image in enumerate(path_images):
-                    outputs += ['-compression_level', str(compression), '-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+                    outputs += [
+                        '-compression_level', str(compression), '-pred', 'mixed',
+                        '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}'
+                    ]
 
                 settings = [
                     '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
@@ -244,7 +247,8 @@ class Comparison:
         images_a, images_b = all_images
 
         cmds = [
-            f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{self.path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % self.max_num)) + '.png"'
+            f'magick compare "{i1.to_str()}" "{i2.to_str()}" '
+            + f'"{self.path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % self.max_num)) + '.png"'
             for i1, i2, f in zip(images_a, images_b, self.frames)
         ]
 
