@@ -1,14 +1,24 @@
 """Comparison module"""
 
-__all__ = ['make_comps', 'Writer']
+__all__ = [
+    # Enums
+    'Writer', 'PictureType',
 
+    # Dicts
+    'SlowPicsConf', 'default_conf',
+
+    # Class and function
+    'Comparison', 'make_comps'
+]
+
+import inspect
 import os
 import random
 import subprocess
 from enum import Enum, auto
 from functools import partial
-from typing import (Any, Callable, Collection, Dict, Final, Iterable, List,
-                    Optional, Set)
+from typing import (Any, Callable, Dict, Final, Iterable, Iterator, List,
+                    Literal, Optional, Sequence, Set, TypedDict, final)
 
 import numpy as np
 import vapoursynth as vs
@@ -54,155 +64,213 @@ class Writer(Enum):
         return f'<{self.__class__.__name__}.{self.name}>'
 
 
-def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa: C901
-               num: int = 15, frames: Optional[Iterable[int]] = None, *,
-               picture_types: Optional[Iterable[str]] = None,
-               force_bt709: bool = False,
-               writer: Writer = Writer.PYTHON, compression: int = -1,
-               magick_compare: bool = False,
-               slowpics: bool = False, collection_name: str = '', public: bool = True) -> None:
-    """
-    Extract frames, make diff between two clips and upload to slow.pics
+@final
+class PictureTypes(Iterable[bytes]):
+    def __init__(self, iterable: Sequence[bytes]) -> None:
+        self.__ptseq = iterable
 
-    :param clips:               Named clips.
-    :param path:                Path to your comparison folder, defaults to 'comps'
-    :param num:                 Number of frames to extract, defaults to 15
-    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-    :param picture_types        Select picture types to pick, default to None
-    :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
-    :param writer:              Writer method to be used, defaults to Writer.OPENCV
-    :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
-    :param magick_compare:      Make diffs between the first and second clip
-                                Will raise an exception if more than 2 clips are passed to clips, defaults to False
-    :param slowpics:            Upload to slow.pics, defaults to False
-    :param collection_name:     Slowpics's collection name, defaults to ''
-    :param public:              Make the comparison public, defaults to True
-    """
-    # Check length of all clips
-    lens = set(c.num_frames for c in clips.values())
-    if len(lens) != 1:
-        Status.fail('make_comps: "clips" must be equal length!', exception=ValueError)
+    def __iter__(self) -> Iterator[bytes]:
+        return iter(self.__ptseq)
 
-    # Make samples
-    if picture_types:
-        Status.info('make_comps: Make samples according to specified picture types...')
-        samples = _select_samples_with_picture_types(clips.values(), lens.pop(), num, picture_types)
-    else:
-        samples = set(random.sample(range(lens.pop()), num))
 
-    # Add additionnal frames if frame exists
-    if frames:
-        samples.update(frames)
-    max_num = max(samples)
-    frames = sorted(samples)
+class PictureType(Enum):
+    """A simple enum to cover all the choices of the selected picture types."""
+    I = PictureTypes([b'I'])  # noqa E741
+    """I frames only"""
 
-    path = VPath(path)
-    try:
-        path.mkdir(parents=True)
-    except FileExistsError as file_err:
-        Status.fail(f'make_comps: path "{path.to_str()}" already exists!', exception=ValueError, chain_err=file_err)
+    IP = PictureTypes([b'I', b'P'])
+    """I and P frames"""
 
-    # Extracts the requested frames using ffmpeg
-    # imwri lib is slower even asynchronously requested
-    for name, clip in clips.items():
-        path_name = path / name
+    IPB = PictureTypes([b'I', b'P', b'B'])
+    """I, P and B frames"""
+
+    P = PictureTypes([b'P'])
+    """P frames only"""
+
+    PB = PictureTypes([b'P', b'B'])
+    """P and B frames"""
+
+    B = PictureTypes([b'B'])
+    """B frames only"""
+
+
+class SlowPicsConf(TypedDict, total=False):
+    """TypedDict configuration for Slowpics"""
+
+    collectionName: str
+    """Slowpics's collection name"""
+
+    public: Literal['true', 'false']
+    """Make the comparison public"""
+
+    optimizeImages: Literal['true', 'false']
+    """If 'true", images will be losslessly optimised"""
+
+    hentai: Literal['true', 'false']
+    """If images not suitable for minors (nudity, gore, etc.)"""
+
+    removeAfter: str
+    """Remove after N days"""
+
+
+default_conf: SlowPicsConf = SlowPicsConf(
+    collectionName=VPath(inspect.stack()[-1].filename).stem,
+    public='true', optimizeImages='true', hentai='false'
+)
+"""Default Slowpics's configuration """
+
+
+class Comparison:
+    """Can extract frames, make diff between two clips and upload to slow.pics"""
+
+    def __init__(self, clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
+                 num: int = 15, frames: Optional[Iterable[int]] = None,
+                 picture_type: Optional[PictureType] = None) -> None:
+        """
+        :param clips:               Named clips.
+        :param path:                Path to your comparison folder, defaults to 'comps'
+        :param num:                 Number of frames to extract, defaults to 15
+        :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
+        :param picture_type         Select picture types to pick, default to None
+        """
+        self.clips = clips
+        self.path = VPath(path)
+        self.path_diff: Optional[VPath] = None
+
+        # Check length of all clips
+        lens = set(c.num_frames for c in clips.values())
+        if len(lens) != 1:
+            Status.fail('make_comps: "clips" must be equal length!', exception=ValueError)
+
         try:
-            path_name.mkdir(parents=True)
+            self.path.mkdir(parents=True)
         except FileExistsError as file_err:
-            Status.fail(f'make_comps: {path_name.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+            Status.fail(f'make_comps: path "{self.path.to_str()}" already exists!', exception=ValueError, chain_err=file_err)
 
-        clip = clip.resize.Bicubic(
-            format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
-            dither_type=Zimg.DitherType.ERROR_DIFFUSION
-        )
-
-        path_images = [
-            path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % max_num)) + '.png')
-            for f in frames
-        ]
-
-        if writer == Writer.FFMPEG:
-            clip = select_frames(clip, frames)
-
-            # -> RGB -> GBR. Needed for ffmpeg
-            # Also FPS=1/1. I'm just lazy, okay?
-            clip = clip.std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
-
-            outputs: List[str] = []
-            for i, path_image in enumerate(path_images):
-                outputs += ['-compression_level', str(compression), '-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
-
-            settings = [
-                '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
-                '-video_size', f'{clip.width}x{clip.height}',
-                '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
-                '-i', 'pipe:', *outputs
-            ]
-
-            VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=_progress_update_func).run_enc(clip, None, y4m=False)
-
-        elif writer == Writer.IMWRI:
-            reqs = clip.imwri.Write(
-                'PNG', (path_name / (f'{name}_%' + f'{len("%i" % max_num)}'.zfill(2) + 'd.jpg')).to_str(),
-                quality=compression if compression >= 0 else None
-            )
-            clip = select_frames(reqs, frames)
-            # zzzzzzzzz soooo slow
-            with open(os.devnull, 'wb') as devnull:
-                clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-
+        # Make samples
+        if picture_type:
+            Status.info('make_comps: Make samples according to specified picture types...')
+            samples = self._select_samples_ptypes(lens.pop(), num, picture_type.value)
         else:
-            clip = select_frames(clip, frames)
-            clip = clip.std.ModifyFrame(clip, partial(_saver(writer, compression), path_images=path_images))
-            with open(os.devnull, 'wb') as devnull:
-                clip.output(devnull, y4m=False, progress_update=_progress_update_func)
+            samples = set(random.sample(range(lens.pop()), num))
 
+        # Add additionnal frames if frame exists
+        if frames:
+            samples.update(frames)
+        self.max_num = max(samples)
+        self.frames = sorted(samples)
 
-    # Make diff images
-    if magick_compare:
-        if len(clips) > 2:
+    def extract(self, writer: Writer = Writer.PYTHON, compression: int = -1, force_bt709: bool = False) -> None:
+        """
+        Extract images from the specified clips in the constructor
+
+        :param writer:              Writer method to be used, defaults to Writer.PYTHON
+        :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
+        :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
+        """
+        for name, clip in self.clips.items():
+            path_name = self.path / name
+            try:
+                path_name.mkdir(parents=True)
+            except FileExistsError as file_err:
+                Status.fail(f'make_comps: {path_name.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+
+            clip = clip.resize.Bicubic(
+                format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
+                dither_type=Zimg.DitherType.ERROR_DIFFUSION
+            )
+
+            path_images = [
+                path_name / (f'{name}_' + f'{f}'.zfill(len("%i" % self.max_num)) + '.png')
+                for f in self.frames
+            ]
+            # Extracts the requested frames using ffmpeg
+            if writer == Writer.FFMPEG:
+                clip = select_frames(clip, self.frames)
+
+                # -> RGB -> GBR. Needed for ffmpeg
+                # Also FPS=1/1. I'm just lazy, okay?
+                clip = clip.std.ShufflePlanes([1, 2, 0], vs.RGB).std.AssumeFPS(fpsnum=1, fpsden=1)
+
+                outputs: List[str] = []
+                for i, path_image in enumerate(path_images):
+                    outputs += ['-compression_level', str(compression), '-pred', 'mixed', '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}']
+
+                settings = [
+                    '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
+                    '-video_size', f'{clip.width}x{clip.height}',
+                    '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
+                    '-i', 'pipe:', *outputs
+                ]
+
+                VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=_progress_update_func).run_enc(clip, None, y4m=False)
+            # imwri lib is slower even asynchronously requested
+            elif writer == Writer.IMWRI:
+                reqs = clip.imwri.Write(
+                    'PNG', (path_name / (f'{name}_%' + f'{len("%i" % self.max_num)}'.zfill(2) + 'd.jpg')).to_str(),
+                    quality=compression if compression >= 0 else None
+                )
+                clip = select_frames(reqs, self.frames)
+                # zzzzzzzzz soooo slow
+                with open(os.devnull, 'wb') as devnull:
+                    clip.output(devnull, y4m=False, progress_update=_progress_update_func)
+                print()
+            else:
+                clip = select_frames(clip, self.frames)
+                clip = clip.std.ModifyFrame(clip, partial(_saver(writer, compression), path_images=path_images))
+                with open(os.devnull, 'wb') as devnull:
+                    clip.output(devnull, y4m=False, progress_update=_progress_update_func)
+                print()
+
+    def magick_compare(self) -> None:
+        """
+        Make an image of differences between the first and second clip using ImageMagick.
+        Will raise an exception if more than 2 clips are passed to the constructor.
+        """
+        # Make diff images
+        if len(self.clips) > 2:
             Status.fail('make_comps: "magick_compare" can only be used with two clips!', exception=ValueError)
 
-        path_diff = path / 'diffs'
+        self.path_diff = self.path / 'diffs'
         try:
             subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-            path_diff.mkdir(parents=True)
+            self.path_diff.mkdir(parents=True)
         except FileNotFoundError as file_not_found:
             Status.fail('make_comps: "magick compare" was not found!', exception=FileNotFoundError, chain_err=file_not_found)
         except FileExistsError as file_err:
-            Status.fail(f'make_comps: {path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
+            Status.fail(f'make_comps: {self.path_diff.to_str()} already exists!', exception=FileExistsError, chain_err=file_err)
 
-        all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
+        all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
         images_a, images_b = all_images
 
         cmds = [
-            f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % max_num)) + '.png"'
-            for i1, i2, f in zip(images_a, images_b, frames)
+            f'magick compare "{i1.to_str()}" "{i2.to_str()}" "{self.path_diff.to_str()}/diff_' + f'{f}'.zfill(len("%i" % self.max_num)) + '.png"'
+            for i1, i2, f in zip(images_a, images_b, self.frames)
         ]
 
         # Launch asynchronously the Magick commands
-        Status.info('Diffing clips...\n')
+        Status.info('Diffing clips...')
+        print()
         SubProcessAsync(cmds)
 
+    def upload_to_slowpics(self, config: SlowPicsConf = default_conf) -> None:
+        """
+        Upload to slow.pics with given configuration
 
-    # Upload to slow.pics
-    if slowpics:
-        all_images = [sorted((path / name).glob('*.png')) for name in clips.keys()]
-        if magick_compare:
-            all_images.append(sorted(path_diff.glob('*.png')))  # type: ignore
+        :param config:              TypeDict which contains the uploading configuration, defaults to :py:data`.default_conf`
+        """
+        # Upload to slow.pics
+        all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
+        if self.path_diff:
+            all_images.append(sorted(self.path_diff.glob('*.png')))  # type: ignore
 
-        fields: Dict[str, Any] = {
-            'collectionName': collection_name,
-            'public': str(public).lower(),
-            'optimizeImages': 'true',
-            'hentai': 'false'
-        }
+        fields: Dict[str, Any] = {}
 
         for i, (name, images) in enumerate(
-            zip(list(clips.keys()) + (['diff'] if magick_compare else []),
+            zip(list(self.clips.keys()) + (['diff'] if self.path_diff else []),
                 all_images)
         ):
-            for j, (image, frame) in enumerate(zip(images, frames)):
+            for j, (image, frame) in enumerate(zip(images, self.frames)):
                 fields[f'comparisons[{j}].name'] = str(frame)
                 fields[f'comparisons[{j}].images[{i}].name'] = name
                 fields[f'comparisons[{j}].images[{i}].file'] = (image.name, image.read_bytes(), 'image/png')
@@ -210,9 +278,10 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         with Session() as sess:
             sess.get('https://slow.pics/api/comparison')
             # TODO: yeet this
-            files = MultipartEncoder(fields)
+            files = MultipartEncoder(config | fields)
 
-            Status.info('Uploading images...\n')
+            Status.info('Uploading images...')
+            print()
             url = sess.post(
                 'https://slow.pics/api/comparison', data=files.to_string(),
                 headers=_get_slowpics_header(str(files.len), files.content_type, sess)
@@ -221,52 +290,49 @@ def make_comps(clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',  # noqa:
         slowpics_url = f'https://slow.pics/c/{url.text}'
         Status.info(f'Slowpics url: {slowpics_url}')
 
-        url_file = path / 'slow.pics.url'
+        url_file = self.path / 'slow.pics.url'
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
         Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
+    def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureTypes) -> Set[int]:
+        samples: Set[int] = set()
+        _max_attempts = 0
+        _rnum_checked: Set[int] = set()
+        while len(samples) < k:
+            _attempts = 0
 
-def _select_samples_with_picture_types(clips: Collection[vs.VideoNode], num_frames: int, k: int, picture_types: Iterable[str]) -> Set[int]:
-    samples: Set[int] = set()
-    p_type = [p.upper() for p in picture_types]
+            while True:
+                # Check if we don't exceed the length of the clips
+                # if yes then that means we checked all the frames
+                if len(_rnum_checked) < num_frames:
+                    rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
+                    _rnum_checked.add(rnum)
+                else:
+                    Status.fail(f'make_comps: There are not enough of {picture_types} in these clips', exception=ValueError)
 
-    _max_attempts = 0
-    _rnum_checked: Set[int] = set()
-    while len(samples) < k:
-        _attempts = 0
+                # Check _PictType
+                if all(
+                    get_prop(f, '_PictType', bytes) in picture_types
+                    for f in vs.core.std.Splice([select_frames(c, [rnum]) for c in self.clips.values()], mismatch=True).frames()
+                ):
+                    break
+                _attempts += 1
+                _max_attempts += 1
 
-        while True:
-            # Check if we don't exceed the length of the clips
-            # if yes then that means we checked all the frames
-            if len(_rnum_checked) < num_frames:
-                rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
-                _rnum_checked.add(rnum)
-            else:
-                Status.fail(f'make_comps: There are not enough of {p_type} in these clips', exception=ValueError)
+                if _attempts > _MAX_ATTEMPTS_PER_PICTURE_TYPE:
+                    Status.warn(
+                        f'make_comps: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
+                        f'and no match found for {picture_types}; stopping iteration...'
+                    )
+                    break
 
-            # Check _PictType
-            if all(
-                get_prop(f, '_PictType', bytes).decode('utf-8') in p_type
-                for f in vs.core.std.Splice([select_frames(c, [rnum]) for c in clips], mismatch=True).frames()
-            ):
-                break
-            _attempts += 1
-            _max_attempts += 1
+            if _max_attempts > (curr_max_att := _MAX_ATTEMPTS_PER_PICTURE_TYPE * k):
+                Status.fail(f'make_comps: attempts max of {curr_max_att} has been reached!', exception=RecursionError)
 
-            if _attempts > _MAX_ATTEMPTS_PER_PICTURE_TYPE:
-                Status.warn(
-                    f'make_comps: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
-                    f'and no match found for {p_type}; stopping iteration...'
-                )
-                break
+            if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
+                samples.add(rnum)
 
-        if _max_attempts > (curr_max_att := _MAX_ATTEMPTS_PER_PICTURE_TYPE * k):
-            Status.fail(f'make_comps: attempts max of {curr_max_att} has been reached!', exception=RecursionError)
-
-        if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
-            samples.add(rnum)
-
-    return samples
+        return samples
 
 
 def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
@@ -282,7 +348,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         try:
             import cv2
         except ImportError as imp_err:
-            Status.fail('make_comps: you need opencv to use this writer', exception=ValueError, chain_err=imp_err)
+            Status.fail('comp: you need opencv to use this writer', exception=ValueError, chain_err=imp_err)
 
         opencv_compression = [cv2.IMWRITE_PNG_COMPRESSION, compression] if compression >= 0 else []
 
@@ -296,7 +362,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         try:
             from PIL import Image
         except ImportError as imp_err:
-            Status.fail('make_comps: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
+            Status.fail('comp: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
 
         def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(f)  # type: ignore
@@ -309,7 +375,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         try:
             from PyQt5.QtGui import QImage
         except ImportError as imp_err:
-            Status.fail('make_comps: you need pyqt to use this writer', exception=ValueError, chain_err=imp_err)
+            Status.fail('comp: you need pyqt to use this writer', exception=ValueError, chain_err=imp_err)
 
         def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(f)  # type: ignore
@@ -350,7 +416,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
             return f
         return _python_png
 
-    Status.fail(f'make_comps: unknown writer! "{writer}"', exception=ValueError)
+    Status.fail(f'comp: unknown writer! "{writer}"', exception=ValueError)
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
