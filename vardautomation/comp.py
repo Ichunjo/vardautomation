@@ -436,11 +436,11 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         import zlib
 
         def _write_png(buf: bytes, width: int, height: int) -> bytes:
-            # reverse the vertical line order and add null bytes at the start
+            # add null bytes at the start
             width_byte_3 = width * 3
             raw_data = b''.join(
                 b'\x00' + buf[span:span + width_byte_3]
-                for span in range((height - 1) * width_byte_3, -1, - width_byte_3)
+                for span in range(0, (height + 1) * width_byte_3, width_byte_3)
             )
 
             def _png_pack(png_tag: bytes, data: bytes) -> bytes:
