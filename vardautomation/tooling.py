@@ -899,7 +899,7 @@ class ScipyCutter(AudioCutter):
                 df = trim
                 _, channels = array.shape
                 arrays.append(
-                    np.array([(0, ) * channels] * f2samples(df.dup, fps, sample_rate), array.dtype)  # type: ignore
+                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)  # type: ignore
                 )
 
         if combine:
