@@ -31,11 +31,13 @@ from shutil import copyfile
 from typing import (Any, BinaryIO, Dict, List, Literal, NamedTuple, NoReturn,
                     Optional, Sequence, Set, Tuple, Union, cast)
 
+import numpy as np
 import vapoursynth as vs
 from acsuite import eztrim
 from lvsfunc.render import SceneChangeMode as SCM
 from lvsfunc.render import find_scene_changes
 from lxml import etree
+from numpy.typing import NDArray
 from pymediainfo import MediaInfo
 from typing_extensions import TypeGuard
 from vardefunc.util import normalise_ranges
@@ -801,6 +803,132 @@ class AudioCutter(ABC):
             except FileNotFoundError:
                 pass
 
+
+class ScipyCutter(AudioCutter):
+    """Audio cutter using scipy.io.wavfile module"""
+
+    _BITDEPTH: Dict[int, Any] = {
+        32: np.int32,
+        16: np.int16,
+        8: np.uint8
+    }
+
+    def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
+        try:
+            # pylint: disable=import-outside-toplevel
+            import scipy as _  # noqa F401
+        except ImportError as imp_err:
+            Status.fail(
+                f'{self.__class__.__name__}: you need to install scipy to use this cutter!',
+                exception=ImportError, chain_err=imp_err
+            )
+        super().__init__(file, track=track, **kwargs)
+
+    def run(self) -> None:
+        assert self.file.a_src
+        assert self.file.a_src_cut
+
+        trims = self.file.trims_or_dfs
+
+        if trims:
+            Status.info(f'{self.__class__.__name__}: trimming audio...')
+            self.scipytrim(
+                self.file.a_src.set_track(self.track),
+                self.file.a_src_cut.set_track(self.track),
+                trims, self.file.clip
+            )
+        else:
+            self._passthrough()
+
+    @classmethod
+    def scipytrim(
+        cls, src: AnyPath, output: AnyPath, /,
+        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        ref_clip: vs.VideoNode, *, combine: bool = True
+    ) -> None:
+        """
+        Simple trimming function that follows VapourSynth/Python slicing syntax.
+        End frame is NOT inclusive.
+
+        :param src:             Input file
+        :param output:          Output file
+        :param trims:           Either a list of 2-tuples, one tuple of 2 ints, a DuplicateFrame object
+                                or a list of of 2-tuples and/or DuplicateFrame object.
+        :param ref_clip:        Vapoursynth clip used to determine framerate AND the number of frames.
+        :param combine:         Keep all performed trims in the same file, defaults to True
+        """
+        try:
+            # pylint: disable=import-outside-toplevel
+            from scipy.io import wavfile
+        except ImportError as imp_err:
+            Status.fail(
+                f'{cls.__name__}: you need to install scipy to use this cutter!',
+                exception=ImportError, chain_err=imp_err
+            )
+
+        src, output = map(VPath, (src, output))
+
+        if not isinstance(trims, list):
+            trims = [trims]
+
+        try:
+            sample_rate, array = wavfile.read(src, False)
+        except ValueError as val_err:
+            Status.fail(
+                f'{cls.__name__}: this file is not a wav!',
+                exception=FileError, chain_err=val_err
+            )
+
+        parent = output.parent
+        tmp_name = output.name + '_tmp_{track_number}' + src.suffix
+        tmp = parent / tmp_name
+
+        fps = ref_clip.fps
+        f2samples = Convert.f2samples
+
+        arrays: List[NDArray[Any]] = []
+        for trim in trims:
+            if isinstance(trim, tuple):
+                start, end = normalise_ranges(ref_clip, trim).pop()
+                # Just trim
+                arrays.append(
+                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]
+                )
+            else:
+                # Handle DuplicateFrame
+                df = trim
+                _, channels = array.shape
+                arrays.append(
+                    np.array([(0, ) * channels] * f2samples(df.dup, fps, sample_rate), array.dtype)  # type: ignore
+                )
+
+        if combine:
+            narray = arrays.pop() if len(arrays) == 1 else np.concatenate(arrays, axis=0)  # type: ignore
+            wavfile.write(output, sample_rate, narray)
+            del narray
+        else:
+            for i, arr in enumerate(arrays):
+                wavfile.write(tmp.set_track(i), sample_rate, arr)
+        del arrays
+
+    @classmethod
+    def generate_silence(
+        cls, s: float, output: AnyPath,
+        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> None:
+        try:
+            # pylint: disable=import-outside-toplevel
+            from scipy.io import wavfile
+        except ImportError as imp_err:
+            Status.fail(
+                f'{cls.__name__}: you need to install scipy to use this cutter!',
+                exception=ImportError, chain_err=imp_err
+            )
+
+        silence_arr = np.array(  # type: ignore
+            [(0, ) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth]
+        )
+        wavfile.write(output, sample_rate, silence_arr)
 
 
 FFMPEG_CHANNEL_LAYOUT_MAP: Dict[int, str] = {
