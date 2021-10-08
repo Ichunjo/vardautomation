@@ -119,6 +119,54 @@ class Convert:
         return round(s * fps)
 
     @staticmethod
+    def samples2seconds(num_samples: int, sample_rate: int, /) -> float:
+        """
+        Convert samples to seconds
+
+        :param num_samples: Samples
+        :param sample_rate: Playback sample rate
+        :return:            Seconds
+        """
+        return num_samples / sample_rate
+
+    @staticmethod
+    def seconds2samples(s: float, sample_rate: int, /) -> int:
+        """
+        Convert seconds to samples
+
+        :param s:           Seconds
+        :param sample_rate: Playback sample rate
+        :return:            Samples
+        """
+        return round(s * sample_rate)
+
+    @classmethod
+    def f2samples(cls, f: int, fps: Fraction, sample_rate: int) -> int:
+        """
+        Convert frames to samples
+
+        :param f:           Frames
+        :param fps:         Framerate Per Second
+        :param sample_rate: Playback sample rate
+        :return:            Samples
+        """
+        s = cls.f2seconds(f, fps)
+        return cls.seconds2samples(s, sample_rate)
+
+    @classmethod
+    def samples2f(cls, num_samples: int, sample_rate: int, fps: Fraction) -> int:
+        """
+        Convert sample to frames
+
+        :param num_samples: Samples
+        :param sample_rate: Playback sample rate
+        :param fps:         Framerate Per Second
+        :return:            Frame
+        """
+        s = cls.samples2seconds(num_samples, sample_rate)
+        return cls.seconds2f(s, fps)
+
+    @staticmethod
     def composets(h: float, m: float, s: float, /, *, precision: int = 3) -> str:
         """
         Make a timestamp based on given hours, minutes and seconds
