@@ -378,6 +378,10 @@ class FileInfo:
 
 
 class BlurayShow:
+    class _File(NamedTuple):
+        file: VPath
+        chapter: Optional[VPath]
+
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
                  idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
                  lang: Lang = UNDEFINED) -> None:
@@ -397,11 +401,7 @@ class BlurayShow:
         self.idx = idx
         self.preset = preset
 
-        class File(NamedTuple):
-            file: VPath
-            chapter: Optional[VPath]
-
-        self.files: List[File] = []
+        self.files: List[BlurayShow._File] = []
 
         for path, eps in episodes.items():
             chap_folder = path / 'chapters'
@@ -418,7 +418,7 @@ class BlurayShow:
                     if chap.stem.split('_')[1] == ep.stem:
                         chap_sel = chap
                         break
-                self.files.append(File(path / ep, chap_sel))
+                self.files.append(self._File(path / ep, chap_sel))
 
     def episodes(self) -> List[FileInfo]:
         files_info: List[FileInfo] = []
