@@ -22,6 +22,6 @@ types-colorama>=0.4.2
 types-Pillow>=8.3.4
 types-requests>=2.25.0
 types-setuptools>=57.4.0
-typing-extensions>=3.10.0.0
+typing-extensions>=3.10.0.2
 vardefunc>=0.4.0
 VapourSynth>=51

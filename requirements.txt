@@ -10,5 +10,6 @@ pyparsebluray>=0.1.3
 pyparsedvd>=0.0.3
 requests>=2.25.1
 requests_toolbelt>=0.9.1
+typing-extensions>=3.10.0.2
 vardefunc>=0.4.0
 VapourSynth>=51

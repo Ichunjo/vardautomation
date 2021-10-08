@@ -37,12 +37,13 @@ from lvsfunc.render import SceneChangeMode as SCM
 from lvsfunc.render import find_scene_changes
 from lxml import etree
 from pymediainfo import MediaInfo
+from typing_extensions import TypeGuard
 from vardefunc.util import normalise_ranges
 
 from .binary_path import BinaryPath
 from .config import FileInfo
 from .language import UNDEFINED, Lang
-from .status import Status
+from .status import FileError, Status
 from .timeconv import Convert
 from .types import AnyPath, DuplicateFrame, Trim, UpdateFunc
 from .utils import Properties, copy_docstring_from, recursive_dict
@@ -772,6 +773,10 @@ class AudioCutter(ABC):
     def run(self) -> None:
         """Trimming toolchain"""
 
+    def _passthrough(self) -> None:
+        Status.warn(f'{self.__class__.__name__}: no trims detected; use PassthroughCutter...')
+        PassthroughCutter(self.file, track=self.track).run()
+
     @classmethod
     @abstractmethod
     def generate_silence(
@@ -816,12 +821,6 @@ class EztrimCutter(AudioCutter):
     It fallbacks on :py:func:`EztrimCutter.ezpztrim` if some DuplicateFrame objects are detected
     in the FileInfo object specified.
     """
-    force_eztrim: bool = False
-    """
-    Force using :py:func:`acsuite.eztrim`
-    Keep in mind that if you don't specify DuplicateFrame objects in the FileInfo object
-    eztrim will be used anyway.
-    """
 
     _ffmpeg_warning = ['-hide_banner', '-loglevel', 'warning']
 
@@ -836,10 +835,10 @@ class EztrimCutter(AudioCutter):
                 trims = [trims]
             Status.info(f'{self.__class__.__name__}: trimming audio...')
 
-            if self.force_eztrim or not any(isinstance(t, DuplicateFrame) for t in trims):
+            if self._are_trims_only(trims):
                 self.kwargs.setdefault('quiet', True)
                 eztrim(
-                    self.file.clip, cast(List[Trim], trims),
+                    self.file.clip, trims,
                     self.file.a_src.set_track(self.track).to_str(),
                     self.file.a_src_cut.set_track(self.track).to_str(),
                     **self.kwargs
@@ -852,8 +851,7 @@ class EztrimCutter(AudioCutter):
                     trims, self.file.clip
                 )
         else:
-            Status.warn(f'{self.__class__.__name__}: no trims detected; use PassthroughCutter...')
-            PassthroughCutter(self.file, track=self.track).run()
+            self._passthrough()
 
     @classmethod
     def ezpztrim(
@@ -976,6 +974,10 @@ class EztrimCutter(AudioCutter):
 
         cls._cleanup('_conf_concat.txt')
 
+    @staticmethod
+    def _are_trims_only(trims_or_dfs: Union[List[Trim], List[Union[Trim, DuplicateFrame]]]) -> TypeGuard[List[Trim]]:
+        return not any(isinstance(t, DuplicateFrame) for t in trims_or_dfs)
+
 
 class SoxCutter(AudioCutter):
     """Audio cutter using Sox"""
@@ -994,8 +996,7 @@ class SoxCutter(AudioCutter):
                 trims, self.file.clip
             )
         else:
-            Status.warn(f'{self.__class__.__name__}: no detected trims; use PassthroughCutter...')
-            PassthroughCutter(self.file, track=self.track).run()
+            self._passthrough()
 
     @classmethod
     def soxtrim(
