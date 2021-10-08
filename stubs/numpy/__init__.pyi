@@ -3410,7 +3410,7 @@ def zeros(
     order: _OrderCF = ...,
     *,
     like: ArrayLike = ...,
-) -> nNDArray[Any]: ...
+) -> NDArray[Any]: ...
 def empty(
     shape: _ShapeLike,
     dtype: DTypeLike = ...,
