@@ -816,7 +816,7 @@ class ScipyCutter(AudioCutter):
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         try:
             # pylint: disable=import-outside-toplevel
-            import scipy as _  # noqa F401
+            import scipy as _  # type: ignore  # noqa F401
         except ImportError as imp_err:
             Status.fail(
                 f'{self.__class__.__name__}: you need to install scipy to use this cutter!',
@@ -859,7 +859,7 @@ class ScipyCutter(AudioCutter):
         """
         try:
             # pylint: disable=import-outside-toplevel
-            from scipy.io import wavfile
+            from scipy.io import wavfile  # type: ignore
         except ImportError as imp_err:
             Status.fail(
                 f'{cls.__name__}: you need to install scipy to use this cutter!',
@@ -918,7 +918,7 @@ class ScipyCutter(AudioCutter):
     ) -> None:
         try:
             # pylint: disable=import-outside-toplevel
-            from scipy.io import wavfile
+            from scipy.io import wavfile  # type: ignore
         except ImportError as imp_err:
             Status.fail(
                 f'{cls.__name__}: you need to install scipy to use this cutter!',
