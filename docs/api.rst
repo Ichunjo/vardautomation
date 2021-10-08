@@ -89,6 +89,10 @@ Audio cutters
    :members:
    :inherited-members:
    :show-inheritance:
+.. autoclass:: vardautomation.tooling.ScipyCutter
+   :members:
+   :inherited-members:
+   :show-inheritance:
 .. autoclass:: vardautomation.tooling.EztrimCutter
    :members:
    :inherited-members:
