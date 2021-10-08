@@ -888,7 +888,7 @@ class EztrimCutter(AudioCutter):
         except (AttributeError, KeyError) as att_err:
             Status.fail(
                 f'{cls.__name__}: file extension, sampling rate, bitrate or num channels not found',
-                exception=AttributeError, chain_err=att_err
+                exception=FileError, chain_err=att_err
             )
 
         parent = output.parent
@@ -1029,7 +1029,7 @@ class SoxCutter(AudioCutter):
         except (AttributeError, KeyError) as att_err:
             Status.fail(
                 f'{cls.__name__}: sampling rate, bit_depth or channel_s not found',
-                exception=AttributeError, chain_err=att_err
+                exception=FileError, chain_err=att_err
             )
 
         parent = output.parent

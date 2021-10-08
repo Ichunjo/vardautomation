@@ -9,6 +9,10 @@ import pkg_resources
 colorama.init()
 
 
+class FileError(Exception):
+    ...
+
+
 class Colours:
     """Colour constants"""
     FAIL_DIM: str = colorama.Back.RED + colorama.Fore.BLACK + colorama.Style.NORMAL
