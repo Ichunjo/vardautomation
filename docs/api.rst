@@ -216,7 +216,7 @@ Language
 .. autodata:: vardautomation.language.UNDEFINED
 
 Time conversion
-============
+===============
 .. autoclass:: vardautomation.timeconv.Convert
    :members:
 
@@ -228,18 +228,23 @@ VPath
 Types
 ======
 .. autodata:: vardautomation.types.AnyPath
-.. autodata:: vardautomation.types.DuplicateFrame
-.. autodata:: vardautomation.types.Trim
 .. autodata:: vardautomation.types.UpdateFunc
 .. autodata:: vardautomation.types.VPSIdx
 
 Internal functions
-============
+==================
 .. autoclass:: vardautomation.utils.Properties
    :members:
 
 Comparison
 ============
-.. autofunction:: vardautomation.comp.make_comps
 .. autoclass:: vardautomation.comp.Writer
    :members:
+.. autoclass:: vardautomation.comp.PictureType
+   :members:
+.. autoclass:: vardautomation.comp.SlowPicsConf
+   :members:
+.. autodata:: vardautomation.comp.default_conf
+.. autoclass:: vardautomation.comp.Comparison
+   :members:
+.. autofunction:: vardautomation.comp.make_comps

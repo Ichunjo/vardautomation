@@ -113,7 +113,7 @@ class Comparison:
         :param path:                Path to your comparison folder, defaults to 'comps'
         :param num:                 Number of frames to extract, defaults to 15
         :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-        :param picture_type         Select picture types to pick, default to None
+        :param picture_type:         Select picture types to pick, default to None
         """
         self.clips = clips
         self.path = VPath(path)
@@ -353,18 +353,18 @@ def make_comps(
     slowpics: bool = False, collection_name: str = '', public: bool = True
 ) -> None:
     """
-    Extract frames, make diff between two clips and upload to slow.pics
+    Extract frames, make diff between two clips and upload to slow.pics.
     This is a convenience function for :py:class:`Comparison`.
 
     :param clips:               Named clips.
     :param path:                Path to your comparison folder, defaults to 'comps'
     :param num:                 Number of frames to extract, defaults to 15
-    :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-    :param picture_types        Select picture types to pick, default to None
+    :param frames:              Additionnal frame numbers that will be added to the total of num, defaults to None
+    :param picture_types:       Select picture types to pick, default to None
     :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
     :param writer:              Writer method to be used, defaults to Writer.PYTHON
     :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
-    :param magick_compare:      Make diffs between the first and second clip
+    :param magick_compare:      Make diffs between the first and second clip.
                                 Will raise an exception if more than 2 clips are passed to clips, defaults to False
     :param slowpics:            Upload to slow.pics, defaults to False
     :param collection_name:     Slowpics's collection name, defaults to ''
