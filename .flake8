@@ -1,9 +1,9 @@
 [flake8]
 count = True
-ignore = W503,E226,E303
+ignore = W503,E226,E303,PLC0415
 max-line-length = 140
 max-doc-length = 200
 max-complexity = 10
-exclude = stubs/*,vardautomation/stubs/*
+exclude = stubs/*
 show-source = True
 statistics = True

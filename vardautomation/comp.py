@@ -389,7 +389,6 @@ def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
 
 
 def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.VideoFrame]:  # noqa: C901
-    # pylint: disable=import-outside-toplevel
     if writer == Writer.OPENCV:
         try:
             import cv2

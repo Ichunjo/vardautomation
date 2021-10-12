@@ -818,7 +818,6 @@ class ScipyCutter(AudioCutter):
 
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         try:
-            # pylint: disable=import-outside-toplevel
             import scipy as _  # type: ignore  # noqa F401
         except ImportError as imp_err:
             Status.fail(
@@ -861,7 +860,6 @@ class ScipyCutter(AudioCutter):
         :param combine:         Keep all performed trims in the same file, defaults to True
         """
         try:
-            # pylint: disable=import-outside-toplevel
             from scipy.io import wavfile  # type: ignore
         except ImportError as imp_err:
             Status.fail(
@@ -920,7 +918,6 @@ class ScipyCutter(AudioCutter):
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         try:
-            # pylint: disable=import-outside-toplevel
             from scipy.io import wavfile  # type: ignore
         except ImportError as imp_err:
             Status.fail(
