@@ -43,10 +43,10 @@ class Writer(Enum):
     """Writer to be used to extract frames"""
 
     FFMPEG = auto()
-    """ffmpeg encoder"""
+    """FFmpeg encoder"""
 
     IMWRI = auto()
-    """core.imwri.Write Vapoursynth plugin"""
+    """vapoursynth.core.imwri Vapoursynth plugin"""
 
     OPENCV = auto()
     """opencv library"""
@@ -65,7 +65,7 @@ class Writer(Enum):
 
 
 class PictureType(bytes, Enum):
-    """A simple enum to cover all the choices of the selected picture types."""
+    """A simple enum for picture types."""
     I = b'I'  # noqa E741
     """I frames"""
 
@@ -103,7 +103,7 @@ default_conf: SlowPicsConf = SlowPicsConf(
 
 
 class Comparison:
-    """Can extract frames, make diff between two clips and upload to slow.pics"""
+    """Extract frames, make diff between two clips and upload to slow.pics"""
 
     def __init__(self, clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                  num: int = 15, frames: Optional[Iterable[int]] = None,
@@ -258,7 +258,7 @@ class Comparison:
         Upload to slow.pics with given configuration
 
         :param config:              TypeDict which contains the uploading configuration,
-                                    defaults to :py:data`.default_conf`
+                                    defaults to :py:data:`.default_conf`
         """
         # Upload to slow.pics
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
@@ -353,8 +353,7 @@ def make_comps(
     slowpics: bool = False, collection_name: str = '', public: bool = True
 ) -> None:
     """
-    Extract frames, make diff between two clips and upload to slow.pics.
-    This is a convenience function for :py:class:`Comparison`.
+    Convenience function for :py:class:`Comparison`.
 
     :param clips:               Named clips.
     :param path:                Path to your comparison folder, defaults to 'comps'

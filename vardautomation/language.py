@@ -1,8 +1,11 @@
 """Language module"""
+
 from __future__ import annotations
 
-__all__ = ['Lang',
-           'FRENCH', 'ENGLISH', 'JAPANESE', 'UNDEFINED']
+__all__ = [
+    'Lang',
+    'FRENCH', 'ENGLISH', 'JAPANESE', 'UNDEFINED'
+]
 
 
 from pprint import pformat
@@ -25,8 +28,6 @@ class Lang:
 
     def __init__(self, language: Language, *, iso639_variant: str = 'B') -> None:
         """
-        Make a new Lang class
-
         :param language:        Language class of the package langcodes
         :param iso639_variant:  Optional variant to get the 'bibliographic' code instead, defaults to 'B'
         """

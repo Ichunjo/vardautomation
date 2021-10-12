@@ -4,12 +4,15 @@ API Reference
 
 .. automodule:: vardautomation
 
-Get ready
-=========
-
+Configuration
+==============
 .. autoclass:: vardautomation.config.FileInfo
    :members:
+.. autoclass:: vardautomation.config.BlurayShow
+   :members:
 
+Presets
+----------------
 .. autodata:: vardautomation.config.PresetGeneric
 .. autodata:: vardautomation.config.PresetBD
 .. autodata:: vardautomation.config.PresetWEB
@@ -39,18 +42,6 @@ Video encoders
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.LosslessEncoder
-   :members:
-   :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.NvenccEncoder
-   :members:
-   :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.FFV1Encoder
-   :members:
-   :inherited-members:
-   :show-inheritance:
 .. autoclass:: vardautomation.tooling.VideoLanEncoder
    :members:
    :inherited-members:
@@ -60,6 +51,18 @@ Video encoders
    :inherited-members:
    :show-inheritance:
 .. autoclass:: vardautomation.tooling.X264Encoder
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.LosslessEncoder
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.NvenccEncoder
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.FFV1Encoder
    :members:
    :inherited-members:
    :show-inheritance:
@@ -73,15 +76,12 @@ Audio extracters
 .. autoclass:: vardautomation.tooling.MKVAudioExtracter
    :members:
    :inherited-members:
-   :show-inheritance:
 .. autoclass:: vardautomation.tooling.Eac3toAudioExtracter
    :members:
    :inherited-members:
-   :show-inheritance:
-.. autoclass:: vardautomation.tooling.FfmpegAudioExtracter
+.. autoclass:: vardautomation.tooling.FFmpegAudioExtracter
    :members:
    :inherited-members:
-   :show-inheritance:
 
 Audio cutters
 ----------------
@@ -167,10 +167,7 @@ Automation
    :members:
 .. autoclass:: vardautomation.automation.RunnerConfig
    :members:
-
-Patch
-============
-.. autoclass:: vardautomation.patch.Patch
+.. autoclass:: vardautomation.automation.Patch
    :members:
 
 Chapters stuff
@@ -201,6 +198,19 @@ Chapters stuff
 .. autoclass:: vardautomation.chapterisation.IfoReader
    :members:
 
+Comparison
+============
+.. autoclass:: vardautomation.comp.Writer
+   :members:
+.. autoclass:: vardautomation.comp.PictureType
+   :members:
+.. autoclass:: vardautomation.comp.SlowPicsConf
+   :members:
+.. autodata:: vardautomation.comp.default_conf
+.. autoclass:: vardautomation.comp.Comparison
+   :members:
+.. autofunction:: vardautomation.comp.make_comps
+
 Binary Path
 ============
 .. autoclass:: vardautomation.binary_path.BinaryPath
@@ -215,11 +225,6 @@ Language
 .. autodata:: vardautomation.language.JAPANESE
 .. autodata:: vardautomation.language.UNDEFINED
 
-Time conversion
-===============
-.. autoclass:: vardautomation.timeconv.Convert
-   :members:
-
 VPath
 ============
 .. autoclass:: vardautomation.vpathlib.VPath
@@ -231,20 +236,12 @@ Types
 .. autodata:: vardautomation.types.UpdateFunc
 .. autodata:: vardautomation.types.VPSIdx
 
+Time conversion
+===============
+.. autoclass:: vardautomation.timeconv.Convert
+   :members:
+
 Internal functions
 ==================
 .. autoclass:: vardautomation.utils.Properties
    :members:
-
-Comparison
-============
-.. autoclass:: vardautomation.comp.Writer
-   :members:
-.. autoclass:: vardautomation.comp.PictureType
-   :members:
-.. autoclass:: vardautomation.comp.SlowPicsConf
-   :members:
-.. autodata:: vardautomation.comp.default_conf
-.. autoclass:: vardautomation.comp.Comparison
-   :members:
-.. autofunction:: vardautomation.comp.make_comps

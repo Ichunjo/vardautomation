@@ -4,7 +4,7 @@ from __future__ import annotations
 
 __all__ = [
     'Tool', 'BasicTool',
-    'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FfmpegAudioExtracter',
+    'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FFmpegAudioExtracter',
 
     'AudioEncoder', 'BitrateMode', 'QAACEncoder', 'OpusEncoder', 'FDKAACEncoder', 'FlacCompressionLevel', 'FlacEncoder',
     'PassthroughAudioEncoder',
@@ -54,8 +54,8 @@ from .vpathlib import VPath
 
 class Tool(ABC):
     """
-    Abstract Tool interface
-    Most of the tools inherit from it
+    Abstract Tool interface.\n
+    Most of the tools inherit from it.
     """
 
     binary: VPath
@@ -155,7 +155,7 @@ class Tool(ABC):
 
 
 class BasicTool(Tool):
-    """BasicTool interface"""
+    """BasicTool interface."""
 
     file: Optional[FileInfo]
     """FileInfo object."""
@@ -185,21 +185,19 @@ class BasicTool(Tool):
 
 
 class AudioExtracter(BasicTool):
-    """Audio extracter interface"""
+    """Audio base extracter interface for audio extration"""
 
     file: FileInfo
     """FileInfo object"""
 
     track_in: Sequence[int]
-    """Track number of the input file"""
+    """Track number(s) of the input file"""
 
     track_out: Sequence[int]
-    """Track number of the output file"""
+    """Track number(s) of the output file"""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /, file: FileInfo) -> None:
         """
-        Base class for audio extration
-
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
         :param file:            FileInfo object, needed
@@ -228,11 +226,11 @@ class _AutoSetTrack(AudioExtracter, ABC):
 
     def run(self) -> None:
         self._get_settings()
-        self.set_tracks_number()
+        self._set_tracks_number()
         self._do_tooling()
 
     @abstractmethod
-    def set_tracks_number(self) -> None:
+    def _set_tracks_number(self) -> None:
         """Internal function for setting the track(s) number"""
 
     def set_variable(self) -> Dict[str, Any]:
@@ -240,7 +238,7 @@ class _AutoSetTrack(AudioExtracter, ABC):
 
 
 class _SimpleSetTrack(_AutoSetTrack, ABC):
-    def set_tracks_number(self) -> None:
+    def _set_tracks_number(self) -> None:
         assert self.file.a_src
         # Set the tracks for eac3to and mkvmerge since they share the same pattern
         for t_in, t_out in zip(self.track_in, self.track_out):
@@ -248,10 +246,13 @@ class _SimpleSetTrack(_AutoSetTrack, ABC):
 
 
 class _FfmpegSetTrack(_AutoSetTrack, ABC):
-    def set_tracks_number(self) -> None:
+    def _set_tracks_number(self) -> None:
         # ffmpeg is a bit more annoying since it can't guess the bitdepth
         # I'm using mediainfo here because it's already implemented in FileInfo
         # but I guess using ffprobe could be nice too.
+
+        # TODO: yes I should use FFprobe because of weird bugs Light reported where
+        # indexing was different between mediainfo and ffmpeg
         acodecs = {24: 'pcm_s24le', 16: 'pcm_s16le'}
 
         assert self.file.a_src
@@ -319,7 +320,7 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
         self.params.extend(eac3to_args if eac3to_args else [])
 
 
-class FfmpegAudioExtracter(_FfmpegSetTrack):
+class FFmpegAudioExtracter(_FfmpegSetTrack):
     """AudioExtracter using Ffmpeg"""
 
     _ffmpeg_warning = ['-hide_banner', '-loglevel', 'info']
@@ -336,7 +337,7 @@ class FfmpegAudioExtracter(_FfmpegSetTrack):
 
 
 class AudioEncoder(BasicTool):
-    """BasicTool interface for audio encoding"""
+    """BasicTool interface helper for audio encoding"""
 
     file: FileInfo
     """FileInfo object"""
@@ -346,8 +347,8 @@ class AudioEncoder(BasicTool):
 
     xml_tag: Optional[AnyPath]
     """
-    XML tags suitable for mkvmerge
-    Curently only write the encoder name
+    XML tags suitable for mkvmerge\n
+    Curently only write the encoder name\n
     More info here: https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.tags
     """
 
@@ -356,13 +357,11 @@ class AudioEncoder(BasicTool):
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
         """
-        Helper for audio extraction.
-
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
         :param file:            FileInfo object, needed.
         :param track:           Track number
-        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
+        :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None\n
                                 If specified, will write a file containing the encoder info to be passed to the muxer.
         """
         super().__init__(binary, settings, file=file)
@@ -403,7 +402,7 @@ class AudioEncoder(BasicTool):
         etree.SubElement(simple, 'String').text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
 
         assert self.xml_tag
-        with open(self.xml_tag, 'wb') as f:
+        with open(self.xml_tag, 'wb', encoding='utf-8') as f:
             f.write(
                 etree.tostring(tags, encoding='utf-8', xml_declaration=True, pretty_print=True)
             )
@@ -462,7 +461,7 @@ FDK_BITRATE_MODE = Literal[BitrateMode.CBR, BitrateMode.VBR]
 
 
 class QAACEncoder(AudioEncoder):
-    """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder"""
+    """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder."""
 
     _bitrate_mode_map: Dict[BitrateMode, str] = {
         BitrateMode.ABR: '--abr',
@@ -487,7 +486,7 @@ class QAACEncoder(AudioEncoder):
         :param qaac_args:       Additional options, see https://github.com/nu774/qaac/wiki/Command-Line-Options, defaults to None
         """
         settings = ['{a_src_cut:s}']
-        # There is a Literal type but just in case never underestimate the people's stupidity
+        # There is a Literal type but just in case never underestimate people's stupidity
         try:
             settings += [self._bitrate_mode_map[mode]]
         except AttributeError as attr_err:
@@ -504,7 +503,7 @@ class QAACEncoder(AudioEncoder):
 
 
 class OpusEncoder(AudioEncoder):
-    """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec """
+    """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec."""
 
     _bitrate_mode_opusenc_map: Dict[BitrateMode, str] = {
         BitrateMode.VBR: '--vbr',
@@ -558,7 +557,7 @@ class OpusEncoder(AudioEncoder):
 
 class FDKAACEncoder(AudioEncoder):
     """
-    AudioEncoder using fdkaac.
+    AudioEncoder using fdkaac.\n
     The libfdk-aac library is based on the Fraunhofer FDK AAC code from the Android project
     """
 
@@ -571,7 +570,8 @@ class FDKAACEncoder(AudioEncoder):
         :param track:           Track number
         :param mode:            Bitrate mode, fdkaac supports CBR and VBR, defaults to BitrateMode.CBR
         :param bitrate:         Matches the bitrate for CBR in kbit/s and quality Q for VBR, defaults to 256
-        :param cutoff:          Set cutoff frequency. If not specified (or explicitly set to 0) it will use a value automatically computed by the library.  # noqa: E501
+        :param cutoff:          Set cutoff frequency. If not specified (or explicitly set to 0)
+                                it will use a value automatically computed by the library.
                                 Correspond to frequency bandwidth in Hz in fdkaac library, defaults to 20000
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         :param use_ffmpeg:      Use ``fdkaac`` if False, defaults to True
@@ -618,53 +618,53 @@ class FDKAACEncoder(AudioEncoder):
 
 class FlacCompressionLevel(IntEnum):
     """
-    Flac compression level.
+    Flac compression level.\n
     Keep in mind that the max FLAC can handle is 8 and ffmpeg 12
     """
     ZERO = 0
     """
-    ffmpeg: compression_level 0
+    ffmpeg: compression_level 0\n
     flac: --compression-level-0
     """
     ONE = 1
     """
-    ffmpeg: compression_level 1
+    ffmpeg: compression_level 1\n
     flac: --compression-level-1
     """
     TWO = 2
     """
-    ffmpeg: compression_level 2
+    ffmpeg: compression_level 2\n
     flac: --compression-level-2
     """
     THREE = 3
     """
-    ffmpeg: compression_level 3
+    ffmpeg: compression_level 3\n
     flac: --compression-level-3
     """
     FOUR = 4
     """
-    ffmpeg: compression_level 4
+    ffmpeg: compression_level 4\n
     flac: --compression-level-4
     """
     FIVE = 5
     """
-    ffmpeg: compression_level 5
-    flac: --compression-level-5
-    This is default for both ffmpeg and flac encoders
+    ffmpeg: compression_level 5\n
+    flac: --compression-level-5\n
+    This is the default for both ffmpeg and flac encoders
     """
     SIX = 6
     """
-    ffmpeg: compression_level 6
+    ffmpeg: compression_level 6\n
     flac: --compression-level-6
     """
     SEVEN = 7
     """
-    ffmpeg: compression_level 7
+    ffmpeg: compression_level 7\n
     flac: --compression-level-7
     """
     EIGHT = 8
     """
-    ffmpeg: compression_level 8
+    ffmpeg: compression_level 8\n
     flac: --compression-level-8
     """
     NINE = 9
@@ -685,19 +685,20 @@ class FlacCompressionLevel(IntEnum):
     """
     FAST = 0
     """
-    Fastest compression. Currently synonymous with 0
-    ffmpeg: compression_level 0
+    Fastest compression. Currently synonymous with 0\n
+    ffmpeg: compression_level 0\n
     flac: --compression-level-0
     """
     BEST = 8
     """
-    Highest compression. Currently synonymous with -8
-    ffmpeg: compression_level 0
+    Highest compression. Currently synonymous with -8\n
+    ffmpeg: compression_level 0\n
     flac: --compression-level-0
     """
     VARDOU = 99
     """
-    My custom ffmpeg command
+    My custom ffmpeg command\n
+
     .. code-block:: python
 
         ['-compression_level', '12', '-lpc_type', 'cholesky', '-lpc_passes', '3', '-exact_rice_parameters', '1']
@@ -724,8 +725,10 @@ class FlacEncoder(AudioEncoder):
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
             if level == FlacCompressionLevel.VARDOU:
-                level_args = ['-compression_level', '12', '-lpc_type', 'cholesky',
-                              '-lpc_passes', '3', '-exact_rice_parameters', '1']
+                level_args = [
+                    '-compression_level', '12', '-lpc_type', 'cholesky',
+                    '-lpc_passes', '3', '-exact_rice_parameters', '1'
+                ]
             else:
                 level_args = [f'-compression_level {level}']
             settings = ['-i', '{a_src_cut:s}'] + level_args
@@ -735,7 +738,7 @@ class FlacEncoder(AudioEncoder):
         else:
             binary = BinaryPath.flac
             if level <= FlacCompressionLevel.EIGHT:
-                settings = [*flac_args] if flac_args is not None else []
+                settings = flac_args if flac_args is not None else []
                 settings.extend([f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}'])
             else:
                 Status.fail(f'{self.__class__.__name__}: "level" must be <= 8 if "use_ffmpeg" is false', exception=ValueError)
@@ -945,7 +948,7 @@ Only "mono", "stereo" and "5.1" are currently supported
 
 class EztrimCutter(AudioCutter):
     """
-    AudioCutter using :py:func:`acsuite.eztrim`
+    AudioCutter using :py:func:`acsuite.eztrim`.\n
     It fallbacks on :py:func:`EztrimCutter.ezpztrim` if some DuplicateFrame objects are detected
     in the FileInfo object specified.
     """
@@ -1212,7 +1215,8 @@ class SoxCutter(AudioCutter):
 
 
 class PassthroughCutter(AudioCutter):
-    """Special AudioCutter that will copy :py:attr:`FileInfo.a_src` to :py:attr:`FileInfo.a_src_cut`"""
+    """Special AudioCutter that will copy :py:attr:`vardautomation.config.FileInfo.a_src`
+     to :py:attr:`vardautomation.config.FileInfo.a_src_cut`"""
 
     def run(self) -> None:
         assert self.file.a_src
@@ -1253,7 +1257,7 @@ class VideoEncoder(Tool):
     """General VideoEncoder interface"""
 
     progress_update: Optional[UpdateFunc]
-    """"Progress update function to be used in `vapoursynth.VideoNode.output`"""
+    """Progress update function to be used in `vapoursynth.VideoNode.output`"""
 
     file: FileInfo
     """FileInfo object"""
@@ -1262,7 +1266,10 @@ class VideoEncoder(Tool):
     """Your filtered VideoNode clip"""
 
     y4m: bool = True
-    """Y4M Output flag"""
+    """
+    YUV4MPEG2 headers\n
+    More informations http://www.vapoursynth.com/doc/pythonreference.html#VideoNode.output
+    """
 
     prefetch: int = 0
     """Max number of concurrent rendered frames"""
@@ -1275,7 +1282,7 @@ class VideoEncoder(Tool):
                                     See :py:attr:`Tool.settings`
         :param progress_update:     Current progress can be reported by passing a callback function
                                     of the form func(current_frame, total_frames) to progress_update,
-                                    defaults to progress_update_func
+                                    defaults to :py:func:`progress_update_func`.
         """
         self.progress_update = progress_update
         super().__init__(binary, settings)
@@ -1286,8 +1293,6 @@ class VideoEncoder(Tool):
 
         :param clip:            Clip to be encoded
         :param file:            FileInfo object
-        :param y4m:             Add YUV4MPEG2 headers, defaults to True
-                                More informations http://www.vapoursynth.com/doc/pythonreference.html#VideoNode.output
         """
         if file:
             self.file = file
@@ -1337,32 +1342,31 @@ class LosslessEncoder(VideoEncoder):
 
 
 class NvenccEncoder(LosslessEncoder):
+    """Built-in NvencC encoder."""
+
     def __init__(self) -> None:
         """
-        Built-in NvencC encoder
-        Lossless mode in HEVC. Hardcoded path: 'nvencc'
+        Use NvencC to output a lossless encode in HEVC
         """
         super().__init__(
             BinaryPath.nvencc,
-            ['-i', '-', '--y4m',
-             '--lossless',
-             '-c', 'hevc',
-             '--output-depth', '{bits:d}',
-             '-o', '{clip_output_lossless:s}'],
+            ['-i', '-', '--y4m', '--lossless', '-c', 'hevc', '--output-depth', '{bits:d}', '-o', '{clip_output_lossless:s}'],
             progress_update=None
         )
 
 
 class FFV1Encoder(LosslessEncoder):
-    def __init__(self, *, threads: int = 16) -> None:
+    """Built-in FFV1 encoder."""
+
+    def __init__(self, *, threads: int = 0) -> None:
         """
-        Built-in FFV1 encoder. Lossless mode in FFV1.
+        Use FFmpeg to output a lossless encode in FFV1
+
+        :param threads:         Number of threads to be used, defaults to 0 (auto selection)
         """
         super().__init__(
             BinaryPath.ffmpeg,
-            ['-i', '-',
-             '-vcodec', 'ffv1',
-             '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
+            ['-i', '-', '-vcodec', 'ffv1', '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
              '-threads', str(threads), '-slices', '24', '-slicecrc', '1', '-slicecrc', '1',
              '{clip_output_lossless:s}'],
             progress_update=None
@@ -1370,7 +1374,7 @@ class FFV1Encoder(LosslessEncoder):
 
 
 class VideoLanEncoder(VideoEncoder, ABC):
-    """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264"""
+    """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
     @copy_docstring_from(VideoEncoder.__init__, 'o+t')
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
@@ -1410,7 +1414,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
 
 
 class X265Encoder(VideoLanEncoder):
-    """Video encoder using x265 in HEVC"""
+    """Video encoder using x265 for HEVC"""
 
     @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
@@ -1425,7 +1429,7 @@ class X265Encoder(VideoLanEncoder):
 
 
 class X264Encoder(VideoLanEncoder):
-    """Video encoder using x264 in AVC"""
+    """Video encoder using x264 for AVC"""
 
     @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
@@ -1438,8 +1442,13 @@ class X264Encoder(VideoLanEncoder):
 
 
 class Qpfile(NamedTuple):
+    """Simple namedtuple for a qpfile"""
+
     path: VPath
+    """Qpfile path"""
+
     frames: Optional[List[int]] = None
+    """List of keyframes"""
 
 
 def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVID_UNION) -> Qpfile:
@@ -1479,7 +1488,7 @@ class Stream(ABC):
 
 
 class MediaStream(Stream, ABC):
-    """Class representing a media stream to be passed to mkvmerge"""
+    """Class representing a media stream to be passed to mkvmerge."""
 
     name: Optional[str] = None
     """Stream's name"""
@@ -1493,7 +1502,7 @@ class MediaStream(Stream, ABC):
     def __init__(self, path: AnyPath, name: Optional[str] = None,
                  lang: Lang = UNDEFINED, tag_file: Optional[AnyPath] = None) -> None:
         """
-        Register a MediaStream with its associated informations
+        Register a MediaStream with its associated informations:
 
         :param path:        Stream's path
         :param name:        Stream's name, defaults to None
@@ -1543,7 +1552,7 @@ class ChapterStream(Stream):
 
 
 class Mux:
-    """Muxing interface using mkvmerge"""
+    """Muxing interface using mkvmerge."""
 
     output: VPath
     """Output path"""
@@ -1578,12 +1587,16 @@ class Mux:
         """
         If ``streams`` is not specified:
 
-            - Will find :py:attr:`FileInfo.name_file_final` as VideoStream
-            - Will try to find in this order :py:attr:`FileInfo.a_enc_cut`, :py:attr:`FileInfo.a_src_cut`,
-              :py:attr:`FileInfo.a_src` as long as there is a ``file.a_xxxx.set_track(n)``
+            - Will set :py:attr:`vardautomation.config.FileInfo.name_file_final` as VideoStream
+            - Will try to find in this order as long as there is a ``file.a_xxxx.set_track(n)``:
+
+                - :py:attr:`vardautomation.config.FileInfo.a_enc_cut`
+                - :py:attr:`vardautomation.config.FileInfo.a_src_cut`
+                - :py:attr:`vardautomation.config.FileInfo.a_src`
+
             - All languages are set to ``und`` and names to ``None``.
 
-        Otherwise will mux the ``streams`` to :py:attr:`FileInfo.name_file_final`.
+        Otherwise will mux the ``streams`` to :py:attr:`vardautomation.config.FileInfo.name_file_final`.
 
         :param file:                :py:attr:`file`
         :param streams:             A tuple of :py:attr:`video`, :py:attr:`audios` and :py:attr:`chapters`, defaults to None

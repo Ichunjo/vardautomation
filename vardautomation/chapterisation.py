@@ -27,12 +27,16 @@ from .vpathlib import VPath
 
 class Chapter(NamedTuple):
     """Chapter object"""
+
     name: str
     """Name of the chapter"""
+
     start_frame: int
     """Start frame"""
+
     end_frame: Optional[int]
     """Optional end frame"""
+
     lang: Lang = UNDEFINED
     """Language of the chapter"""
 
@@ -68,7 +72,7 @@ class Chapters(ABC):
         """
         Change/set names of the current Chapters object
 
-        :param names:           List of optional names. A ``None`` won't change the name of the current chapter list
+        :param names:           List of optional names. A ``None`` value won't change the name of the current chapter list
         """
 
     @abstractmethod
@@ -86,13 +90,12 @@ class Chapters(ABC):
         Convert the Chapters object to a list of chapter
 
         :param fps:             Framerate Per Second
-        :param lang:            Language of the chapter.
-                                If specified it will override the current language of the Chapters object
+        :param lang:            Language of the chapter. If specified it will override the current language of the Chapters object
         """
 
     def copy(self, destination: AnyPath) -> None:
         """
-        Copy source chapter to destination and change target of chapter_file to the destination one.
+        Copy source chapter to destination and change target of :py:attr:`Chapters.chapter_file` to the destination one.
 
         :param destination:     Destination path
         """
@@ -129,8 +132,8 @@ class Chapters(ABC):
 
 class OGMChapters(Chapters):
     """
-    OGMChapters object
-    An OGM based Chapters is a .txt file
+    OGMChapters object.\n
+    An OGM based Chapters is a TXT file
     """
 
     def __init__(self, chapter_file: AnyPath) -> None:
@@ -140,7 +143,8 @@ class OGMChapters(Chapters):
         :param chapter_file:    Chapters file path
         """
         super().__init__(chapter_file)
-        self.chapter_file = self.chapter_file.with_suffix('.txt')
+        if self.chapter_file.suffix != '.txt':
+            Status.warn(f'{self.__class__.__name__}: An OGMChapters should have a .txt extension!')
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
         if not (par := self.chapter_file.parent).exists():
@@ -215,7 +219,7 @@ class OGMChapters(Chapters):
 
 class MatroskaXMLChapters(Chapters):
     """
-    MatroskaXMLChapters object
+    MatroskaXMLChapters object\n
     An MatroskaXML based Chapters is a .xml file
     """
     _fps: Fraction
@@ -241,7 +245,8 @@ class MatroskaXMLChapters(Chapters):
         :param chapter_file:    Chapters file path
         """
         super().__init__(chapter_file)
-        self.chapter_file = self.chapter_file.with_suffix('.xml')
+        if self.chapter_file.suffix != '.xml':
+            Status.warn(f'{self.__class__.__name__}: A MatroskaXMLChapters should have a .xml extension!')
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
         self._fps = fps
@@ -285,7 +290,6 @@ class MatroskaXMLChapters(Chapters):
         self._logging('updated')
 
     def shift_times(self, frames: int, fps: Fraction) -> None:
-        """Shift times by given number of frames."""
         tree = self._get_tree()
 
         shifttime = Convert.f2seconds(frames, fps)
@@ -309,7 +313,6 @@ class MatroskaXMLChapters(Chapters):
         self._logging('shifted')
 
     def to_chapters(self, fps: Fraction, lang: Optional[Lang] = None) -> List[Chapter]:  # noqa: C901
-        """Convert XML Chapters to a list of Chapter"""
         tree = self._get_tree()
 
         timestarts = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}')
@@ -512,18 +515,12 @@ class MplsReader:
         :param chapters_obj:            Type of wanted chapters, defaults to MatroskaXMLChapters
         """
         playlist = self.get_playlist()
-
-        if not output_folder:
-            output_folder = self.mpls_folder
-        else:
-            output_folder = VPath(output_folder)
+        output_folder = self.mpls_folder if not output_folder else VPath(output_folder)
 
         for mpls_file in playlist:
             for mpls_chapters in mpls_file.mpls_chapters:
-
                 # Some mpls_chapters don't necessarily have attributes mpls_chapters.chapters or mpls_chapters.fps
                 chapters = mpls_chapters.to_chapters()
-
                 if chapters:
                     chaps = chapters_obj(output_folder / f'{mpls_file.mpls_file.stem}_{mpls_chapters.m2ts.stem}')
                     chaps.create(chapters, mpls_chapters.fps)
@@ -642,17 +639,11 @@ class IfoReader:
         :param ifo_file:                Name of the ifo file, defaults to 'VTS_01_0.IFO'
         """
         ifo_chapters = self.parse_ifo(self.ifo_folder / ifo_file)
-
-        if not output_folder:
-            output_folder = self.ifo_folder
-        else:
-            output_folder = VPath(output_folder)
+        output_folder = self.ifo_folder if not output_folder else VPath(output_folder)
 
         for i, ifo_chapter in enumerate(ifo_chapters):
-
             # Some ifo_chapter don't necessarily have attributes ifo_chapter.chapters
             chapters = ifo_chapter.to_chapters()
-
             if chapters:
                 chaps = chapters_obj(output_folder / f'{ifo_file}_{i:02.0f}')
                 chaps.create(chapters, ifo_chapter.fps)

@@ -1,8 +1,14 @@
-"""Config module"""
+"""
+Configuration module
+
+Contains FileInfo, BlurayShow and the different Presets to pass to them.
+"""
+
 from __future__ import annotations
 
 __all__ = [
     'FileInfo',
+    'PresetType',
     'Preset', 'NoPreset',
     'PresetGeneric',
     'PresetBD', 'PresetWEB',
@@ -50,12 +56,24 @@ class PresetType(IntEnum):
 @dataclass
 class Preset:
     """Preset class that fills some attributes of :py:class:`FileInfo`"""
+
     idx: Optional[Callable[[str], vs.VideoNode]]
+    """Vapoursynth indexer callable"""
+
     a_src: Optional[VPath]
+    """Audio source path"""
+
     a_src_cut: Optional[VPath]
+    """Audio trimmed source path"""
+
     a_enc_cut: Optional[VPath]
+    """Audio trimmed encoded source path"""
+
     chapter: Optional[VPath]
+    """Chapter file path"""
+
     preset_type: PresetType
+    """Preset type from :py:class:`PresetType`"""
 
 
 NoPreset = Preset(
@@ -105,7 +123,7 @@ PresetWEB = Preset(
 )
 """
 Preset for WEB encode.
-The indexer is core.ffms2.Source and a_enc_cut is blocked
+The indexer is core.ffms2.Source and a_enc_cut is blocked.
 """
 
 PresetAAC = Preset(
@@ -378,6 +396,7 @@ class FileInfo:
 
 
 class BlurayShow:
+    """Helper class for batching shows"""
     class _File(NamedTuple):
         file: VPath
         chapter: Optional[VPath]
@@ -386,8 +405,6 @@ class BlurayShow:
                  idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
                  lang: Lang = UNDEFINED) -> None:
         """
-        Helper class for batching shows
-
         :param episodes:            A dictionnary of episodes.
                                     Keys are the path of each bdmv folder.
                                     Values are the episodes inside the current bdmv folder key.
@@ -421,6 +438,11 @@ class BlurayShow:
                 self.files.append(self._File(path / ep, chap_sel))
 
     def episodes(self) -> List[FileInfo]:
+        """
+        Get all the episodes
+
+        :return:                    List of FileInfo
+        """
         files_info: List[FileInfo] = []
         for file in self.files:
             file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
@@ -429,6 +451,13 @@ class BlurayShow:
         return files_info
 
     def episode(self, num: int, /, *, start_from: int = 1) -> FileInfo:
+        """
+        Get a specified episode
+
+        :param num:                 Numero of the episode
+        :param start_from:          Indexing starting value, defaults to 1
+        :return:                    FileInfo object
+        """
         file = self.files[num - start_from]
         file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
         file_info.chapter = file.chapter

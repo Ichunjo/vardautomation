@@ -8,20 +8,20 @@ from .vpathlib import VPath
 
 class BinaryPath:
     """
-    Class storing the path of the variable binaries used in vardautomation
+    Class storing the path of the variable binaries used in vardautomation.\n
     Just edit one of these attributes if the binary is not in your environment path
     """
 
     eac3to: VPath = VPath('eac3to')
     """
-    https://www.videohelp.com/software/eac3to
+    https://www.videohelp.com/software/eac3to\n
     https://en.wikibooks.org/wiki/Eac3to/How_to_Use
     """
 
     fdkaac: VPath = VPath('fdkaac')
     """
-    https://github.com/nu774/fdkaac
-    https://en.wikipedia.org/wiki/Fraunhofer_FDK_AAC
+    https://github.com/nu774/fdkaac\n
+    https://en.wikipedia.org/wiki/Fraunhofer_FDK_AAC\n
     Also available in ffmpeg with ``--enable-libfdk-aac``
     """
 
@@ -42,13 +42,13 @@ class BinaryPath:
 
     mkvextract: VPath = VPath('mkvextract')
     """
-    https://mkvtoolnix.download/
+    https://mkvtoolnix.download/\n
     https://mkvtoolnix.download/doc/mkvextract.html
     """
 
     mkvmerge: VPath = VPath('mkvmerge')
     """
-    https://mkvtoolnix.download/
+    https://mkvtoolnix.download/\n
     https://mkvtoolnix.download/doc/mkvextract.html
     """
 
@@ -59,7 +59,7 @@ class BinaryPath:
 
     opusenc: VPath = VPath('opusenc')
     """
-    https://github.com/xiph/opus-tools
+    https://github.com/xiph/opus-tools\n
     Also available in ffmpeg
     """
 
@@ -85,6 +85,6 @@ class BinaryPath:
 
     x265: VPath = VPath('x265')
     """
-    http://msystem.waw.pl/x265/
+    http://msystem.waw.pl/x265/\n
     https://bitbucket.org/multicoreware/x265_git/wiki/Home
     """
