@@ -1,5 +1,14 @@
-"""Constants module"""
-from __future__ import annotations
+"""
+This module implements just one class that stores the path of the binaries used in vardautomation.\n
+Just edit one of these attributes if the binary is not in your environment path like this:
+
+.. code-block:: python
+
+    from vardautomation import BinaryPath, VPath
+
+    BinaryPath.mkvmerge = VPath('path/to/your/mkvmerge')
+
+"""
 
 __all__ = ['BinaryPath']
 
