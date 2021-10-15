@@ -18,8 +18,8 @@ NAME = 'vardautomation'
 setup(
     name=NAME,
     version=meta['__version__'],
-    author=meta['__author__'].split()[0],
-    author_email=meta['__author__'].split()[1][1:-1],
+    author=meta['__author__'],
+    author_email=meta['__email__'],
     description='Encoding automation tools via Vapoursynth',
     long_description=long_description,
     long_description_content_type='text/markdown',
