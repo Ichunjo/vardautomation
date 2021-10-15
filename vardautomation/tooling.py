@@ -89,8 +89,9 @@ class Tool(ABC):
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
         """
-        :param binary:
-        :param settings:
+        :param binary:              Path to your binary file.
+        :param settings:            Path to your settings file or list of string or a dict containing your settings.
+                                    See :py:attr:`Tool.settings`
         """
         self.binary = VPath(binary)
         self.settings = settings
@@ -1212,8 +1213,10 @@ class SoxCutter(AudioCutter):
 
 
 class PassthroughCutter(AudioCutter):
-    """Special AudioCutter that will copy :py:attr:`vardautomation.config.FileInfo.a_src`
-     to :py:attr:`vardautomation.config.FileInfo.a_src_cut`"""
+    """
+    Special AudioCutter that will copy :py:attr:`vardautomation.config.FileInfo.a_src`
+    to :py:attr:`vardautomation.config.FileInfo.a_src_cut`
+    """
 
     def run(self) -> None:
         assert self.file.a_src
@@ -1231,7 +1234,6 @@ class PassthroughCutter(AudioCutter):
     ) -> NoReturn:
         """You can't generate silence from this class"""
         raise NotImplementedError
-
 
 
 def progress_update_func(value: int, endvalue: int) -> None:
@@ -1253,9 +1255,6 @@ def progress_update_func(value: int, endvalue: int) -> None:
 class VideoEncoder(Tool):
     """General VideoEncoder interface"""
 
-    progress_update: Optional[UpdateFunc]
-    """Progress update function to be used in `vapoursynth.VideoNode.output`"""
-
     file: FileInfo
     """FileInfo object"""
 
@@ -1268,21 +1267,18 @@ class VideoEncoder(Tool):
     More informations http://www.vapoursynth.com/doc/pythonreference.html#VideoNode.output
     """
 
+    progress_update: Optional[UpdateFunc] = progress_update_func
+    """Progress update function to be used in `vapoursynth.VideoNode.output`"""
+
     prefetch: int = 0
     """Max number of concurrent rendered frames"""
 
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        """
-        :param binary:              Path to your binary file.
-        :param settings:            Path to your settings file or list of string or a dict containing your settings.
-                                    See :py:attr:`Tool.settings`
-        :param progress_update:     Current progress can be reported by passing a callback function
-                                    of the form func(current_frame, total_frames) to progress_update,
-                                    defaults to :py:func:`progress_update_func`.
-        """
-        self.progress_update = progress_update
-        super().__init__(binary, settings)
+    backlog: int = -1
+    """
+    Defines how many unconsumed frames (including those that did not finish rendering yet)
+    vapoursynth buffers at most before it stops rendering additional frames.\n
+    This argument is there to limit the memory this function uses storing frames.
+    """
 
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
         """
@@ -1314,18 +1310,12 @@ class VideoEncoder(Tool):
 
     def _do_encode(self) -> None:
         Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
-
         with subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
-            self.clip.output(cast(BinaryIO, process.stdin), y4m=self.y4m, progress_update=self.progress_update, prefetch=self.prefetch)
+            self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
 class LosslessEncoder(VideoEncoder):
     """Video encoder for lossless encoding"""
-
-    @copy_docstring_from(VideoEncoder.__init__)
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 progress_update: Optional[UpdateFunc] = None) -> None:
-        super().__init__(binary, settings, progress_update=progress_update)
 
     def set_variable(self) -> Dict[str, Any]:
         assert self.clip.format
@@ -1348,8 +1338,8 @@ class NvenccEncoder(LosslessEncoder):
         super().__init__(
             BinaryPath.nvencc,
             ['-i', '-', '--y4m', '--lossless', '-c', 'hevc', '--output-depth', '{bits:d}', '-o', '{clip_output_lossless:s}'],
-            progress_update=None
         )
+        self.progress_update = None
 
 
 class FFV1Encoder(LosslessEncoder):
@@ -1366,17 +1356,16 @@ class FFV1Encoder(LosslessEncoder):
             ['-i', '-', '-vcodec', 'ffv1', '-coder', '1', '-context', '0', '-g', '1', '-level', '3',
              '-threads', str(threads), '-slices', '24', '-slicecrc', '1', '-slicecrc', '1',
              '{clip_output_lossless:s}'],
-            progress_update=None
         )
+        self.progress_update = None
 
 
 class VideoLanEncoder(VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
-    @copy_docstring_from(VideoEncoder.__init__, 'o+t')
+    @copy_docstring_from(Tool.__init__, 'o+t')
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None) -> None:
         """
         :param zones:       Custom zone ranges, defaults to None
 
@@ -1387,7 +1376,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
                         (4800, 4900): {'psy-rd': '0.40:0.05', 'merange': 48}
                     }
         """
-        super().__init__(binary, settings, progress_update=progress_update)
+        super().__init__(binary, settings)
         if zones:
             zones_settings: str = ''
             for i, ((start, end), opt) in enumerate(zones.items()):
@@ -1415,14 +1404,12 @@ class X265Encoder(VideoLanEncoder):
 
     @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__(BinaryPath.x265, settings, zones, progress_update=progress_update)
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None) -> None:
+        super().__init__(BinaryPath.x265, settings, zones)
 
     def set_variable(self) -> Dict[str, Any]:
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
         return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
-
 
 
 class X264Encoder(VideoLanEncoder):
@@ -1430,9 +1417,8 @@ class X264Encoder(VideoLanEncoder):
 
     @copy_docstring_from(VideoLanEncoder.__init__)
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__(BinaryPath.x264, settings, zones, progress_update=progress_update)
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None) -> None:
+        super().__init__(BinaryPath.x264, settings, zones)
 
     def set_variable(self) -> Dict[str, Any]:
         return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
