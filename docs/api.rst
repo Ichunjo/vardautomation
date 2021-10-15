@@ -25,138 +25,138 @@ Presets
 
 Tools
 ======
-.. autoclass:: vardautomation.tooling.Tool
+.. autoclass:: vardautomation.tooling.abstract.Tool
    :members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.BasicTool
+.. autoclass:: vardautomation.tooling.base.BasicTool
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.Qpfile
+.. autoclass:: vardautomation.tooling.misc.Qpfile
    :members:
-.. autofunction:: vardautomation.tooling.make_qpfile
+.. autofunction:: vardautomation.tooling.misc.make_qpfile
 
 Video encoders
 ----------------
-.. autoclass:: vardautomation.tooling.VideoEncoder
+.. autoclass:: vardautomation.tooling.video.VideoEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.VideoLanEncoder
+.. autoclass:: vardautomation.tooling.video.VideoLanEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.X265Encoder
+.. autoclass:: vardautomation.tooling.video.X265Encoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.X264Encoder
+.. autoclass:: vardautomation.tooling.video.X264Encoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.LosslessEncoder
+.. autoclass:: vardautomation.tooling.video.LosslessEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.NvenccEncoder
+.. autoclass:: vardautomation.tooling.video.NvenccEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.FFV1Encoder
+.. autoclass:: vardautomation.tooling.video.FFV1Encoder
    :members:
    :inherited-members:
    :show-inheritance:
 
 Audio extracters
 ----------------
-.. autoclass:: vardautomation.tooling.AudioExtracter
+.. autoclass:: vardautomation.tooling.audio.AudioExtracter
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.MKVAudioExtracter
+.. autoclass:: vardautomation.tooling.audio.MKVAudioExtracter
    :members:
    :inherited-members:
-.. autoclass:: vardautomation.tooling.Eac3toAudioExtracter
+.. autoclass:: vardautomation.tooling.audio.Eac3toAudioExtracter
    :members:
    :inherited-members:
-.. autoclass:: vardautomation.tooling.FFmpegAudioExtracter
+.. autoclass:: vardautomation.tooling.audio.FFmpegAudioExtracter
    :members:
    :inherited-members:
 
 Audio cutters
 ----------------
-.. autoclass:: vardautomation.tooling.AudioCutter
+.. autoclass:: vardautomation.tooling.audio.AudioCutter
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.ScipyCutter
+.. autoclass:: vardautomation.tooling.audio.ScipyCutter
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.EztrimCutter
+.. autoclass:: vardautomation.tooling.audio.EztrimCutter
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.SoxCutter
+.. autoclass:: vardautomation.tooling.audio.SoxCutter
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.PassthroughCutter
+.. autoclass:: vardautomation.tooling.audio.PassthroughCutter
    :members:
    :inherited-members:
    :show-inheritance:
 
 Audio encoders
 ----------------
-.. autoclass:: vardautomation.tooling.AudioEncoder
+.. autoclass:: vardautomation.tooling.audio.AudioEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.PassthroughAudioEncoder
+.. autoclass:: vardautomation.tooling.audio.PassthroughAudioEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.QAACEncoder
+.. autoclass:: vardautomation.tooling.audio.QAACEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.OpusEncoder
+.. autoclass:: vardautomation.tooling.audio.OpusEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.FDKAACEncoder
+.. autoclass:: vardautomation.tooling.audio.FDKAACEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.FlacEncoder
+.. autoclass:: vardautomation.tooling.audio.FlacEncoder
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.BitrateMode
+.. autoclass:: vardautomation.tooling.audio.BitrateMode
    :members:
-.. autoclass:: vardautomation.tooling.FlacCompressionLevel
+.. autoclass:: vardautomation.tooling.audio.FlacCompressionLevel
    :members:
 
 Muxing
 -------
-.. autoclass:: vardautomation.tooling.Mux
+.. autoclass:: vardautomation.tooling.mux.Mux
    :members:
-.. autoclass:: vardautomation.tooling.Stream
+.. autoclass:: vardautomation.tooling.mux.Stream
    :members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.MediaStream
+.. autoclass:: vardautomation.tooling.mux.MediaStream
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.VideoStream
+.. autoclass:: vardautomation.tooling.mux.VideoStream
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.AudioStream
+.. autoclass:: vardautomation.tooling.mux.AudioStream
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.ChapterStream
+.. autoclass:: vardautomation.tooling.mux.ChapterStream
    :members:
    :inherited-members:
    :show-inheritance:
