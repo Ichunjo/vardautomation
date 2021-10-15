@@ -1005,7 +1005,7 @@ class EztrimCutter(AudioCutter):
         if not isinstance(trims, list):
             trims = [trims]
 
-        media_info = cast(MediaInfo, MediaInfo.parse(src)).to_data()
+        media_info = MediaInfo.parse(src).to_data()
         try:
             ext = media_info['tracks'][0]['file_extension']
             srate = media_info['tracks'][1]['sampling_rate']
@@ -1150,7 +1150,7 @@ class SoxCutter(AudioCutter):
         if not isinstance(trims, list):
             trims = [trims]
 
-        media_info = cast(MediaInfo, MediaInfo.parse(src)).to_data()
+        media_info = MediaInfo.parse(src).to_data()
         try:
             srate = media_info['tracks'][1]['sampling_rate']
             bitdepth = media_info['tracks'][1]['bit_depth']

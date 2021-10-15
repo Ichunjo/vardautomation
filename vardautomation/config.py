@@ -21,8 +21,7 @@ import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from pprint import pformat
-from typing import (Callable, Dict, List, NamedTuple, Optional, Sequence,
-                    Union, cast)
+from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Union
 
 import vapoursynth as vs
 from lvsfunc.misc import source
@@ -368,7 +367,7 @@ class FileInfo:
     @property
     def media_info(self) -> MediaInfo:
         """Get the MediaInfo of the video file loaded"""
-        return cast(MediaInfo, MediaInfo.parse(self.path))
+        return MediaInfo.parse(self.path)
 
     @property
     def num_prop(self) -> bool:
