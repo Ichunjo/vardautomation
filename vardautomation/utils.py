@@ -35,9 +35,9 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail('Wrong range in parameters!', exception=ValueError)
-        elif '_ColorRange' in clip.get_frame(0).props:
-            color_rng = clip.get_frame(0).props['_ColorRange']
+                Status.fail(f'{cls.__name__}: Wrong range in parameters!', exception=ValueError)
+        elif '_ColorRange' in (props := clip.get_frame(0).props):
+            color_rng = props['_ColorRange']
             if color_rng == 1:
                 min_luma = 16 << (bits - 8)
                 max_luma = 235 << (bits - 8)
@@ -45,12 +45,11 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail('Wrong "_ColorRange" prop in the clip!', exception=vs.Error)
+                Status.fail(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!', exception=vs.Error)
         else:
-            Status.fail('Cannot guess the color range!', exception=ValueError)
+            Status.fail(f'{cls.__name__}: Cannot guess the color range!', exception=ValueError)
 
         return min_luma, max_luma
-
 
     @staticmethod
     def get_depth(clip: vs.VideoNode, /) -> int:
