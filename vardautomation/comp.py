@@ -194,7 +194,8 @@ class Comparison:
                     '-i', 'pipe:', *outputs
                 ]
 
-                encoder = VideoEncoder(BinaryPath.ffmpeg, settings, progress_update=_progress_update_func)
+                encoder = VideoEncoder(BinaryPath.ffmpeg, settings)
+                encoder.progress_update = _progress_update_func
                 encoder.y4m = False
                 encoder.run_enc(clip, None)
             # imwri lib is slower even asynchronously requested
