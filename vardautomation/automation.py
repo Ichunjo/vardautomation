@@ -105,9 +105,11 @@ class SelfRunner:
 
         :param extra_files:     Additional files to be deleted
         """
-        self.cleanup_files.update(extra_files)
-        for files in self.cleanup_files:
-            remove(files)
+        for files in self.cleanup_files | set(extra_files):
+            try:
+                remove(files)
+            except FileNotFoundError:
+                pass
         self.cleanup_files.clear()
 
     def rename_final_file(self, name: AnyPath) -> None:
