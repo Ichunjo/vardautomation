@@ -12,7 +12,7 @@ from .types import *
 from .vpathlib import *
 
 # for wildcard imports
-_mods = ['automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language', 'patch', 'tooling', 'types', 'vpathlib']
+_mods = ['automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language', 'tooling', 'types', 'vpathlib']
 
 __all__ = []
 for _pkg in _mods:
