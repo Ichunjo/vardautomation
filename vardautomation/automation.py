@@ -18,6 +18,7 @@ from typing import Any, List, Optional, Sequence, Set, Tuple, Union, cast
 import vapoursynth as vs
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
+from vardefunc.misc import DebugOutput
 
 from .binary_path import BinaryPath
 from .config import FileInfo
@@ -60,6 +61,9 @@ class RunnerConfig:
 
     order: RunnerConfig.Order = Order.VIDEO
     """Priority order"""
+
+    clear_outputs: bool = True
+    """Clears all clips set for output in the current environment"""
 
 
 class SelfRunner:
@@ -134,6 +138,13 @@ class SelfRunner:
         ).run()
 
     def _encode(self) -> None:
+        if self.config.clear_outputs:
+            for k in globals().keys():
+                # pylint: disable=eval-used
+                if isinstance((debug := eval(k)), DebugOutput):
+                    debug.clear()
+            vs.clear_outputs()
+
         if self.file.do_lossless and self.config.v_lossless_encoder:
             if not self.file.name_clip_output_lossless.exists():
                 self.config.v_lossless_encoder.run_enc(self.clip, self.file)
