@@ -11,6 +11,7 @@ __all__ = [
     'Comparison', 'make_comps'
 ]
 
+import gc
 import inspect
 import os
 import random
@@ -374,6 +375,9 @@ def make_comps(
     comp.extract(writer, compression, force_bt709)
     if magick_compare:
         comp.magick_compare()
+    while clips:
+        clips.popitem()
+    gc.collect()
     if slowpics:
         conf = SlowPicsConf(
             collectionName=collection_name, public='true' if public else 'false',
