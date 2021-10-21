@@ -16,14 +16,7 @@ sys.path.insert(0, str(Path('..').resolve()))
 project = 'vardautomation'
 copyright = '2021, Ichunjo'
 author = 'Ichunjo'
-
-# The full version, including alpha/beta/rc tags
-meta: Dict[str, Any] = {}
-# Stoled this from vsutil
-with Path('../vardautomation/_metadata.py').resolve().open() as f:
-    exec(f.read(), meta)
-
-version = release = meta['__version__']
+version = release = '0.5.0'
 
 
 # -- General configuration ---------------------------------------------------

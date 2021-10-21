@@ -1,11 +1,4 @@
-from distutils.util import convert_path
-from typing import Any, Dict
-
-from setuptools import setup
-
-meta: Dict[str, Any] = {}
-with open(convert_path('vardautomation/_metadata.py'), encoding='utf-8') as f:
-    exec(f.read(), meta)
+import setuptools
 
 with open('README.md', encoding='utf-8') as fh:
     long_description = fh.read()
@@ -14,12 +7,13 @@ with open('requirements.txt', encoding='utf-8') as fh:
     install_requires = fh.read()
 
 NAME = 'vardautomation'
+VERSION = '0.5.0'
 
-setup(
+setuptools.setup(
     name=NAME,
-    version=meta['__version__'],
-    author=meta['__author__'],
-    author_email=meta['__email__'],
+    version=VERSION,
+    author='Ichunjo',
+    author_email='ichunjo.le.terrible@gmail.com',
     description='Encoding automation tools via Vapoursynth',
     long_description=long_description,
     long_description_content_type='text/markdown',
