@@ -25,7 +25,7 @@ setup(
     long_description_content_type='text/markdown',
     packages=['vardautomation'],
     package_data={
-        'vardautomation': ['py.typed', 'logo.txt'],
+        'vardautomation': ['py.typed', 'logo.txt', 'tooling'],
     },
     url='https://github.com/Ichunjo/vardautomation',
     zip_safe=False,
