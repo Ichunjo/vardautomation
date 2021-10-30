@@ -92,9 +92,10 @@ class SelfRunner:
         self.config = config
         self.cleanup_files = set()
 
-    def run(self) -> None:
+    def run(self, *, show_logo: bool = True) -> None:
         """Main tooling chain"""
-        Status.logo()
+        if show_logo:
+            Status.logo()
 
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
