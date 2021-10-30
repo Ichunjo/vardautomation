@@ -27,9 +27,7 @@ class Tool(ABC):
 
     settings: Union[AnyPath, List[str], Dict[str, Any]]
     """
-    Path to your settings file or list of string or a dict containing your settings.
-
-    .. code-block:: python
+    Path to your settings file or list of string or a dict containing your settings::
 
         # This
         >>> cat settings

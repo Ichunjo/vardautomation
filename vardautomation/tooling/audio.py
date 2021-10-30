@@ -547,9 +547,7 @@ class FlacCompressionLevel(IntEnum):
     """
     VARDOU = 99
     """
-    My custom ffmpeg command\n
-
-    .. code-block:: python
+    My custom ffmpeg command::
 
         ['-compression_level', '12', '-lpc_type', 'cholesky', '-lpc_passes', '3', '-exact_rice_parameters', '1']
 

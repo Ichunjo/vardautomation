@@ -1,8 +1,6 @@
 """
 This module implements just one class that stores the path of the binaries used in vardautomation.\n
-Just edit one of these attributes if the binary is not in your environment path like this:
-
-.. code-block:: python
+Just edit one of these attributes if the binary is not in your environment path like this::
 
     from vardautomation import BinaryPath, VPath
 
