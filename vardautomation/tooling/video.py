@@ -151,6 +151,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None) -> None:
         """
         :param zones:       Custom zone ranges, defaults to None
+
         ::
 
             zones: Dict[Tuple[int, int], Dict[str, Any]] = {
