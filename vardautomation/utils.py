@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
 
 import vapoursynth as vs
 
-from .status import Status
+from .status import Status, VSColourRangeError, VSSubsamplingError
 from .types import AnyPath
 
 core = vs.core
@@ -35,7 +35,7 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail(f'{cls.__name__}: Wrong range in parameters!', exception=ValueError)
+                Status.fail(f'{cls.__name__}: Wrong range in parameters!', exception=VSColourRangeError)
         elif '_ColorRange' in (props := clip.get_frame(0).props):
             color_rng = props['_ColorRange']
             if color_rng == 1:
@@ -45,9 +45,9 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!', exception=vs.Error)
+                Status.fail(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!', exception=VSColourRangeError)
         else:
-            Status.fail(f'{cls.__name__}: Cannot guess the color range!', exception=ValueError)
+            Status.fail(f'{cls.__name__}: Cannot guess the color range!', exception=VSColourRangeError)
 
         return min_luma, max_luma
 
@@ -78,7 +78,7 @@ class Properties:
             except KeyError as k_err:
                 Status.fail(
                     f'{Properties.__name__}: wrong subsampling "{(sub_w, sub_h)}"',
-                    exception=ValueError, chain_err=k_err
+                    exception=VSSubsamplingError, chain_err=k_err
                 )
 
         assert clip.format
