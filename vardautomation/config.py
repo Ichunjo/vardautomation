@@ -245,7 +245,6 @@ class FileInfo:
     """If lossless or not"""
 
     _num_prop: bool = False
-    _num_prop_name: str = 'FileInfoFrameNumber'
 
     def __init__(
         self, path: AnyPath, /,
@@ -292,10 +291,22 @@ class FileInfo:
             self.name_clip_output_lossless = self.workdir / VPath(self.name + '_lossless.mkv')
             self.do_lossless = False
 
-        super().__init__()
+        self.__post_init__()
+
+    # pylint: disable=no-self-use
+    def __post_init__(self) -> None:
+        ...
 
     def __str__(self) -> str:
-        return pformat(recursive_dict(self), width=200, sort_dicts=False)
+        dico = dict(self.__dict__)
+        for k in list(dico.keys()):
+            if k.startswith('_'):
+                del dico[k]
+        dico['chapter'] = self.chapter
+        dico['trims_or_dfs'] = self.trims_or_dfs
+        dico['media_info'] = self.media_info
+        dico['num_prop'] = self.num_prop
+        return pformat(dico, width=200, sort_dicts=False)
 
     def _fill_preset(self, p: Preset) -> None:
         if self.idx is None:
@@ -374,7 +385,7 @@ class FileInfo:
         """
         If the frame number is added to props
 
-        :setter:    Add a prop :attr:`_num_prop_name` to the frame properties of :attr:`FileInfo.clip` and :attr:`FileInfo.clip_cut`
+        :setter:    Add a prop ``FileInfoFrameNumber`` to the frame properties of :attr:`FileInfo.clip` and :attr:`FileInfo.clip_cut`
         """
         return self._num_prop
 
@@ -383,14 +394,14 @@ class FileInfo:
         self._num_prop = x
         if x:
             def _add_frame_num(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
-                (fout := f.copy()).props[self._num_prop_name] = n
+                (fout := f.copy()).props['FileInfoFrameNumber'] = n
                 return fout
 
             self.clip = core.std.ModifyFrame(self.clip, self.clip, _add_frame_num)
             self.trims_or_dfs = self._trims_or_dfs
         else:
             self.clip, self.clip_cut = [
-                c.std.RemoveFrameProps(self._num_prop_name) for c in [self.clip, self.clip_cut]
+                c.std.RemoveFrameProps('FileInfoFrameNumber') for c in [self.clip, self.clip_cut]
             ]
 
 
