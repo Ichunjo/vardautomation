@@ -240,11 +240,6 @@ Types
 .. autodata:: vardautomation.types.UpdateFunc
 .. autodata:: vardautomation.types.VPSIdx
 
-Time conversion
-===============
-.. autoclass:: vardautomation.timeconv.Convert
-   :members:
-
 Internal functions
 ==================
 .. autoclass:: vardautomation.utils.Properties

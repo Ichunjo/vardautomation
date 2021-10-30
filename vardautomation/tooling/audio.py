@@ -21,13 +21,13 @@ from acsuite import eztrim
 from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
+from pytimeconv import Convert
 from typing_extensions import TypeGuard
 from vardefunc.util import normalise_ranges
 
 from ..binary_path import BinaryPath
 from ..config import FileInfo
 from ..status import FileError, Status
-from ..timeconv import Convert
 from ..types import AnyPath, DuplicateFrame, Trim
 from ..utils import Properties
 from ..vpathlib import VPath

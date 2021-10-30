@@ -16,10 +16,10 @@ from typing import (List, NamedTuple, NoReturn, Optional, Sequence, Type,
 from lxml import etree
 from pyparsebluray import mpls
 from pyparsedvd import vts_ifo
+from pytimeconv import Convert
 
 from .language import UNDEFINED, Lang
 from .status import Status
-from .timeconv import Convert
 from .types import AnyPath, Element, ElementTree
 from .utils import copy_docstring_from, recursive_dict
 from .vpathlib import VPath
