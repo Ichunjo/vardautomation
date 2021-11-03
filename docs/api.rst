@@ -32,9 +32,6 @@ Tools
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.misc.Qpfile
-   :members:
-.. autofunction:: vardautomation.tooling.misc.make_qpfile
 
 Video encoders
 ----------------
@@ -160,6 +157,13 @@ Muxing
    :members:
    :inherited-members:
    :show-inheritance:
+
+Utility
+-------
+.. autoclass:: vardautomation.tooling.misc.Qpfile
+   :members:
+.. autofunction:: vardautomation.tooling.misc.make_qpfile
+.. autofunction:: vardautomation.tooling.misc.get_vs_core
 
 Automation
 ============

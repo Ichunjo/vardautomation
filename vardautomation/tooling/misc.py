@@ -5,8 +5,9 @@ __all__ = [
 
 import asyncio
 import os
-from typing import List, NamedTuple, Optional
+from typing import Iterable, List, NamedTuple, Optional
 
+import psutil
 import vapoursynth as vs
 from lvsfunc.render import SceneChangeMode as SCM
 from lvsfunc.render import find_scene_changes
@@ -44,6 +45,30 @@ def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVI
     with path.open('w', encoding='utf-8') as file:
         file.writelines(f'{s} K\n' for s in scenes)
     return Qpfile(path, scenes)
+
+
+def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optional[int] = None) -> vs.Core:
+    """
+    Get the VapourSynth singleton core. Optionaly, set the number of threads used
+    and the maximum cache size
+
+    :param threads:         An iteratable of thread numbers, defaults to None.
+    :param max_cache_size:  Set the upper framebuffer cache size after which memory is aggressively freed.
+                            The value is in megabytes, defaults to None.
+    :return:                Vapoursynth Core.
+    """
+    core = vs.core
+
+    if threads is not None:
+        threads = list(threads)
+        core.num_threads = len(threads)
+        p_handle = psutil.Process()
+        p_handle.cpu_affinity(threads)
+
+    if max_cache_size is not None:
+        core.max_cache_size = max_cache_size
+
+    return core
 
 
 class SubProcessAsync:
