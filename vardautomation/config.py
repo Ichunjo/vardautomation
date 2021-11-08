@@ -34,7 +34,6 @@ from .status import Status
 from .types import AnyPath
 from .types import DuplicateFrame as DF
 from .types import Trim, VPSIdx
-from .utils import recursive_dict
 from .vpathlib import VPath
 
 core = vs.core
