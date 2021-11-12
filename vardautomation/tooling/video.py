@@ -6,8 +6,8 @@ __all__ = [
 
 import subprocess
 from abc import ABC
-from typing import (Any, BinaryIO, Dict, List, NoReturn, Optional, Tuple,
-                    Union, cast)
+from typing import (Any, BinaryIO, ClassVar, Dict, List, NoReturn, Optional,
+                    Tuple, Union, cast)
 
 import vapoursynth as vs
 
@@ -146,9 +146,12 @@ class FFV1Encoder(LosslessEncoder):
 class VideoLanEncoder(VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
+    _vl_binary: ClassVar[AnyPath]
+
     @copy_docstring_from(Tool.__init__, 'o+t')
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None) -> None:
+    def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
+                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
         """
         :param zones:       Custom zone ranges, defaults to None
 
@@ -159,7 +162,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
                         (4800, 4900): {'psy-rd': '0.40:0.05', 'merange': 48}
                     }
         """
-        super().__init__(binary, settings)
+        super().__init__(self._vl_binary, settings)
         if zones:
             zones_settings: str = ''
             for i, ((start, end), opt) in enumerate(zones.items()):
@@ -168,7 +171,8 @@ class VideoLanEncoder(VideoEncoder, ABC):
                     zones_settings += f',{opt_name}={opt_val}'
                 if i != len(zones) - 1:
                     zones_settings += '/'
-            self.params += ['--zones', zones_settings]
+            self.params.extend(['--zones', zones_settings])
+        self.progress_update = progress_update
 
     def set_variable(self) -> Dict[str, Any]:
         if (bits := Properties.get_depth(self.clip)) > 10:
@@ -185,27 +189,23 @@ class VideoLanEncoder(VideoEncoder, ABC):
 class X265Encoder(VideoLanEncoder):
     """Video encoder using x265 for HEVC"""
 
-    @copy_docstring_from(VideoLanEncoder.__init__)
-    def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__(BinaryPath.x265, settings, zones)
-        self.progress_update = progress_update
+    _vl_binary = BinaryPath.x265
 
     def set_variable(self) -> Dict[str, Any]:
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
-        return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
+        return super().set_variable() | dict(
+            clip_output=self.file.name_clip_output.with_suffix('.265').to_str(),
+            min_luma=min_luma, max_luma=max_luma
+        )
 
 
 class X264Encoder(VideoLanEncoder):
     """Video encoder using x264 for AVC"""
 
-    @copy_docstring_from(VideoLanEncoder.__init__)
-    def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
-        super().__init__(BinaryPath.x264, settings, zones)
-        self.progress_update = progress_update
+    _vl_binary = BinaryPath.x264
 
     def set_variable(self) -> Dict[str, Any]:
-        return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
+        return super().set_variable() | dict(
+            clip_output=self.file.name_clip_output.with_suffix('.264').to_str(),
+            csp=Properties.get_csp(self.clip)
+        )

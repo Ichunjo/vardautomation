@@ -284,7 +284,7 @@ class FileInfo:
             self.clip = self.idx(str(path))
             self.trims_or_dfs = trims_or_dfs
 
-            self.name_clip_output = self.workdir / VPath(self.name + '.265')
+            self.name_clip_output = self.workdir / VPath(self.name)
             self.name_file_final = VPath(self.name + '.mkv')
 
             self.name_clip_output_lossless = self.workdir / VPath(self.name + '_lossless.mkv')
