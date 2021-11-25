@@ -381,13 +381,13 @@ class OpusEncoder(AudioEncoder):
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
             settings = self._ffmpeg_info + ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-vbr']
-            settings += self._set_mode(self._bitrate_mode_ffmpeg_map, mode, opus_args)
-            settings += ['-o', '{a_enc_cut:s}']
+            settings.extend(self._set_mode(self._bitrate_mode_ffmpeg_map, mode, opus_args))
+            settings.append('{a_enc_cut:s}')
         else:
             binary = BinaryPath.opusenc
             settings = ['--bitrate', str(bitrate)]
-            settings += self._set_mode(self._bitrate_mode_opusenc_map, mode, opus_args)
-            settings += ['{a_src_cut:s}', '{a_enc_cut:s}']
+            settings.extend(self._set_mode(self._bitrate_mode_opusenc_map, mode, opus_args))
+            settings.extend(['{a_src_cut:s}', '{a_enc_cut:s}'])
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
     def _set_mode(self, layout_map: Dict[BitrateMode, str], mode: OPUS_BITRATE_MODE, opus_args: Optional[List[str]]) -> List[str]:
