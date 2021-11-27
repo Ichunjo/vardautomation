@@ -8,6 +8,8 @@ Configuration
 ==============
 .. autoclass:: vardautomation.config.FileInfo
    :members:
+.. autoclass:: vardautomation.config.FileInfo2
+   :members:
 .. autoclass:: vardautomation.config.BlurayShow
    :members:
 
@@ -243,4 +245,10 @@ Types
 Internal functions
 ==================
 .. autoclass:: vardautomation.utils.Properties
+   :members:
+.. autofunction:: vardautomation.render.clip_async_render
+.. autofunction:: vardautomation.render.audio_async_render
+.. autoclass:: vardautomation.render.WaveFormat
+   :members:
+.. autoclass:: vardautomation.render.WaveHeader
    :members:
