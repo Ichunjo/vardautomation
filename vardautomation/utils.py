@@ -1,12 +1,12 @@
 """Properties and helpers functions"""
 import subprocess
 from functools import wraps
-from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
 
 import vapoursynth as vs
 
 from .status import Status, VSColourRangeError, VSSubsamplingError
-from .types import AnyPath
+from .types import AnyPath, T
 
 core = vs.core
 
@@ -101,6 +101,30 @@ class Properties:
         ffprobe_args = ['ffprobe', '-loglevel', 'quiet', '-show_entries', 'format_tags=encoder',
                         '-print_format', 'default=nokey=1:noprint_wrappers=1', str(path)]
         return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
+
+    @staticmethod
+    def get_prop(frame: vs.VideoFrame, key: str, t: Type[T]) -> T:
+        """
+        Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
+        to satisfy the type checker.
+        Function borrowed from lvsfunc.
+
+        :param frame:           Frame containing props
+        :param key:             Prop to get
+        :param t:               Type of prop
+
+        :return:                frame.prop[key]
+        """
+        try:
+            prop = frame.props[key]
+        except KeyError as key_err:
+            raise KeyError(f"get_prop: 'Key {key} not present in props'") from key_err
+
+        if not isinstance(prop, t):
+            raise ValueError(f"get_prop: 'Key {key} did not contain expected type: Expected {t} got {type(prop)}'")
+
+        return prop
+
 
 
 def recursive_dict(obj: object) -> Union[Dict[str, Any], str]:
