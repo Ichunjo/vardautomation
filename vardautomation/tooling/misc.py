@@ -1,6 +1,6 @@
 
 __all__ = [
-    'Qpfile', 'make_qpfile', 'SubProcessAsync'
+    'Qpfile', 'make_qpfile', 'get_vs_core', 'SubProcessAsync'
 ]
 
 import asyncio
@@ -9,9 +9,9 @@ from typing import Iterable, List, NamedTuple, Optional
 
 import psutil
 import vapoursynth as vs
-from lvsfunc.render import SceneChangeMode as SCM
-from lvsfunc.render import find_scene_changes
 
+from ..render import SceneChangeMode as SCM
+from ..render import find_scene_changes
 from ..status import Status
 from ..types import AnyPath
 from ..vpathlib import VPath
@@ -33,8 +33,7 @@ def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVI
 
     :param clip:            Source clip
     :param path:            Path where the qpfile will be written
-    :param mode:            Scene change mode. See lvsfunc docs for more information,
-                            defaults to SCM.WWXD_SCXVID_UNION
+    :param mode:            Scene change mode, defaults to SCM.WWXD_SCXVID_UNION
     :return:                A Qpfile
     """
     path = VPath(path)
