@@ -45,7 +45,9 @@ jobs:
           rm -rf vapoursynth-build
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt --use-feature=in-tree-build
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Running pylint
         run: pylint vardautomation
