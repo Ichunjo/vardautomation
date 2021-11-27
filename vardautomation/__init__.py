@@ -7,12 +7,16 @@ from .chapterisation import *
 from .comp import *
 from .config import *
 from .language import *
+from .render import *
 from .tooling import *
 from .types import *
 from .vpathlib import *
 
 # for wildcard imports
-_mods = ['automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language', 'tooling', 'types', 'vpathlib']
+_mods = [
+    'automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language',
+    'render', 'tooling', 'types', 'vpathlib'
+]
 
 __all__ = []
 for _pkg in _mods:

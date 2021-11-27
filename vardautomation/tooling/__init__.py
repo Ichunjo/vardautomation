@@ -18,7 +18,7 @@ __all__ = [
     'VideoEncoder', 'VideoLanEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
     'progress_update_func',
 
-    'make_qpfile', 'Qpfile',
+    'make_qpfile', 'Qpfile', 'get_vs_core',
 
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
 
