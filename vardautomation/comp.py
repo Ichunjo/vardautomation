@@ -22,7 +22,6 @@ from typing import (Any, Callable, Dict, Final, Iterable, List, Literal,
 
 import numpy as np
 import vapoursynth as vs
-from lvsfunc.util import get_prop
 from requests import Session
 from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
@@ -32,6 +31,7 @@ from .binary_path import BinaryPath
 from .status import Colours, Status
 from .tooling import SubProcessAsync, VideoEncoder
 from .types import AnyPath
+from .utils import Properties
 from .vpathlib import VPath
 
 _MAX_ATTEMPTS_PER_PICTURE_TYPE: Final[int] = 50
@@ -318,7 +318,7 @@ class Comparison:
 
                 # Check _PictType
                 if all(
-                    get_prop(f, '_PictType', bytes) in picture_types
+                    Properties.get_prop(f, '_PictType', bytes) in picture_types
                     for f in vs.core.std.Splice([select_frames(c, [rnum]) for c in self.clips.values()], mismatch=True).frames()
                 ):
                     break
