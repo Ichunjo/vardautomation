@@ -7,11 +7,11 @@ Contains FileInfo, BlurayShow and the different Presets to pass to them.
 from __future__ import annotations
 
 __all__ = [
-    'FileInfo',
+    'FileInfo', 'FileInfo2',
     'PresetType',
     'Preset', 'NoPreset',
     'PresetGeneric',
-    'PresetBD', 'PresetWEB',
+    'PresetBD', 'PresetBDWAV64', 'PresetWEB',
     'PresetAAC', 'PresetOpus', 'PresetEAC3', 'PresetFLAC',
     'PresetChapOGM', 'PresetChapXML',
     'BlurayShow'
@@ -21,15 +21,17 @@ import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from pprint import pformat
-from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Union
+from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
+                    Type, TypeVar, Union)
 
 import vapoursynth as vs
 from lvsfunc.misc import source
 from pymediainfo import MediaInfo
-from vardefunc.util import adjust_clip_frames
+from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
 from .chapterisation import MplsReader
 from .language import UNDEFINED, Lang
+from .render import audio_async_render
 from .status import Status
 from .types import AnyPath
 from .types import DuplicateFrame as DF
@@ -109,6 +111,19 @@ PresetBD = Preset(
 """
 Preset for BD encode.
 The indexer is core.lsmas.LWLibavSource and audio sources are .wav
+"""
+
+PresetBDWAV64 = Preset(
+    idx=core.lsmas.LWLibavSource,
+    a_src=VPath('{work_filename:s}_track_{track_number:s}.w64'),
+    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.w64'),
+    a_enc_cut=None,
+    chapter=None,
+    preset_type=PresetType.VIDEO
+)
+"""
+Preset for BD encode.
+The indexer is core.lsmas.LWLibavSource and audio sources are .w64
 """
 
 PresetWEB = Preset(
@@ -229,7 +244,6 @@ class FileInfo:
 
     clip: vs.VideoNode
     """VideoNode object loaded by the indexer"""
-    _trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None]
     clip_cut: vs.VideoNode
     """Clip trimmed"""
 
@@ -244,6 +258,7 @@ class FileInfo:
     """If lossless or not"""
 
     _num_prop: bool = False
+    _trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None]
 
     def __init__(
         self, path: AnyPath, /,
@@ -353,10 +368,6 @@ class FileInfo:
             Status.warn(f'{self.__class__.__name__}: Chapter extension "{chap.suffix}" is not recognised!')
         self._chapter = chap
 
-    @chapter.deleter
-    def chapter(self) -> None:
-        del self._chapter
-
     @property
     def trims_or_dfs(self) -> Union[List[Union[Trim, DF]], Trim, None]:
         """
@@ -370,7 +381,7 @@ class FileInfo:
     def trims_or_dfs(self, x: Union[List[Union[Trim, DF]], Trim, None]) -> None:
         self._trims_or_dfs = x
         if x:
-            self.clip_cut = adjust_clip_frames(self.clip, x if isinstance(x, list) else [x])
+            self.clip_cut = adjust_clip_frames(self.clip, x)
         else:
             self.clip_cut = self.clip
 
@@ -404,11 +415,94 @@ class FileInfo:
             ]
 
 
+class FileInfo2(FileInfo):
+    """Second version of FileInfo adding audio support"""
+
+    audios: List[vs.AudioNode]
+    """List of AudioNode indexed by BestAudioSource in the file"""
+
+    audios_cut: List[vs.AudioNode]
+    """List of AudioNode cut with the specified trims"""
+
+    def __post_init__(self) -> None:
+        self.audios = []
+        self.audios_cut = []
+
+        track = 0
+        num_error = 0
+        while num_error < 2:
+            try:
+                audio = core.bas.Source(str(self.path), track=track)
+            except vs.Error:
+                num_error += 1
+            else:
+                self.audios.append(audio)
+                num_error = 0
+            track += 1
+
+        if self.trims_or_dfs:
+            for audio in self.audios:
+                self.audios_cut.append(
+                    adjust_audio_frames(audio, self.trims_or_dfs, ref_fps=self.clip.fps)
+                )
+        else:
+            self.audios_cut = list(self.audios)
+
+    @property
+    def audio(self) -> vs.AudioNode:
+        """
+        Return the first AudioNode track of the file.
+
+        :return:        AudioNode
+        """
+        return self.audios[0]
+
+    @property
+    def audio_cut(self) -> vs.AudioNode:
+        """
+        Return the first trimmed AudioNode track of the file.
+
+        :return:        AudioNode
+        """
+        return self.audios_cut[0]
+
+    def write_a_src(self, index: int, offset: int = -1) -> None:
+        """
+        Using `audio_async_render` write the AudioNodes of the file
+        as a WAV file to `a_src` path
+        """
+        self._write_a(index, offset, self.a_src, 'a_src')
+
+    def write_a_src_cut(self, index: int, offset: int = -1) -> None:
+        """
+        Using `audio_async_render` write the AudioNodes of the file
+        as a WAV file to `a_src_cut` path
+        """
+        self._write_a(index, offset, self.a_src_cut, 'a_src_cut')
+
+    def _write_a(self, index: int, offset: int, a: Optional[VPath], name: str) -> None:
+        if a:
+            with a.set_track(index).open('wb') as binary:
+                audio_async_render(
+                    self.audios[index + offset], binary,
+                    progress=f'Writing {name} to {a.set_track(index).resolve().to_str()}'
+                )
+        else:
+            Status.fail(f'{self.__class__.__name__}: no {name} VPath found!', exception=ValueError)
+
+
+class _File(NamedTuple):
+    file: VPath
+    chapter: Optional[VPath]
+
+
+_FileInfoType = TypeVar('_FileInfoType', bound=FileInfo)
+
+
 class BlurayShow:
     """Helper class for batching shows"""
-    class _File(NamedTuple):
-        file: VPath
-        chapter: Optional[VPath]
+
+    _file_info_args: Dict[str, Any]
 
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
                  idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
@@ -423,11 +517,13 @@ class BlurayShow:
                                     defaults to :py:data:`.PresetGeneric`
         :param lang:                Chapters language, defaults to UNDEFINED
         """
-        self.trims = global_trims
-        self.idx = idx
-        self.preset = preset
+        self._file_info_args = dict(
+            trims_or_dfs=global_trims,
+            idx=idx,
+            preset=preset
+        )
 
-        self.files: List[BlurayShow._File] = []
+        self.files: List[_File] = []
 
         for path, eps in episodes.items():
             chap_folder = path / 'chapters'
@@ -444,22 +540,21 @@ class BlurayShow:
                     if chap.stem.split('_')[1] == ep.stem:
                         chap_sel = chap
                         break
-                self.files.append(self._File(path / ep, chap_sel))
+                self.files.append(_File(path / ep, chap_sel))
 
-    def episodes(self) -> List[FileInfo]:
+    def episodes(self, *, file_info_t: Type[_FileInfoType] = FileInfo) -> List[_FileInfoType]:  # type: ignore [assignment]
         """
         Get all the episodes
 
         :return:                    List of FileInfo
         """
-        files_info: List[FileInfo] = []
-        for file in self.files:
-            file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
-            file_info.chapter = file.chapter
-            files_info.append(file_info)
-        return files_info
+        return [
+            self.episode(i, start_from=0, file_info_t=file_info_t)
+            for i in range(len(self.files))
+        ]
 
-    def episode(self, num: int, /, *, start_from: int = 1) -> FileInfo:
+    def episode(self, num: int, /, *, start_from: int = 1,
+                file_info_t: Type[_FileInfoType] = FileInfo) -> _FileInfoType:  # type: ignore [assignment]
         """
         Get a specified episode
 
@@ -468,6 +563,6 @@ class BlurayShow:
         :return:                    FileInfo object
         """
         file = self.files[num - start_from]
-        file_info = FileInfo(file.file, self.trims, idx=self.idx, preset=self.preset)
+        file_info = file_info_t(file.file, **self._file_info_args)
         file_info.chapter = file.chapter
         return file_info

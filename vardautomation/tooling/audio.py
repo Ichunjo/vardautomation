@@ -26,7 +26,7 @@ from typing_extensions import TypeGuard
 from vardefunc.util import normalise_ranges
 
 from ..binary_path import BinaryPath
-from ..config import FileInfo
+from ..config import FileInfo, FileInfo2
 from ..status import FileError, Status
 from ..types import AnyPath, DuplicateFrame, Trim
 from ..utils import Properties
@@ -229,6 +229,8 @@ class AudioEncoder(BasicTool):
 
     def run(self) -> None:
         self._get_settings()
+        if isinstance(self.file, FileInfo2):
+            self.file.write_a_src_cut(self.track, offset=-1)
         self._do_tooling()
         if self.xml_tag:
             self._write_encoder_name_file()

@@ -21,7 +21,7 @@ from vardefunc.util import normalise_ranges
 from vardefunc.misc import DebugOutput
 
 from .binary_path import BinaryPath
-from .config import FileInfo
+from .config import FileInfo, FileInfo2
 from .status import Status
 from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
                       LosslessEncoder, Mux, Qpfile, VideoEncoder,
@@ -165,20 +165,21 @@ class SelfRunner:
             self.cleanup_files.add(self.file.name_clip_output)
 
     def _audio_getter(self) -> None:  # noqa C901
-        if self.config.a_extracters:
-            a_extracters = self._check_if_sequence(self.config.a_extracters)
-            for a_extracter in a_extracters:
-                if self.file.a_src and not any(self.file.a_src.set_track(n).exists() for n in a_extracter.track_out):
-                    a_extracter.run()
-                    for n in a_extracter.track_out:
-                        self.cleanup_files.add(self.file.a_src.set_track(n))
+        if not isinstance(self.file, FileInfo2):
+            if self.config.a_extracters:
+                a_extracters = self._check_if_sequence(self.config.a_extracters)
+                for a_extracter in a_extracters:
+                    if self.file.a_src and not any(self.file.a_src.set_track(n).exists() for n in a_extracter.track_out):
+                        a_extracter.run()
+                        for n in a_extracter.track_out:
+                            self.cleanup_files.add(self.file.a_src.set_track(n))
 
-        if self.config.a_cutters:
-            a_cutters = self._check_if_sequence(self.config.a_cutters)
-            for i, a_cutter in enumerate(a_cutters, start=1):
-                if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
-                    a_cutter.run()
-                    self.cleanup_files.add(self.file.a_src_cut.set_track(i))
+            if self.config.a_cutters:
+                a_cutters = self._check_if_sequence(self.config.a_cutters)
+                for i, a_cutter in enumerate(a_cutters, start=1):
+                    if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
+                        a_cutter.run()
+                        self.cleanup_files.add(self.file.a_src_cut.set_track(i))
 
         if self.config.a_encoders:
             a_encoders = self._check_if_sequence(self.config.a_encoders)
