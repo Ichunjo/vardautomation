@@ -1,7 +1,7 @@
 """Logger module"""
 import sys
 import traceback
-from typing import List, NoReturn, Optional, Type
+from typing import Any, List, NoReturn, Optional, Type
 
 import colorama
 import pkg_resources
@@ -63,8 +63,8 @@ class Status:
         print(f'{Colours.WARN}{string}{Colours.RESET}')
 
     @staticmethod
-    def info(string: str, /) -> None:
-        print(f'{Colours.INFO}{string}{Colours.RESET}')
+    def info(string: str, /, **kwargs: Any) -> None:
+        print(f'{Colours.INFO}{string}{Colours.RESET}', **kwargs)
 
     @staticmethod
     def logo() -> None:
