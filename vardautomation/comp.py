@@ -340,7 +340,13 @@ class Comparison:
 
             if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
                 samples.add(rnum)
+                print(
+                    "\r%sSelecting image: %i/%i ~ %.2f %%%s" % (
+                        Colours.INFO, len(samples), k, 100 * len(samples) / k, Colours.RESET
+                    ), end=""
+                )
 
+        print()
         return samples
 
 
