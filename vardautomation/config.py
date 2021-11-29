@@ -471,24 +471,28 @@ class FileInfo2(FileInfo):
         Using `audio_async_render` write the AudioNodes of the file
         as a WAV file to `a_src` path
         """
-        self._write_a(index, offset, self.a_src, 'a_src')
+        if self.a_src:
+            with self.a_src.set_track(index).open('wb') as binary:
+                audio_async_render(
+                    self.audios[index + offset], binary,
+                    progress=f'Writing a_src to {self.a_src.set_track(index).resolve().to_str()}'
+                )
+        else:
+            Status.fail(f'{self.__class__.__name__}: no a_src VPath found!', exception=ValueError)
 
     def write_a_src_cut(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file
         as a WAV file to `a_src_cut` path
         """
-        self._write_a(index, offset, self.a_src_cut, 'a_src_cut')
-
-    def _write_a(self, index: int, offset: int, a: Optional[VPath], name: str) -> None:
-        if a:
-            with a.set_track(index).open('wb') as binary:
+        if self.a_src_cut:
+            with self.a_src_cut.set_track(index).open('wb') as binary:
                 audio_async_render(
-                    self.audios[index + offset], binary,
-                    progress=f'Writing {name} to {a.set_track(index).resolve().to_str()}'
+                    self.audios_cut[index + offset], binary,
+                    progress=f'Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}'
                 )
         else:
-            Status.fail(f'{self.__class__.__name__}: no {name} VPath found!', exception=ValueError)
+            Status.fail(f'{self.__class__.__name__}: no a_src_cut VPath found!', exception=ValueError)
 
 
 class _File(NamedTuple):
