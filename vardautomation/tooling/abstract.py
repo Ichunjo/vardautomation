@@ -57,6 +57,7 @@ class Tool(ABC):
         """
         self.binary = VPath(binary)
         self.settings = settings
+        self.params = []
         super().__init__()
 
     @abstractmethod
@@ -68,7 +69,6 @@ class Tool(ABC):
         """Set variables in the settings"""
 
     def _get_settings(self) -> None:
-        self.params = []
         if isinstance(self.settings, dict):
             for k, v in self.settings.items():
                 self.params += [k] + ([str(v)] if v else [])
