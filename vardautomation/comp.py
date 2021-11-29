@@ -347,7 +347,7 @@ class Comparison:
 def make_comps(
     clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     num: int = 15, frames: Optional[Iterable[int]] = None, *,
-    picture_types: Optional[PictureType] = None,
+    picture_types: Union[PictureType, List[PictureType], None] = None,
     force_bt709: bool = False,
     writer: Writer = Writer.PYTHON, compression: int = -1,
     magick_compare: bool = False,
