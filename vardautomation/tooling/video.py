@@ -193,10 +193,7 @@ class X265Encoder(VideoLanEncoder):
 
     def set_variable(self) -> Dict[str, Any]:
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
-        return super().set_variable() | dict(
-            clip_output=self.file.name_clip_output.with_suffix('.265').to_str(),
-            min_luma=min_luma, max_luma=max_luma
-        )
+        return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
 
 class X264Encoder(VideoLanEncoder):
@@ -205,7 +202,4 @@ class X264Encoder(VideoLanEncoder):
     _vl_binary = BinaryPath.x264
 
     def set_variable(self) -> Dict[str, Any]:
-        return super().set_variable() | dict(
-            clip_output=self.file.name_clip_output.with_suffix('.264').to_str(),
-            csp=Properties.get_csp(self.clip)
-        )
+        return super().set_variable() | dict(csp=Properties.get_csp(self.clip))

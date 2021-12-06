@@ -213,7 +213,6 @@ Preset for XML based chapters.
 """
 
 
-
 class FileInfo:
     """FileInfo object. This is the first thing you should initialise."""
     path: VPath
@@ -353,6 +352,14 @@ class FileInfo:
         if self.chapter is None and p.chapter is not None:
             self._chapter = self.workdir / p.chapter.format(name=self.name)
 
+    def set_name_clip_output_ext(self, extension: str, /) -> None:
+        """
+        Set the extension of :attr:`FileInfo.name_clip_output`
+
+        :param extension:       Extension in string format, eg. ".265"
+        """
+        self.name_clip_output = self.name_clip_output.with_suffix(extension)
+
     @property
     def chapter(self) -> Optional[VPath]:
         """
@@ -446,7 +453,7 @@ class FileInfo2(FileInfo):
                     adjust_audio_frames(audio, self.trims_or_dfs, ref_fps=self.clip.fps)
                 )
         else:
-            self.audios_cut = list(self.audios)
+            self.audios_cut = self.audios.copy()
 
     @property
     def audio(self) -> vs.AudioNode:
