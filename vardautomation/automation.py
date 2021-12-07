@@ -306,6 +306,7 @@ class Patch:
             fix = self.workdir / f'fix-{i:03.0f}'
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
+            self.encoder.params.clear()
 
             BasicTool(BinaryPath.mkvmerge, ['-o', fix.with_suffix('.mkv').to_str(), fix.to_str()]).run()
 
