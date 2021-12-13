@@ -136,15 +136,14 @@ class OGMChapters(Chapters):
     An OGM based Chapters is a TXT file
     """
 
-    def __init__(self, chapter_file: AnyPath) -> None:
+    def __init__(self, chapter_file: AnyPath, extension: str = '.txt') -> None:
         """
         Register a new OGMChapters object
 
         :param chapter_file:    Chapters file path
         """
         super().__init__(chapter_file)
-        if self.chapter_file.suffix != '.txt':
-            Status.warn(f'{self.__class__.__name__}: An OGMChapters should have a .txt extension!')
+        self.chapter_file = self.chapter_file.with_suffix(extension)
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
         if not (par := self.chapter_file.parent).exists():
@@ -238,15 +237,14 @@ class MatroskaXMLChapters(Chapters):
 
     __DOCTYPE = '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->'
 
-    def __init__(self, chapter_file: AnyPath) -> None:
+    def __init__(self, chapter_file: AnyPath, extension: str = '.xml') -> None:
         """
         Register a new MatroskaXMLChapters object
 
         :param chapter_file:    Chapters file path
         """
         super().__init__(chapter_file)
-        if self.chapter_file.suffix != '.xml':
-            Status.warn(f'{self.__class__.__name__}: A MatroskaXMLChapters should have a .xml extension!')
+        self.chapter_file = self.chapter_file.with_suffix(extension)
 
     def create(self, chapters: List[Chapter], fps: Fraction) -> None:
         self._fps = fps
