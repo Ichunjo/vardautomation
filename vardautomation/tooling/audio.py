@@ -743,7 +743,7 @@ class ScipyCutter(AudioCutter):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
                 arrays.append(
-                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]
+                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]  # type: ignore
                 )
             else:
                 # Handle DuplicateFrame
