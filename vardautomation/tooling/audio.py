@@ -92,7 +92,7 @@ class _SimpleSetTrack(_AutoSetTrack, ABC):
         assert self.file.a_src
         # Set the tracks for eac3to and mkvmerge since they share the same pattern
         for t_in, t_out in zip(self.track_in, self.track_out):
-            self.params.append(f'{t_in}:{self.file.a_src.set_track(t_out).to_str():s}')
+            self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
 
 
 class _FfmpegSetTrack(_AutoSetTrack, ABC):
