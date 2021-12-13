@@ -131,6 +131,9 @@ dmypy.json
 # vspreview folder
 .vspreview
 
+# louis fork of vsrepo for vs stubs
+.vsrepo
+
 # Random files
 vardautomation/shaders.py
 .my_test_files
