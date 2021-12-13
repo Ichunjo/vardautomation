@@ -513,7 +513,11 @@ _FileInfoType = TypeVar('_FileInfoType', bound=FileInfo)
 class BlurayShow:
     """Helper class for batching shows"""
 
+    _files: List[_File]
+
     _file_info_args: Dict[str, Any]
+    _file_ncops: List[_File]
+    _file_nceds: List[_File]
 
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
                  idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
@@ -528,13 +532,8 @@ class BlurayShow:
                                     defaults to :py:data:`.PresetGeneric`
         :param lang:                Chapters language, defaults to UNDEFINED
         """
-        self._file_info_args = dict(
-            trims_or_dfs=global_trims,
-            idx=idx,
-            preset=preset
-        )
-
-        self.files: List[_File] = []
+        self._file_info_args = dict(trims_or_dfs=global_trims, idx=idx, preset=preset)
+        self._files = []
 
         for path, eps in episodes.items():
             chap_folder = path / 'chapters'
@@ -551,7 +550,72 @@ class BlurayShow:
                     if chap.stem.split('_')[1] == ep.stem:
                         chap_sel = chap
                         break
-                self.files.append(_File(path / ep, chap_sel))
+                self._files.append(_File(path / ep, chap_sel))
+
+        self._file_ncops = []
+        self._file_nceds = []
+
+    def register_ncops(self, *path: VPath) -> None:
+        """
+        Add NCOP paths to the class
+        """
+        for p in path:
+            self._file_ncops.append(_File(p, None))
+
+    def register_nceds(self, *path: VPath) -> None:
+        """
+        Add NCED paths to the class
+        """
+        for p in path:
+            self._file_nceds.append(_File(p, None))
+
+    def ncops(self, *, file_info_t: Type[_FileInfoType] = FileInfo) -> List[_FileInfoType]:  # type: ignore [assignment]
+        """
+        Get all the NCOPs
+
+        :return:                    List of FileInfo
+        """
+        return [
+            self.ncop(i, start_from=0, file_info_t=file_info_t)
+            for i in range(len(self._file_ncops))
+        ]
+
+    def ncop(self, num: int, /, *, start_from: int = 1,
+             file_info_t: Type[_FileInfoType] = FileInfo) -> _FileInfoType:  # type: ignore [assignment])
+        """
+        Get a specified NCOP
+
+        :param num:                 Numero of the NCOP
+        :param start_from:          Indexing starting value, defaults to 1
+        :return:                    FileInfo object
+        """
+        ncop = self._file_ncops[num - start_from]
+        ncop_info = file_info_t(ncop.file, **self._file_info_args)
+        return ncop_info
+
+    def nceds(self, *, file_info_t: Type[_FileInfoType] = FileInfo) -> List[_FileInfoType]:  # type: ignore [assignment]
+        """
+        Get all the NCEDs
+
+        :return:                    List of FileInfo
+        """
+        return [
+            self.nced(i, start_from=0, file_info_t=file_info_t)
+            for i in range(len(self._file_nceds))
+        ]
+
+    def nced(self, num: int, /, *, start_from: int = 1,
+             file_info_t: Type[_FileInfoType] = FileInfo) -> _FileInfoType:  # type: ignore [assignment])
+        """
+        Get a specified NCED
+
+        :param num:                 Numero of the NCED
+        :param start_from:          Indexing starting value, defaults to 1
+        :return:                    FileInfo object
+        """
+        nced = self._file_nceds[num - start_from]
+        nced_info = file_info_t(nced.file, **self._file_info_args)
+        return nced_info
 
     def episodes(self, *, file_info_t: Type[_FileInfoType] = FileInfo) -> List[_FileInfoType]:  # type: ignore [assignment]
         """
@@ -561,7 +625,7 @@ class BlurayShow:
         """
         return [
             self.episode(i, start_from=0, file_info_t=file_info_t)
-            for i in range(len(self.files))
+            for i in range(len(self._files))
         ]
 
     def episode(self, num: int, /, *, start_from: int = 1,
@@ -573,7 +637,7 @@ class BlurayShow:
         :param start_from:          Indexing starting value, defaults to 1
         :return:                    FileInfo object
         """
-        file = self.files[num - start_from]
+        file = self._files[num - start_from]
         file_info = file_info_t(file.file, **self._file_info_args)
         file_info.chapter = file.chapter
         return file_info
