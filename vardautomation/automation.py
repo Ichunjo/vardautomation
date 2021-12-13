@@ -76,7 +76,7 @@ class SelfRunner:
     """FileInfo object"""
 
     config: RunnerConfig
-    """Confif of the runner"""
+    """Config of the runner"""
 
     cleanup_files: Set[AnyPath]
     """Files to be deleted"""
@@ -93,7 +93,11 @@ class SelfRunner:
         self.cleanup_files = set()
 
     def run(self, *, show_logo: bool = True) -> None:
-        """Main tooling chain"""
+        """
+        Main tooling chain
+
+        :param show_logo:   Print vardoto logo.
+        """
         if show_logo:
             Status.logo()
 
