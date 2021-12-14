@@ -25,39 +25,51 @@ class Tool(ABC):
     binary: VPath
     """Binary path"""
 
-    settings: Union[AnyPath, List[str], Dict[str, Any]]
-    """
-    Path to your settings file or list of string or a dict containing your settings::
-
-        # This
-        >>> cat settings
-        -o {clip_output:s} - --y4m --preset slower --crf 51
-
-        # is equivalent to this:
-        settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
-
-        # and is equivalent to this:
-        settings: Dict[str, Any] = {
-            '-o': '{clip_output:s}',
-            '-': None,
-            '--y4m': None,
-            '--preset': 'slower',
-            '--crf': 51
-        }
-    """
-
     params: List[str]
     """Settings normalised and parsed"""
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
         """
         :param binary:              Path to your binary file.
-        :param settings:            Path to your settings file or list of string or a dict containing your settings.
-                                    See :py:attr:`Tool.settings`
+        :param settings:            Path to your settings file or list of string or a dict containing your settings::
+
+            # This
+            >>> cat settings
+            -o {clip_output:s} - --y4m --preset slower --crf 51
+
+            # is equivalent to this:
+            settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
+
+            # and is equivalent to this:
+            settings: Dict[str, Any] = {
+                '-o': '{clip_output:s}',
+                '-': None,
+                '--y4m': None,
+                '--preset': 'slower',
+                '--crf': 51
+            }
+
         """
         self.binary = VPath(binary)
-        self.settings = settings
-        self.params = []
+
+        if isinstance(settings, dict):
+            for k, v in settings.items():
+                self.params.extend([k] + ([str(v)] if v else []))
+        elif isinstance(settings, list):
+            self.params = settings
+        else:
+            try:
+                with open(settings, 'r', encoding='utf-8') as sttgs:
+                    params_re = re.split(r'[\n\s]\s*', sttgs.read())
+            except FileNotFoundError as file_err:
+                Status.fail(
+                    f'{self.__class__.__name__}: settings file not found',
+                    exception=FileNotFoundError, chain_err=file_err
+                )
+            self.params = [p for p in params_re if isinstance(p, str)]
+
+        self._check_binary()
+
         super().__init__()
 
     @abstractmethod
@@ -68,33 +80,12 @@ class Tool(ABC):
     def set_variable(self) -> Dict[str, Any]:
         """Set variables in the settings"""
 
-    def _get_settings(self) -> None:
-        if isinstance(self.settings, dict):
-            for k, v in self.settings.items():
-                self.params += [k] + ([str(v)] if v else [])
-        elif isinstance(self.settings, list):
-            self.params += self.settings
-        else:
-            try:
-                with open(self.settings, 'r', encoding='utf-8') as sttgs:
-                    params_re = re.split(r'[\n\s]\s*', sttgs.read())
-            except FileNotFoundError as file_err:
-                Status.fail(
-                    f'{self.__class__.__name__}: settings file not found',
-                    exception=FileNotFoundError, chain_err=file_err
-                )
-            self.params += [p for p in params_re if isinstance(p, str)]
-
-        self._check_binary()
-
+    def _update_settings(self) -> None:
         params_parsed: List[str] = []
         for p in self.params:
             # pylint: disable=W0702
             try:
                 p = p.format(**self.set_variable())
-            except AttributeError:
-                Status.warn(f'{self.__class__.__name__}: param {p} is not a str object; trying to convert to str...')
-                p = str(p).format(**self.set_variable())
             except:  # noqa: E722
                 excp_type, excp_val, trback = sys.exc_info()
                 Status.fail(

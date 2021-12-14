@@ -9,6 +9,7 @@ __all__ = [
 ]
 
 import shutil
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
@@ -16,9 +17,9 @@ from os import remove
 from typing import Any, List, Optional, Sequence, Set, Tuple, Union, cast
 
 import vapoursynth as vs
+from vardefunc.misc import DebugOutput
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
-from vardefunc.misc import DebugOutput
 
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
@@ -305,12 +306,13 @@ class Patch:
         self.ranges = nranges
 
     def _encode(self) -> None:
+        params = deepcopy(self.encoder.params)
         for i, (s, e) in enumerate(self.ranges, start=1):
             self._print_debug('_encode', (s, e))
             fix = self.workdir / f'fix-{i:03.0f}'
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
-            self.encoder.params.clear()
+            self.encoder.params = params
 
             BasicTool(BinaryPath.mkvmerge, ['-o', fix.with_suffix('.mkv').to_str(), fix.to_str()]).run()
 

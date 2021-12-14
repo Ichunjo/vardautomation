@@ -75,7 +75,7 @@ class VideoEncoder(Tool):
 
         self.clip = clip
 
-        self._get_settings()
+        self._update_settings()
         self._do_encode()
 
     def run(self) -> NoReturn:

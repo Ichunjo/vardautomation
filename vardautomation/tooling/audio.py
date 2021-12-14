@@ -75,7 +75,7 @@ class _AutoSetTrack(AudioExtracter, ABC):
         super().__init__(binary, settings, file=file)
 
     def run(self) -> None:
-        self._get_settings()
+        self._update_settings()
         self._set_tracks_number()
         self._do_tooling()
 
@@ -228,7 +228,7 @@ class AudioEncoder(BasicTool):
         self.xml_tag = xml_tag
 
     def run(self) -> None:
-        self._get_settings()
+        self._update_settings()
         if isinstance(self.file, FileInfo2):
             self.file.write_a_src_cut(self.track, offset=-1)
         self._do_tooling()

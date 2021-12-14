@@ -31,7 +31,7 @@ class BasicTool(Tool):
         super().__init__(binary, settings)
 
     def run(self) -> None:
-        self._get_settings()
+        self._update_settings()
         self._do_tooling()
 
     def set_variable(self) -> Dict[str, Any]:
