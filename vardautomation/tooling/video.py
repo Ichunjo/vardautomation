@@ -151,9 +151,11 @@ class VideoLanEncoder(VideoEncoder, ABC):
     @copy_docstring_from(Tool.__init__, 'o+t')
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
+                 override_params: Optional[Dict[str, Any]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
         """
-        :param zones:       Custom zone ranges, defaults to None
+        :param zones:               Custom zone ranges, defaults to None
+        :param override_params:     Parameters to be overrided in ``settings``
 
         ::
 
@@ -172,18 +174,84 @@ class VideoLanEncoder(VideoEncoder, ABC):
                 if i != len(zones) - 1:
                     zones_settings += '/'
             self.params.extend(['--zones', zones_settings])
+
+        if override_params:
+            nparams = self.params_asdict | override_params
+            self.params.clear()
+            for k, v in nparams.items():
+                self.params.extend([k] + ([str(v)] if v else []))
+
         self.progress_update = progress_update
 
+    @property
+    def params_asdict(self) -> Dict[str, Any]:  # noqa C901
+        """
+        Get :py:attr:`params` as a dictionnary
+        """
+        # I know this is ugly
+        def _is_number(s: str) -> bool:
+            try:
+                int(s)
+            except ValueError:
+                try:
+                    float(s)
+                except ValueError:
+                    return False
+                else:
+                    return True
+            else:
+                return True
+
+        dparams: Dict[str, Any] = {}
+        i = 0
+        while i < len(self.params):
+            p = self.params[i]
+            if p.startswith(('--', '-')):
+                if i == len(self.params) - 1:
+                    dparams[p] = None
+                    break
+                pp = self.params[i + 1]
+                if pp.startswith('--'):
+                    dparams[p] = None
+                    i += 1
+                elif pp.startswith('-'):
+                    if _is_number(pp):
+                        dparams[p] = pp
+                        i += 2
+                    else:
+                        dparams[p] = None
+                        i += 1
+                else:
+                    dparams[p] = pp
+                    i += 2
+
+        for k, v in dparams.items():
+            try:
+                v_int = int(v)
+            except (ValueError, TypeError):
+                try:
+                    v_float = float(v)
+                except (ValueError, TypeError):
+                    pass
+                else:
+                    dparams[k] = v_float
+            else:
+                dparams[k] = v_int
+
+        return dparams
+
     def set_variable(self) -> Dict[str, Any]:
-        if (bits := Properties.get_depth(self.clip)) > 10:
-            Status.warn(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
         try:
+            bits = Properties.get_depth(self.clip)
+        except AttributeError:
+            return {}
+        else:
+            if bits > 10:
+                Status.warn(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
             return dict(
                 clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
                 fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits
             )
-        except AttributeError:
-            return {}
 
 
 class X265Encoder(VideoLanEncoder):
