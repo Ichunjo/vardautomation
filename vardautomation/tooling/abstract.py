@@ -30,8 +30,7 @@ class Tool(ABC):
 
     def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
         """
-        :param binary:              Path to your binary file.
-        :param settings:            Path to your settings file or list of string or a dict containing your settings::
+        ::
 
             # This
             >>> cat settings
@@ -49,6 +48,8 @@ class Tool(ABC):
                 '--crf': 51
             }
 
+        :param binary:              Path to your binary file.
+        :param settings:            Path to your settings file or list of string or a dict containing your settings
         """
         self.binary = VPath(binary)
 
