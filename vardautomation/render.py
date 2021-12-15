@@ -312,7 +312,7 @@ def _finish_frame_audio(frame: vs.AudioFrame, outfile: BinaryIO, _24bit: bool) -
         # Data values are stored in 32 bits so we must convert them to 24 bits
         # Then by shifting first 0 bits, then 8, then 16, the resulting output is 24 bit little-endian.
         data = ((data // 2 ** 8).reshape(data.shape + (1, )) >> np.array([0, 8, 16]))  # type: ignore [attr-defined]
-        outfile.write(data.ravel().astype(np.uint8).tobytes())
+        outfile.write(data.ravel().astype(np.uint8).tobytes())  # type: ignore
     else:
         outfile.write(data.ravel().view(np.int8).tobytes())  # type: ignore
 
