@@ -82,22 +82,23 @@ class Tool(ABC):
         """Set variables in the settings"""
 
     def _update_settings(self) -> None:
-        params_parsed: List[str] = []
-        for p in self.params:
+        for i, p in enumerate(self.params):
             # pylint: disable=W0702
-            try:
-                p = p.format(**self.set_variable())
-            except:  # noqa: E722
-                excp_type, excp_val, trback = sys.exc_info()
-                Status.fail(
-                    f'{self.__class__.__name__}: Unexpected exception from the following traceback:\n'
-                    + ''.join(traceback.format_tb(trback))
-                    + (excp_type.__name__ if excp_type else Exception.__name__) + ': '
-                    + str(excp_val), exception=Exception, chain_err=excp_val
-                )
-            params_parsed.append(p)
-        self.params.clear()
-        self.params = [self.binary.to_str()] + params_parsed
+            # Check if the current string is formattable
+            if re.findall(r'(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))', p):
+                try:
+                    p = p.format(**self.set_variable())
+                except:  # noqa: E722
+                    excp_type, excp_val, trback = sys.exc_info()
+                    Status.fail(
+                        f'{self.__class__.__name__}: Unexpected exception from the following traceback:\n'
+                        + ''.join(traceback.format_tb(trback))
+                        + (excp_type.__name__ if excp_type else Exception.__name__) + ': '
+                        + str(excp_val), exception=Exception, chain_err=excp_val
+                    )
+                else:
+                    self.params[i] = p
+        self.params.insert(0, self.binary.to_str())
 
     def _check_binary(self) -> None:
         try:
