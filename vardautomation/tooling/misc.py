@@ -71,6 +71,8 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
 
 
 class SubProcessAsync:
+    __slots__ = ('sem', )
+
     sem: asyncio.Semaphore
 
     def __init__(self, cmds: List[str], /, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:

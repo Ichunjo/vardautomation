@@ -36,6 +36,8 @@ class Colours:
 
 
 class Status:
+    __slots__ = ()
+
     @staticmethod
     def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
         curr_split: List[str] = []
