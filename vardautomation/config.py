@@ -569,7 +569,7 @@ class BlurayShow:
         for p in path:
             self._file_nceds.append(_File(p, None))
 
-    def ncops(self, *, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def ncops(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
         """
         Get all the NCOPs
 
@@ -580,7 +580,7 @@ class BlurayShow:
             for i in range(len(self._file_ncops))
         ]
 
-    def ncop(self, num: int, /, *, start_from: int = 1, file_info_t: Type[_FileInfoType]) -> _FileInfoType:
+    def ncop(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified NCOP
 
@@ -592,7 +592,7 @@ class BlurayShow:
         ncop_info = file_info_t(ncop.file, **self._file_info_args)
         return ncop_info
 
-    def nceds(self, *, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def nceds(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
         """
         Get all the NCEDs
 
@@ -603,7 +603,7 @@ class BlurayShow:
             for i in range(len(self._file_nceds))
         ]
 
-    def nced(self, num: int, /, *, start_from: int = 1, file_info_t: Type[_FileInfoType]) -> _FileInfoType:
+    def nced(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified NCED
 
@@ -615,7 +615,7 @@ class BlurayShow:
         nced_info = file_info_t(nced.file, **self._file_info_args)
         return nced_info
 
-    def episodes(self, *, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def episodes(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
         """
         Get all the episodes
 
@@ -626,7 +626,7 @@ class BlurayShow:
             for i in range(len(self._files))
         ]
 
-    def episode(self, num: int, /, *, start_from: int = 1, file_info_t: Type[_FileInfoType]) -> _FileInfoType:
+    def episode(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified episode
 
