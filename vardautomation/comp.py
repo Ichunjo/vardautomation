@@ -1,11 +1,13 @@
 """Comparison module"""
 
+from __future__ import annotations
+
 __all__ = [
     # Enums
     'Writer', 'PictureType',
 
     # Dicts
-    'SlowPicsConf', 'default_conf',
+    'SlowPicsConf',
 
     # Class and function
     'Comparison', 'make_comps'
@@ -17,8 +19,8 @@ import random
 import subprocess
 from enum import Enum, auto
 from functools import partial
-from typing import (Any, Callable, Dict, Final, Iterable, List, Literal,
-                    Optional, Set, TypedDict, Union)
+from typing import (Any, Callable, Dict, Final, Iterable, List, NamedTuple,
+                    Optional, Set)
 
 import numpy as np
 import vapoursynth as vs
@@ -76,30 +78,24 @@ class PictureType(bytes, Enum):
     """B frames"""
 
 
-class SlowPicsConf(TypedDict, total=False):
-    """TypedDict configuration for Slowpics"""
+class SlowPicsConf(NamedTuple):
+    collection_name: str = VPath(inspect.stack()[-1].filename).stem
+    """
+    Slowpics's collection name.\n
+    Default is the name of the current script
+    """
 
-    collectionName: str
-    """Slowpics's collection name"""
-
-    public: Literal['true', 'false']
+    public: bool = True
     """Make the comparison public"""
 
-    optimizeImages: Literal['true', 'false']
+    optimise: bool = True
     """If 'true", images will be losslessly optimised"""
 
-    hentai: Literal['true', 'false']
+    nsfw: bool = False
     """If images not suitable for minors (nudity, gore, etc.)"""
 
-    removeAfter: str
+    remove_after: Optional[int] = None
     """Remove after N days"""
-
-
-default_conf: SlowPicsConf = SlowPicsConf(
-    collectionName=VPath(inspect.stack()[-1].filename).stem,
-    public='true', optimizeImages='true', hentai='false'
-)
-"""Default Slowpics's configuration """
 
 
 class Comparison:
@@ -107,7 +103,7 @@ class Comparison:
 
     def __init__(self, clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                  num: int = 15, frames: Optional[Iterable[int]] = None,
-                 picture_type: Union[PictureType, List[PictureType], None] = None) -> None:
+                 picture_type: Optional[PictureType | List[PictureType]] = None) -> None:
         """
         :param clips:               Named clips.
         :param path:                Path to your comparison folder, defaults to 'comps'
@@ -254,12 +250,11 @@ class Comparison:
         print()
         SubProcessAsync(cmds)
 
-    def upload_to_slowpics(self, config: SlowPicsConf = default_conf) -> None:
+    def upload_to_slowpics(self, config: SlowPicsConf) -> None:
         """
         Upload to slow.pics with given configuration
 
-        :param config:              TypeDict which contains the uploading configuration,
-                                    defaults to :py:data:`.default_conf`
+        :param config:              NamedTuple which contains the uploading configuration
         """
         # Upload to slow.pics
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
@@ -280,7 +275,7 @@ class Comparison:
         with Session() as sess:
             sess.get('https://slow.pics/api/comparison')
             # TODO: yeet this
-            files = MultipartEncoder(config | fields)
+            files = MultipartEncoder(_make_api_compatible(config) | fields)
 
             Status.info('Uploading images...')
             print()
@@ -296,7 +291,7 @@ class Comparison:
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
         Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
-    def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: Union[PictureType, List[PictureType]]) -> Set[int]:
+    def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureType | List[PictureType]) -> Set[int]:
         samples: Set[int] = set()
         _max_attempts = 0
         _rnum_checked: Set[int] = set()
@@ -353,11 +348,11 @@ class Comparison:
 def make_comps(
     clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
     num: int = 15, frames: Optional[Iterable[int]] = None, *,
-    picture_types: Union[PictureType, List[PictureType], None] = None,
+    picture_types: Optional[PictureType | List[PictureType]] = None,
     force_bt709: bool = False,
     writer: Writer = Writer.PYTHON, compression: int = -1,
     magick_compare: bool = False,
-    slowpics: bool = False, collection_name: str = '', public: bool = True
+    slowpics_conf: Optional[SlowPicsConf] = None
 ) -> None:
     """
     Convenience function for :py:class:`Comparison`.
@@ -372,20 +367,14 @@ def make_comps(
     :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
     :param magick_compare:      Make diffs between the first and second clip.
                                 Will raise an exception if more than 2 clips are passed to clips, defaults to False
-    :param slowpics:            Upload to slow.pics, defaults to False
-    :param collection_name:     Slowpics's collection name, defaults to ''
-    :param public:              Make the comparison public, defaults to True
+    :param slowpics_conf:       slow.pics configuration. If specified, images will be uploaded following this configuration
     """
     comp = Comparison(clips, path, num, frames, picture_types)
     comp.extract(writer, compression, force_bt709)
     if magick_compare:
         comp.magick_compare()
-    if slowpics:
-        conf = SlowPicsConf(
-            collectionName=collection_name, public='true' if public else 'false',
-            optimizeImages='true', hentai='false'
-        )
-        comp.upload_to_slowpics(conf)
+    if slowpics_conf is not None:
+        comp.upload_to_slowpics(slowpics_conf)
 
 
 def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
@@ -485,6 +474,18 @@ def _get_slowpics_header(content_length: str, content_type: str, sess: Session) 
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "X-XSRF-TOKEN": sess.cookies.get_dict()["XSRF-TOKEN"]
     }
+
+
+def _make_api_compatible(config: SlowPicsConf) -> Dict[str, str]:
+    conf = {
+        'collectionName': config.collection_name,
+        'public': str(config.public).lower(),
+        'optimizeImages': str(config.optimise).lower(),
+        'hentai': str(config.nsfw).lower(),
+    }
+    if config.remove_after is not None:
+        conf.update({'removeAfter': str(config.remove_after)})
+    return conf
 
 
 def _progress_update_func(value: int, endvalue: int) -> None:
