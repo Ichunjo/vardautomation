@@ -147,6 +147,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
     _vl_binary: ClassVar[AnyPath]
+    _bits: int
 
     @copy_docstring_from(Tool.__init__, 'o+t')
     def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
@@ -246,8 +247,9 @@ class VideoLanEncoder(VideoEncoder, ABC):
         except AttributeError:
             return {}
         else:
-            if bits > 10:
+            if not hasattr(self, '_bits') and bits > 10:
                 Status.warn(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
+                self._bits = bits
             return dict(
                 clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
                 fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits
