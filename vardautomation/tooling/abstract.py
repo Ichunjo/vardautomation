@@ -57,7 +57,7 @@ class Tool(ABC):
             for k, v in settings.items():
                 self.params.extend([k] + ([str(v)] if v else []))
         elif isinstance(settings, list):
-            self.params = settings
+            self.params = settings.copy()
         else:
             try:
                 with open(settings, 'r', encoding='utf-8') as sttgs:
