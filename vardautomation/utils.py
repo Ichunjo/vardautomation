@@ -26,6 +26,11 @@ class Properties:
         """
         bits = cls.get_depth(clip)
 
+        def _get_props(clip: vs.VideoNode) -> vs.FrameProps:
+            with clip.get_frame(0) as frame:
+                props = frame.props
+            return props
+
         if '--range' in params:
             rng_param = params[params.index('--range') + 1]
             if rng_param == 'limited':
@@ -36,7 +41,7 @@ class Properties:
                 max_luma = (1 << bits) - 1
             else:
                 Status.fail(f'{cls.__name__}: Wrong range in parameters!', exception=VSColourRangeError)
-        elif '_ColorRange' in (props := clip.get_frame(0).props):
+        elif '_ColorRange' in (props := _get_props(clip)):
             color_rng = props['_ColorRange']
             if color_rng == 1:
                 min_luma = 16 << (bits - 8)
