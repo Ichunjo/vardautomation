@@ -118,7 +118,10 @@ class Comparison:
         # Check length of all clips
         lens = set(c.num_frames for c in clips.values())
         if len(lens) != 1:
-            Status.fail(f'{self.__class__.__name__}: "clips" must be equal length!', exception=ValueError)
+            Status.warn(
+                f'{self.__class__.__name__}: "clips" doesn\'t have the same length!'
+            )
+        lens_n = min(lens)
 
         try:
             self.path.mkdir(parents=True)
@@ -131,9 +134,9 @@ class Comparison:
         # Make samples
         if picture_type:
             Status.info(f'{self.__class__.__name__}: Make samples according to specified picture types...')
-            samples = self._select_samples_ptypes(lens.pop(), num, picture_type)
+            samples = self._select_samples_ptypes(lens_n, num, picture_type)
         else:
-            samples = set(random.sample(range(lens.pop()), num))
+            samples = set(random.sample(range(lens_n), num))
 
         # Add additionnal frames if frame exists
         if frames:
