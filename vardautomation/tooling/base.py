@@ -1,7 +1,5 @@
 
-__all__ = [
-    'BasicTool'
-]
+__all__ = ['BasicTool']
 
 import subprocess
 from typing import Any, Dict, List, Optional, Union
@@ -9,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from ..config import FileInfo
 from ..status import Status
 from ..types import AnyPath
+from ..utils import copy_docstring_from
 from .abstract import Tool
 
 
@@ -34,7 +33,9 @@ class BasicTool(Tool):
         self._update_settings()
         self._do_tooling()
 
+    @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
+        """No variable are replaced there."""
         return {}
 
     def _do_tooling(self) -> None:

@@ -85,7 +85,12 @@ class VideoEncoder(Tool):
         """
         Status.fail(f'{self.__class__.__name__}: Use `run_enc` instead', exception=NameError)
 
+    @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
+        """
+        Replaces ``{clip_output:s}`` by ``self.file.name_clip_output``\n
+        Replaces ``{filename:s}`` by ``self.file.name``\n
+        """
         try:
             return dict(clip_output=self.file.name_clip_output.to_str(), filename=self.file.name)
         except AttributeError:
@@ -100,12 +105,16 @@ class VideoEncoder(Tool):
 class LosslessEncoder(VideoEncoder):
     """Video encoder for lossless encoding"""
 
+    @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
-        assert self.clip.format
+        """
+        Replaces ``{clip_output_lossless:s}`` by ``self.file.name_clip_output_lossless``\n
+        Replaces ``{bits:s}`` by ``Properties.get_depth(self.clip)``\n
+        """
         try:
             return dict(
                 clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
-                bits=self.clip.format.bits_per_sample
+                bits=Properties.get_depth(self.clip)
             )
         except AttributeError:
             return {}
@@ -241,7 +250,18 @@ class VideoLanEncoder(VideoEncoder, ABC):
 
         return dparams
 
+    @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
+        """
+        Replaces ``{clip_output:s}`` by ``self.file.name_clip_output``\n
+        Replaces ``{filename:s}`` by ``self.file.name``\n
+        Replaces ``{frames:d}`` by ``self.clip.num_frames``\n
+        Replaces ``{fps_num:d}`` by ``self.clip.fps.numerator``\n
+        Replaces ``{fps_den:d}`` by ``self.clip.fps.denominator``\n
+        Replaces ``{bits:d}`` by ``Properties.get_depth(self.clip)``\n
+        Replaces ``{min_keyint:d}`` by ``round(self.clip.fps)``\n
+        Replaces ``{keyint:d}`` by ``round(self.clip.fps) * 10``\n
+        """
         try:
             bits = Properties.get_depth(self.clip)
         except AttributeError:
@@ -252,7 +272,8 @@ class VideoLanEncoder(VideoEncoder, ABC):
                 self._bits = bits
             return dict(
                 clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits
+                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits,
+                min_keyint=round(self.clip.fps), keyint=round(self.clip.fps) * 10
             )
 
 
@@ -261,7 +282,11 @@ class X265Encoder(VideoLanEncoder):
 
     _vl_binary = BinaryPath.x265
 
+    @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
+        """
+        Replaces ``{min_luma:d}`` and ``{max_luma:d}` by Properties.get_colour_range(self.params, self.clip)
+        """
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
         return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
@@ -271,5 +296,9 @@ class X264Encoder(VideoLanEncoder):
 
     _vl_binary = BinaryPath.x264
 
+    @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
+        """
+        Replaces ``{csp:s}`` by Properties.get_csp(self.clip)
+        """
         return super().set_variable() | dict(csp=Properties.get_csp(self.clip))

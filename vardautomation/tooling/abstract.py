@@ -50,6 +50,8 @@ class Tool(ABC):
 
         :param binary:              Path to your binary file.
         :param settings:            Path to your settings file or list of string or a dict containing your settings
+                                    Special variable names can be specified and are replaced at runtime.
+                                    Supported variable names are defined in :py:func:`set_variable` docstring.
         """
         self.binary = VPath(binary)
 
@@ -79,7 +81,9 @@ class Tool(ABC):
 
     @abstractmethod
     def set_variable(self) -> Dict[str, Any]:
-        """Set variables in the settings"""
+        """
+        Set variables in the settings\n
+        """
 
     def _update_settings(self) -> None:
         for i, p in enumerate(self.params):
