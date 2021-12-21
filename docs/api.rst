@@ -45,11 +45,11 @@ Video encoders
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.video.X265Encoder
+.. autoclass:: vardautomation.tooling.video.X265
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.video.X264Encoder
+.. autoclass:: vardautomation.tooling.video.X264
    :members:
    :inherited-members:
    :show-inheritance:
@@ -57,11 +57,11 @@ Video encoders
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.video.NvenccEncoder
+.. autoclass:: vardautomation.tooling.video.NVEncCLossless
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.video.FFV1Encoder
+.. autoclass:: vardautomation.tooling.video.FFV1
    :members:
    :inherited-members:
    :show-inheritance:
@@ -212,7 +212,6 @@ Comparison
    :members:
 .. autoclass:: vardautomation.comp.SlowPicsConf
    :members:
-.. autodata:: vardautomation.comp.default_conf
 .. autoclass:: vardautomation.comp.Comparison
    :members:
 .. autofunction:: vardautomation.comp.make_comps

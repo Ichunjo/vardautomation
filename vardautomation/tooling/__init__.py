@@ -15,7 +15,7 @@ __all__ = [
     'PassthroughAudioEncoder',
 
     'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
-    'VideoEncoder', 'VideoLanEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
+    'VideoEncoder', 'VideoLanEncoder', 'X265', 'X264', 'LosslessEncoder', 'NVEncCLossless', 'FFV1',
     'progress_update_func',
 
     'make_qpfile', 'Qpfile', 'get_vs_core',

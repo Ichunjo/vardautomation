@@ -1,6 +1,7 @@
 
 __all__ = [
-    'VideoEncoder', 'VideoLanEncoder', 'X265Encoder', 'X264Encoder', 'LosslessEncoder', 'NvenccEncoder', 'FFV1Encoder',
+    'VideoEncoder', 'VideoLanEncoder', 'X265', 'X264',
+    'LosslessEncoder', 'NVEncCLossless', 'FFV1',
     'progress_update_func'
 ]
 
@@ -120,7 +121,7 @@ class LosslessEncoder(VideoEncoder):
             return {}
 
 
-class NvenccEncoder(LosslessEncoder):
+class NVEncCLossless(LosslessEncoder):
     """Built-in NvencC encoder."""
 
     def __init__(self) -> None:
@@ -134,7 +135,7 @@ class NvenccEncoder(LosslessEncoder):
         self.progress_update = None
 
 
-class FFV1Encoder(LosslessEncoder):
+class FFV1(LosslessEncoder):
     """Built-in FFV1 encoder."""
 
     def __init__(self, *, threads: int = 0) -> None:
@@ -277,7 +278,7 @@ class VideoLanEncoder(VideoEncoder, ABC):
             )
 
 
-class X265Encoder(VideoLanEncoder):
+class X265(VideoLanEncoder):
     """Video encoder using x265 for HEVC"""
 
     _vl_binary = BinaryPath.x265
@@ -285,13 +286,13 @@ class X265Encoder(VideoLanEncoder):
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{min_luma:d}`` and ``{max_luma:d}` by Properties.get_colour_range(self.params, self.clip)
+        Replaces ``{min_luma:d}`` and ``{max_luma:d}`` by ``Properties.get_colour_range(self.params, self.clip)``\n
         """
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
         return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
 
-class X264Encoder(VideoLanEncoder):
+class X264(VideoLanEncoder):
     """Video encoder using x264 for AVC"""
 
     _vl_binary = BinaryPath.x264
@@ -299,6 +300,6 @@ class X264Encoder(VideoLanEncoder):
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{csp:s}`` by Properties.get_csp(self.clip)
+        Replaces ``{csp:s}`` by ``Properties.get_csp(self.clip)``\n
         """
         return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
