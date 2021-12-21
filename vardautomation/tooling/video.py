@@ -7,8 +7,7 @@ __all__ = [
 
 import subprocess
 from abc import ABC
-from typing import (Any, BinaryIO, ClassVar, Dict, List, NoReturn, Optional,
-                    Tuple, Union, cast)
+from typing import Any, BinaryIO, ClassVar, Dict, Final, List, NoReturn, Optional, Tuple, Union, cast
 
 import vapoursynth as vs
 

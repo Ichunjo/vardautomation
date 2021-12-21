@@ -12,8 +12,7 @@ import os
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum, auto
 from shutil import copyfile
-from typing import (Any, Dict, List, Literal, NoReturn, Optional, Sequence,
-                    Set, Union)
+from typing import Any, Dict, List, Literal, NoReturn, Optional, Sequence, Set, Union
 
 import numpy as np
 import vapoursynth as vs

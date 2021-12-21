@@ -24,9 +24,10 @@ from vardefunc.util import normalise_ranges
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .status import Status
-from .tooling import (AudioCutter, AudioEncoder, AudioExtracter, BasicTool,
-                      LosslessEncoder, Mux, Qpfile, VideoEncoder,
-                      VideoLanEncoder)
+from .tooling import (
+    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, Mux, Qpfile,
+    VideoEncoder, VideoLanEncoder
+)
 from .types import AnyPath, T
 from .vpathlib import VPath
 

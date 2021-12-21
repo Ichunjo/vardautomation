@@ -21,8 +21,7 @@ import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from pprint import pformat
-from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
-                    Type, TypeVar, Union)
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Type, TypeVar, Union
 
 import vapoursynth as vs
 from lvsfunc.misc import source

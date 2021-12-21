@@ -7,13 +7,11 @@ __all__ = [
 
 import struct
 from enum import Enum, IntEnum
-from typing import (BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple,
-                    Union, overload)
+from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, Union, overload
 
 import numpy as np
 import vapoursynth as vs
-from rich.progress import (BarColumn, Progress, ProgressColumn, Task,
-                           TextColumn, TimeRemainingColumn)
+from rich.progress import BarColumn, Progress, ProgressColumn, Task, TextColumn, TimeRemainingColumn
 from rich.text import Text
 
 from .utils import Properties

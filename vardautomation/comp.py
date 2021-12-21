@@ -19,8 +19,7 @@ import random
 import subprocess
 from enum import Enum, auto
 from functools import partial
-from typing import (Any, Callable, Dict, Final, Iterable, List, NamedTuple,
-                    Optional, Set)
+from typing import Any, Callable, Dict, Final, Iterable, List, NamedTuple, Optional, Set
 
 import numpy as np
 import vapoursynth as vs
