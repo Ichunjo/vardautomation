@@ -20,6 +20,7 @@ __all__ = [
 import sys
 from dataclasses import dataclass
 from enum import IntEnum
+from fractions import Fraction
 from pprint import pformat
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Type, TypeVar, Union
 
@@ -28,7 +29,7 @@ from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
-from .chapterisation import MplsReader
+from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
 from .render import audio_async_render
 from .status import Status
@@ -520,7 +521,7 @@ class BlurayShow:
 
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
                  idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
-                 lang: Lang = UNDEFINED) -> None:
+                 lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
         """
         :param episodes:            A dictionnary of episodes.
                                     Keys are the path of each bdmv folder.
@@ -539,15 +540,16 @@ class BlurayShow:
             chap_folder.mkdir(parents=True, exist_ok=True)
             chaps = sorted(chap_folder.glob('*'))
 
-            if not chaps:
-                MplsReader(path, lang).write_playlist(chap_folder)
-                chaps = sorted(chap_folder.glob('*'))
+            MplsReader(path, lang).write_playlist(chap_folder)
+            chaps = sorted(chap_folder.glob('*'))
 
             for ep in eps:
                 chap_sel: Optional[VPath] = None
                 for chap in chaps:
                     if chap.stem.split('_')[1] == ep.stem:
                         chap_sel = chap
+                        if isinstance(global_trims, tuple) and (trim := global_trims[0]):
+                            MatroskaXMLChapters(chap).shift_times(- trim, fps)
                         break
                 self._files.append(_File(path / ep, chap_sel))
 
