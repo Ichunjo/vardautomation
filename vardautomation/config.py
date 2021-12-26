@@ -456,6 +456,24 @@ class FileInfo2(FileInfo):
             self.audios_cut = self.audios.copy()
 
     @property
+    def trims_or_dfs(self) -> Union[List[Union[Trim, DF]], Trim, None]:
+        """
+        Trims or DuplicateFrame objects of the current FileInfo
+
+        :setter:                Set trims or duplicate frames
+        """
+        return self._trims_or_dfs
+
+    @trims_or_dfs.setter
+    def trims_or_dfs(self, x: Union[List[Union[Trim, DF]], Trim, None]) -> None:
+        self._trims_or_dfs = x
+        if x:
+            self.clip_cut = adjust_clip_frames(self.clip, x)
+        else:
+            self.clip_cut = self.clip
+        self.__post_init__()
+
+    @property
     def audio(self) -> vs.AudioNode:
         """
         Return the first AudioNode track of the file.
