@@ -123,13 +123,18 @@ class LosslessEncoder(VideoEncoder):
 class NVEncCLossless(LosslessEncoder):
     """Built-in NvencC encoder."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, hevc: bool = True) -> None:
         """
         Use NvencC to output a lossless encode in HEVC
+
+        :param hevc:            If True use HEVC codec for output.
+                                Keep in mind that 10 bit support depends on your NVEnc, driver and CUDA version
         """
         super().__init__(
             BinaryPath.nvencc,
-            ['-i', '-', '--y4m', '--lossless', '-c', 'hevc', '--output-depth', '{bits:d}', '-o', '{clip_output_lossless:s}'],
+            ['-i', '-', '--y4m', '--lossless',
+             '--codec', 'hevc' if hevc else 'avc',
+             '--output-depth', '{bits:d}', '-o', '{clip_output_lossless:s}'],
         )
         self.progress_update = None
 
