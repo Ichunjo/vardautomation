@@ -15,9 +15,9 @@ class NvenccEncoder(NVEncCLossless):
 
 
 class FFV1Encoder(FFV1):
-    def __init__(self) -> None:
+    def __init__(self, *, threads: int = 0) -> None:
         Status.warn('"FFV1Encoder" is deprecated; use "FFV1" instead')
-        super().__init__()
+        super().__init__(threads=threads)
 
 
 class X264Encoder(X264):

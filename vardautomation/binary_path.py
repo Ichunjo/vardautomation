@@ -10,6 +10,8 @@ Just edit one of these attributes if the binary is not in your environment path 
 
 __all__ = ['BinaryPath']
 
+from typing import NoReturn
+
 from .vpathlib import VPath
 
 
@@ -18,6 +20,9 @@ class BinaryPath:
     Class storing the path of the variable binaries used in vardautomation.\n
     Just edit one of these attributes if the binary is not in your environment path
     """
+
+    def __init__(self) -> NoReturn:
+        raise RuntimeError('Cannot directly instantiate this class.')
 
     eac3to: VPath = VPath('eac3to')
     """

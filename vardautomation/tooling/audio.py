@@ -94,7 +94,7 @@ class _SimpleSetTrack(_AutoSetTrack, ABC):
             self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
 
 
-class _FfmpegSetTrack(_AutoSetTrack, ABC):
+class _FFmpegSetTrack(_AutoSetTrack, ABC):
     def _set_tracks_number(self) -> None:
         # ffmpeg is a bit more annoying since it can't guess the bitdepth
         # I'm using mediainfo here because it's already implemented in FileInfo
@@ -169,7 +169,7 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
         self.params.extend(eac3to_args if eac3to_args else [])
 
 
-class FFmpegAudioExtracter(_FfmpegSetTrack):
+class FFmpegAudioExtracter(_FFmpegSetTrack):
     """AudioExtracter using Ffmpeg"""
 
     _ffmpeg_warning = ['-hide_banner', '-loglevel', 'info']
