@@ -21,7 +21,7 @@ class BinaryPath:
     Just edit one of these attributes if the binary is not in your environment path
     """
 
-    def __init__(self) -> NoReturn:
+    def __init__(self) -> NoReturn:  # type: ignore[misc]
         raise RuntimeError('Cannot directly instantiate this class.')
 
     eac3to: VPath = VPath('eac3to')
