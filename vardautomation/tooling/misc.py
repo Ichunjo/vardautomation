@@ -4,6 +4,7 @@ __all__ = [
 ]
 
 import asyncio
+import inspect
 import os
 from typing import Iterable, List, NamedTuple, Optional
 
@@ -27,20 +28,29 @@ class Qpfile(NamedTuple):
     """List of keyframes"""
 
 
-def make_qpfile(clip: vs.VideoNode, path: AnyPath, /, mode: SCM = SCM.WWXD_SCXVID_UNION) -> Qpfile:
+def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
+                overwrite: bool = True, mode: SCM = SCM.WWXD_SCXVID_UNION) -> Qpfile:
     """
     Convenience function for making a qpfile
 
     :param clip:            Source clip
-    :param path:            Path where the qpfile will be written
+    :param path:            Path where the qpfile will be written.
+                            Default to the name of the script that run this function with the ".log" extension
+    :param overwrite:       If True, will overwrite the file
     :param mode:            Scene change mode, defaults to SCM.WWXD_SCXVID_UNION
     :return:                A Qpfile
     """
-    path = VPath(path)
-    if path.exists():
-        Status.fail(f'make_qpfile: a qpfile already exists at {path.resolve().to_str()}')
+    path = VPath(inspect.stack()[-1].filename).with_suffix('.log') if not path else VPath(path)
 
+    if not overwrite and path.exists():
+        Status.fail(f'make_qpfile: a qpfile already exists at "{path.resolve().to_str()}"')
+
+    num_threads = vs.core.num_threads
+    if (oscpu := os.cpu_count()) is not None:
+        vs.core.num_threads = oscpu
     scenes = find_scene_changes(clip, mode)
+    vs.core.num_threads = num_threads
+
     with path.open('w', encoding='utf-8') as file:
         file.writelines(f'{s} K\n' for s in scenes)
     return Qpfile(path, scenes)
