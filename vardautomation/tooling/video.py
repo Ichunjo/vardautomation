@@ -106,9 +106,8 @@ class VideoEncoder(Tool):
             self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
-class Resumable(VideoEncoder, ABC):
-    resumable: bool = False
-    """Enable resumable encodes"""
+class _Resumable(VideoEncoder, ABC):
+    resumable = False
     _output: VPath
     _parts: List[VPath]
     _kfs: List[int]
@@ -257,8 +256,11 @@ class FFV1(LosslessEncoder):
         self.progress_update = None
 
 
-class VideoLanEncoder(Resumable, VideoEncoder, ABC):
+class VideoLanEncoder(_Resumable, VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
+
+    resumable: bool
+    """Enable resumable encodes"""
 
     _vl_binary: ClassVar[AnyPath]
     _bits: int
@@ -387,6 +389,9 @@ class X265(VideoLanEncoder):
 
     _vl_binary = BinaryPath.x265
 
+    resumable: bool
+    """Enable resumable encodes"""
+
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
@@ -400,6 +405,9 @@ class X264(VideoLanEncoder):
     """Video encoder using x264 for AVC"""
 
     _vl_binary = BinaryPath.x264
+
+    resumable: bool
+    """Enable resumable encodes"""
 
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
