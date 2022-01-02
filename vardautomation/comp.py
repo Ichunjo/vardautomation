@@ -108,7 +108,7 @@ class Comparison:
         :param path:                Path to your comparison folder, defaults to 'comps'
         :param num:                 Number of frames to extract, defaults to 15
         :param frames:              Additionnal frame numbers that will be added to the total of ``num``, defaults to None
-        :param picture_type:         Select picture types to pick, default to None
+        :param picture_type:        Select picture types to pick, default to None
         """
         self.clips = clips
         self.path = VPath(path)
