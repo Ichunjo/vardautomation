@@ -113,7 +113,7 @@ class SelfRunner:
         for f in funcs:
             f()
 
-    def inject_qpfile_params(self, qpfile_clip: Optional[vs.VideoNode] = None,
+    def inject_qpfile_params(self, *, qpfile_clip: Optional[vs.VideoNode] = None,
                              qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         """
         :param qpfile_clip:         Clip to be used to generate the Qpfile
