@@ -163,10 +163,13 @@ class SelfRunner:
                     debug.clear()
             vs.clear_outputs()
 
-        if self.file.do_lossless and self.config.v_lossless_encoder:
-            if not self.file.name_clip_output_lossless.exists():
+        if self.config.v_lossless_encoder:
+            if not (
+                path_lossless
+                := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
+            ).exists():
                 self.config.v_lossless_encoder.run_enc(self.clip, self.file)
-            self.clip = core.lsmas.LWLibavSource(self.file.name_clip_output_lossless.to_str())
+            self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
 
         if not self.file.name_clip_output.exists():
             if self.config.qpfile:

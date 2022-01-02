@@ -109,15 +109,18 @@ class VideoEncoder(Tool):
 class LosslessEncoder(VideoEncoder):
     """Video encoder for lossless encoding"""
 
+    suffix_name: str = '_lossless'
+    """Suffix name for the lossless output"""
+
     @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{clip_output_lossless:s}`` by ``self.file.name_clip_output_lossless``\n
+        Replaces ``{clip_output_lossless:s}`` by ``self.file.name_clip_output.append_stem(self.suffix_name)``\n
         Replaces ``{bits:s}`` by ``Properties.get_depth(self.clip)``\n
         """
         try:
             return dict(
-                clip_output_lossless=self.file.name_clip_output_lossless.to_str(),
+                clip_output_lossless=self.file.name_clip_output.append_stem(self.suffix_name).to_str(),
                 bits=Properties.get_depth(self.clip)
             )
         except AttributeError:

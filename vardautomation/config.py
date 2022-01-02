@@ -251,11 +251,6 @@ class FileInfo:
     name_file_final: VPath
     """Final file output path"""
 
-    name_clip_output_lossless: VPath
-    """Lossless file name path"""
-    do_lossless: bool
-    """If lossless or not"""
-
     _num_prop: bool = False
     _trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None]
 
@@ -300,9 +295,6 @@ class FileInfo:
 
             self.name_clip_output = self.workdir / VPath(self.name)
             self.name_file_final = VPath(self.name + '.mkv')
-
-            self.name_clip_output_lossless = self.workdir / VPath(self.name + '_lossless.mkv')
-            self.do_lossless = False
 
         self.__post_init__()
 
