@@ -106,7 +106,7 @@ class VideoEncoder(Tool):
             self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
-class _Resumable(VideoEncoder, ABC):
+class Resumable(VideoEncoder, ABC):
     resumable: bool = False
     """Enable resumable encodes"""
     _output: VPath
@@ -124,9 +124,7 @@ class _Resumable(VideoEncoder, ABC):
         # Copy original name
         self._output = VPath(self.file.name_clip_output)
 
-        pattern = self.file.name_clip_output.resolve().with_stem(
-            self.file.name_clip_output.stem + '_part_???'
-        )
+        pattern = self.file.name_clip_output.resolve().append_stem('_part_???')
         self._parts = sorted(pattern.parent.glob(pattern.stem))
 
         # Get the last keyframes where you can encode from
@@ -146,9 +144,7 @@ class _Resumable(VideoEncoder, ABC):
             except subprocess.CalledProcessError:
                 del self._parts[-1]
 
-        self.file.name_clip_output = self.file.name_clip_output.with_stem(
-            self.file.name_clip_output.stem + f'_part_{len(self._parts):03.0f}'
-        )
+        self.file.name_clip_output.append_stem(f'_part_{len(self._parts):03.0f}')
         self._parts.append(self.file.name_clip_output)
 
         self.clip = clip[sum(self._kfs):]
@@ -170,8 +166,8 @@ class _Resumable(VideoEncoder, ABC):
             p_mkv = part.with_suffix('.mkv')
             BasicTool(BinaryPath.mkvmerge, ['-o', p_mkv.to_str(), part.to_str(), '--split', f'frames:{kf}']).run()
             # Mkv files
-            p_mkv001 = p_mkv.with_stem(p_mkv.stem + '-001').to_str()
-            p_mkv002 = p_mkv.with_stem(p_mkv.stem + '-002')
+            p_mkv001 = p_mkv.append_stem('-001').to_str()
+            p_mkv002 = p_mkv.append_stem('-002')
             # We need them
             mkv_parts.append(p_mkv001)
             # Those are crappy
@@ -187,7 +183,7 @@ class _Resumable(VideoEncoder, ABC):
 
         # Restore original name
         self.file.name_clip_output = self._output
-        output = self.file.name_clip_output.with_stem(self.file.name_clip_output.stem + '_tmp').with_suffix('.mkv')
+        output = self.file.name_clip_output.append_stem('_tmp').with_suffix('.mkv')
         # Merge the splitted files
         BasicTool(
             BinaryPath.mkvmerge,
@@ -261,7 +257,7 @@ class FFV1(LosslessEncoder):
         self.progress_update = None
 
 
-class VideoLanEncoder(_Resumable, VideoEncoder, ABC):
+class VideoLanEncoder(Resumable, VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
     _vl_binary: ClassVar[AnyPath]
