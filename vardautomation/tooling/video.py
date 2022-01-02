@@ -5,9 +5,10 @@ __all__ = [
     'progress_update_func'
 ]
 
+import os
 import subprocess
 from abc import ABC
-from typing import Any, BinaryIO, ClassVar, Dict, List, NoReturn, Optional, Tuple, Union, cast
+from typing import Any, BinaryIO, ClassVar, Dict, List, NoReturn, Optional, Set, Tuple, Union, cast
 
 import vapoursynth as vs
 
@@ -16,7 +17,10 @@ from ..config import FileInfo
 from ..status import Status
 from ..types import AnyPath, UpdateFunc
 from ..utils import Properties, copy_docstring_from
+from ..vpathlib import VPath
 from .abstract import Tool
+from .base import BasicTool
+from .misc import get_keyframes
 
 
 def progress_update_func(value: int, endvalue: int) -> None:
@@ -102,6 +106,106 @@ class VideoEncoder(Tool):
             self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
+class _Resumable(VideoEncoder, ABC):
+    resumable: bool = False
+    """Enable resumable encodes"""
+    _output: VPath
+    _parts: List[VPath]
+    _kfs: List[int]
+
+    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
+        if not self.resumable:
+            return super().run_enc(clip, file)
+
+        if not file:
+            Status.fail(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
+        self.file = file
+
+        # Copy original name
+        self._output = VPath(self.file.name_clip_output)
+
+        pattern = self.file.name_clip_output.resolve().with_stem(
+            self.file.name_clip_output.stem + '_part_???'
+        )
+        self._parts = sorted(pattern.parent.glob(pattern.stem))
+
+        # Get the last keyframes where you can encode from
+        self._kfs = []
+        for part in self._parts:
+            try:
+                kfnt = get_keyframes(part)
+                kf = kfnt.frames[-1]
+                # If the last keyframe is 0 then we can just overwrite the last encode
+                if kf == 0:
+                    del self._parts[-1]
+                else:
+                    self._kfs.append(kf)
+                os.remove(kfnt.path)
+            # If subprocess throws an error the file is probably corrupted.
+            # Let the encoder overwrite it
+            except subprocess.CalledProcessError:
+                del self._parts[-1]
+
+        self.file.name_clip_output = self.file.name_clip_output.with_stem(
+            self.file.name_clip_output.stem + f'_part_{len(self._parts):03.0f}'
+        )
+        self._parts.append(self.file.name_clip_output)
+
+        self.clip = clip[sum(self._kfs):]
+        return super().run_enc(self.clip, self.file)
+
+    def _do_encode(self) -> None:
+        # Just do the encode if not resumable
+        if not self.resumable:
+            return super()._do_encode()
+
+        # Run encode
+        super()._do_encode()
+
+        # Files to delete
+        _craps: Set[AnyPath] = set()
+        # Split the files until the last keyframe
+        mkv_parts: List[str] = []
+        for kf, part in zip(self._kfs, self._parts):
+            p_mkv = part.with_suffix('.mkv')
+            BasicTool(BinaryPath.mkvmerge, ['-o', p_mkv.to_str(), part.to_str(), '--split', f'frames:{kf}']).run()
+            # Mkv files
+            p_mkv001 = p_mkv.with_stem(p_mkv.stem + '-001').to_str()
+            p_mkv002 = p_mkv.with_stem(p_mkv.stem + '-002')
+            # We need them
+            mkv_parts.append(p_mkv001)
+            # Those are crappy
+            _craps.update([p_mkv001, p_mkv002])
+        _craps.update(self._parts)
+
+        # Also merge the last encoded part
+        last = self.file.name_clip_output.with_suffix('.mkv').to_str()
+        BasicTool(BinaryPath.mkvmerge, ['-o', last, self.file.name_clip_output.to_str()]).run()
+        mkv_parts.append(last)
+        _craps.add(last)
+        _craps.add(self.file.name_clip_output)
+
+        # Restore original name
+        self.file.name_clip_output = self._output
+        output = self.file.name_clip_output.with_stem(self.file.name_clip_output.stem + '_tmp').with_suffix('.mkv')
+        # Merge the splitted files
+        BasicTool(
+            BinaryPath.mkvmerge,
+            ['-o', output.to_str(), '[', *mkv_parts, ']',
+             '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
+        ).run()
+        _craps.add(output)
+
+        # Extract the merged file
+        BasicTool(BinaryPath.mkvextract, [output.to_str(), 'tracks', f'0:{self.file.name_clip_output.to_str()}']).run()
+        # Delete working files
+        for crap in _craps:
+            os.remove(crap)
+        _craps.clear()
+
+        return None
+
+
 class LosslessEncoder(VideoEncoder):
     """Video encoder for lossless encoding"""
 
@@ -157,7 +261,7 @@ class FFV1(LosslessEncoder):
         self.progress_update = None
 
 
-class VideoLanEncoder(VideoEncoder, ABC):
+class VideoLanEncoder(_Resumable, VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
     _vl_binary: ClassVar[AnyPath]
