@@ -14,9 +14,10 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
 from os import remove
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Set, Tuple, TypedDict, Union, cast
 
 import vapoursynth as vs
+from typing_extensions import NotRequired
 from vardefunc.misc import DebugOutput
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
@@ -28,6 +29,7 @@ from .tooling import (
     AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, Mux, Qpfile,
     VideoEncoder, VideoLanEncoder, make_qpfile
 )
+from .tooling.video import SupportQpfile
 from .types import AnyPath, T
 from .vpathlib import VPath
 
@@ -68,6 +70,11 @@ class RunnerConfig:
     """Clears all clips set for output in the current environment"""
 
 
+class _QpFileParams(TypedDict):
+    qpfile_clip: NotRequired[Optional[vs.VideoNode]]
+    qpfile_func: NotRequired[Callable[[vs.VideoNode, AnyPath], Qpfile]]
+
+
 class SelfRunner:
     """Self runner interface"""
 
@@ -83,7 +90,7 @@ class SelfRunner:
     cleanup_files: Set[AnyPath]
     """Files to be deleted"""
 
-    _qpfile_params: Dict[str, Any]
+    _qpfile_params: _QpFileParams
 
     def __init__(self, clip: vs.VideoNode, file: FileInfo, /, config: RunnerConfig) -> None:
         """
@@ -95,7 +102,7 @@ class SelfRunner:
         self.file = file
         self.config = config
         self.cleanup_files = set()
-        self._qpfile_params = {}
+        self._qpfile_params = _QpFileParams()
 
     def run(self, *, show_logo: bool = True) -> None:
         """
@@ -119,7 +126,7 @@ class SelfRunner:
         :param qpfile_clip:         Clip to be used to generate the Qpfile
         :param qpfile_func:         Function to be used to generate the Qpfile
         """
-        self._qpfile_params.update(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
+        self._qpfile_params = _QpFileParams(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """
@@ -185,7 +192,10 @@ class SelfRunner:
                         'is not an instance of VideoLanEncoder; qpfile skipped...'
                     )
 
-            self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
+            if isinstance(self.config.v_encoder, SupportQpfile):
+                self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
+            else:
+                self.config.v_encoder.run_enc(self.clip, self.file)
             self.cleanup_files.add(self.file.name_clip_output)
 
     def _audio_getter(self) -> None:  # noqa C901
