@@ -1,6 +1,8 @@
 
 __all__ = [
-    'Qpfile', 'make_qpfile', 'get_vs_core', 'SubProcessAsync'
+    'Qpfile', 'make_qpfile',
+    'KeyframesFile', 'get_keyframes',
+    'get_vs_core', 'SubProcessAsync'
 ]
 
 import asyncio
@@ -11,11 +13,13 @@ from typing import Iterable, List, NamedTuple, Optional
 import psutil
 import vapoursynth as vs
 
+from ..binary_path import BinaryPath
 from ..render import SceneChangeMode as SCM
 from ..render import find_scene_changes
 from ..status import Status
 from ..types import AnyPath
 from ..vpathlib import VPath
+from .base import BasicTool
 
 
 class Qpfile(NamedTuple):
@@ -54,6 +58,40 @@ def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
     with path.open('w', encoding='utf-8') as file:
         file.writelines(f'{s} K\n' for s in scenes)
     return Qpfile(path, scenes)
+
+
+
+class KeyframesFile(NamedTuple):
+    """Simple namedtuple for a keyframes file"""
+
+    path: VPath
+    """Keyframe file path"""
+
+    frames: List[int]
+    """List of keyframes"""
+
+
+def get_keyframes(path: AnyPath) -> KeyframesFile:
+    """
+    Get the keyframes of a video using ffmsindex
+
+    :param path:        Path of the video
+    :return:            A KeyframesFile
+    """
+    path = VPath(path)
+
+    idx_file = path.parent / 'index.ffindex'
+    kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
+
+    BasicTool(BinaryPath.ffmsindex, ['-p', '-k', '-f', path.to_str(), idx_file.to_str()]).run()
+    os.remove(idx_file)
+
+    with kf_file.open('r', encoding='utf-8') as kfio:
+        file = KeyframesFile(
+            kf_file,
+            [int(kf) for kf in kfio.read().splitlines()[2:]]
+        )
+    return file
 
 
 def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optional[int] = None) -> vs.Core:
