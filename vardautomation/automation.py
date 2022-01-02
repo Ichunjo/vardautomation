@@ -59,7 +59,7 @@ class RunnerConfig:
     """Muxer"""
 
     qpfile: Optional[Qpfile] = None
-    """Qpfile NamedTuple"""
+    """Qpfile NamedTuple. Deprecated."""
 
     order: RunnerConfig.Order = Order.VIDEO
     """Priority order"""
@@ -171,7 +171,7 @@ class SelfRunner:
         if not self.file.name_clip_output.exists():
             if self.config.qpfile:
                 Status.warn(
-                    f'{self.__class__.__name__}: RunnerConfig.qpfile is depreciated.'
+                    f'{self.__class__.__name__}: RunnerConfig.qpfile is deprecated.'
                     'Use SelfRunner.inject_qpfile_params instead.'
                 )
                 if isinstance(self.config.v_encoder, VideoLanEncoder):
