@@ -3,7 +3,7 @@ colorama==0.4.4
 langcodes==3.1.0
 language-data==1.0
 lvsfunc==0.3.10
-lxml==4.6.3
+lxml==4.6.5
 numpy==1.21.2
 psutil==5.8.0
 pymediainfo==5.1.0
