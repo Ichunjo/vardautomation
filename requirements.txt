@@ -1,7 +1,7 @@
 acsuite_orangechannel==6.0.0
 colorama==0.4.4
 langcodes==3.3.0
-language-data==1.0
+language-data==1.1
 lvsfunc==0.3.10
 lxml==4.6.5
 numpy==1.21.2
