@@ -183,9 +183,11 @@ class SupportQpfile(VideoEncoder, ABC):
         if qpfile_clip:
             if qpfile_clip.num_frames != clip.num_frames:
                 Status.fail(f'{self.__class__.__name__}: the ``qpfile_clip`` should have the same length than the ``clip``')
+            if not file:
+                Status.fail(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
             qpfile = qpfile_func(
                 qpfile_clip,
-                self.file.name_clip_output.append_stem('_qpfile').with_suffix('.log')
+                file.name_clip_output.append_stem('_qpfile').with_suffix('.log')
             )
             self.params.extend(['--qpfile', qpfile.path.to_str()])
             _craps.append(qpfile.path)
