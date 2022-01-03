@@ -130,6 +130,8 @@ class LosslessEncoder(VideoEncoder):
 class NVEncCLossless(LosslessEncoder):
     """Built-in NvencC encoder."""
 
+    suffix_name: str = '_lossless.mkv'
+
     def __init__(self, *, hevc: bool = True) -> None:
         """
         Use NvencC to output a lossless encode in HEVC
@@ -148,6 +150,8 @@ class NVEncCLossless(LosslessEncoder):
 
 class FFV1(LosslessEncoder):
     """Built-in FFV1 encoder."""
+
+    suffix_name: str = '_lossless.mkv'
 
     def __init__(self, *, threads: int = 0) -> None:
         """
