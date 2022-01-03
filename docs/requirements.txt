@@ -5,7 +5,7 @@ requests==2.25.1
 colorama==0.4.4
 langcodes==3.3.0
 language-data==1.0
-psutil==5.8.0
+psutil==5.9.0
 pyparsebluray==0.1.3
 pyparsedvd==0.0.3
 pytimeconv==0.0.2
