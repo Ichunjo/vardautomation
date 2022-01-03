@@ -4,7 +4,7 @@ langcodes==3.3.0
 language-data==1.1
 lvsfunc==0.3.10
 lxml==4.6.5
-numpy==1.21.2
+numpy==1.22.0
 psutil==5.9.0
 pymediainfo==5.1.0
 pyparsebluray==0.1.3
