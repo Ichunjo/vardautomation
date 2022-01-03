@@ -1,5 +1,5 @@
 sphinx-autodoc-typehints==1.13.0
-lxml==4.6.3
+lxml==4.6.5
 pymediainfo==5.1.0
 requests==2.25.1
 colorama==0.4.4
