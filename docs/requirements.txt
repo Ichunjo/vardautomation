@@ -11,5 +11,5 @@ pyparsedvd==0.0.3
 pytimeconv==0.0.2
 requests_toolbelt==0.9.1
 rich==10.16.2
-typing-extensions==3.10.0.2
+typing-extensions==4.0.1
 numpy==1.22.0
