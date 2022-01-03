@@ -1,5 +1,5 @@
 flake8==4.0.1
-lxml-stubs==0.2.0
+lxml-stubs==0.3.0
 mypy==0.930
 mypy-extensions==0.4.3
 pycodestyle==2.8.0
