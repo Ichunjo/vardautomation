@@ -356,9 +356,8 @@ class Patch:
         nranges = normalise_ranges(self.clip, ranges, norm_dups=True)
         self._print_debug('norm_dups', ranges)
 
-        if len(nranges) == 1:
-            if nranges[0][0] == 0 and nranges[0][1] == self.clip.num_frames:
-                Status.fail(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode', exception=ValueError)
+        if len(nranges) == 1 and nranges[0][0] == 0 and nranges[0][1] == self.clip.num_frames:
+            Status.fail(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode', exception=ValueError)
 
         self.ranges = nranges
 
