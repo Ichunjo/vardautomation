@@ -8,10 +8,10 @@ import os
 import shutil
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
+from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type, Union
 
 from .status import Status
-from .types import AnyPath, AbstractMutableSet
+from .types import AbstractMutableSet, AnyPath
 
 
 class _Flavour(Protocol):
@@ -20,7 +20,7 @@ class _Flavour(Protocol):
 
 
 _ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-_OptExcInfo = _ExcInfo | Tuple[None, None, None]  # type: ignore[operator]
+_OptExcInfo = Union[_ExcInfo, Tuple[None, None, None]]
 
 
 class VPath(Path):
