@@ -230,4 +230,4 @@ class CleanupSet(AbstractMutableSet[VPath]):
 
         :param s:           Iterable of path
         """
-        return super().update([VPath(p) for iterable in s for p in iterable])
+        return super().update((VPath(p) for iterable in s for p in iterable))
