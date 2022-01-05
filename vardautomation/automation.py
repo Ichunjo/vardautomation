@@ -12,7 +12,6 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from os import remove
 from typing import Any, Callable, List, Optional, Sequence, Set, Tuple, TypedDict, Union, cast
 
 import vapoursynth as vs
@@ -30,7 +29,7 @@ from .tooling import (
 )
 from .tooling.video import SupportQpfile
 from .types import AnyPath, T
-from .vpathlib import VPath
+from .vpathlib import CleanupSet, VPath
 
 core = vs.core
 
@@ -60,7 +59,10 @@ class RunnerConfig:
     """Muxer"""
 
     qpfile: Optional[Qpfile] = None
-    """Qpfile NamedTuple. Deprecated."""
+    """
+    DEPRECATED\n
+    Qpfile NamedTuple
+    """
 
     order: RunnerConfig.Order = Order.VIDEO
     """Priority order"""
@@ -86,8 +88,29 @@ class SelfRunner:
     config: RunnerConfig
     """Config of the runner"""
 
-    cleanup_files: Set[AnyPath]
-    """Files to be deleted"""
+    work_files: CleanupSet
+    """
+    Intermediate working files:
+
+    The SelfRunner class will add everything it can in this set-like,
+    meaning if you want to delete the files you can just do::
+
+        runner = SelfRunner(...)
+        runner.run()
+        runner.work_files.clear()
+
+    The runner will add these attributes to be deleted:
+        * :py:attr:`FileInfo.name_clip_output`
+        * :py:attr:`FileInfo.a_src`
+        * :py:attr:`FileInfo.a_src_cut`
+        * :py:attr:`FileInfo.a_enc_cut`
+        * :py:attr:`FileInfo.chapter`
+
+    So if you want to keep some of these files, this is possible::
+
+        runner.work_files.discard(self.file.name_clip_output)
+        runner.work_files.discard(self.file.chapter)
+    """
 
     _qpfile_params: _QpFileParams
 
@@ -100,8 +123,14 @@ class SelfRunner:
         self.clip = clip
         self.file = file
         self.config = config
-        self.cleanup_files = set()
+        self.work_files = CleanupSet()
         self._qpfile_params = _QpFileParams()
+
+    @property
+    def cleanup_files(self) -> CleanupSet:
+        """DEPRECATED"""
+        Status.warn(f'{self.__class__.__name__}.cleanup_files: Deprecated attribute; please use ``work_files`` instead')
+        return self.work_files
 
     def run(self, *, show_logo: bool = True) -> None:
         """
@@ -129,16 +158,17 @@ class SelfRunner:
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """
+        DEPRECATED\n
         Delete working files
 
         :param extra_files:     Additional files to be deleted
         """
-        for files in self.cleanup_files | set(extra_files):
-            try:
-                remove(files)
-            except FileNotFoundError:
-                pass
-        self.cleanup_files.clear()
+        Status.warn(
+            f'{self.__class__.__name__}: This method is deprecated. '
+            'Just use ``runner.work_files.clear()``'
+        )
+        self.work_files.update(extra_files)
+        self.work_files.clear()
 
     def rename_final_file(self, name: AnyPath) -> None:
         """
@@ -195,40 +225,39 @@ class SelfRunner:
                 self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
             else:
                 self.config.v_encoder.run_enc(self.clip, self.file)
-            self.cleanup_files.add(self.file.name_clip_output)
+        self.work_files.add(self.file.name_clip_output)
 
     def _audio_getter(self) -> None:  # noqa C901
         if not isinstance(self.file, FileInfo2):
-            if self.config.a_extracters:
-                a_extracters = self._check_if_sequence(self.config.a_extracters)
-                for a_extracter in a_extracters:
-                    if self.file.a_src and not any(self.file.a_src.set_track(n).exists() for n in a_extracter.track_out):
+            if self.config.a_extracters and self.file.a_src:
+                for a_extracter in _toseq(self.config.a_extracters):
+                    all_a_src = [self.file.a_src.set_track(n) for n in a_extracter.track_out]
+                    self.work_files.update(all_a_src)
+                    if not any(a_src.exists() for a_src in all_a_src):
                         a_extracter.run()
-                        for n in a_extracter.track_out:
-                            self.cleanup_files.add(self.file.a_src.set_track(n))
 
-            if self.config.a_cutters:
-                a_cutters = self._check_if_sequence(self.config.a_cutters)
-                for i, a_cutter in enumerate(a_cutters, start=1):
-                    if self.file.a_src_cut and not self.file.a_src_cut.set_track(i).exists():
+            if self.config.a_cutters and self.file.a_src_cut:
+                for i, a_cutter in enumerate(_toseq(self.config.a_cutters), start=1):
+                    self.work_files.add(self.file.a_src_cut.set_track(i))
+                    if not self.file.a_src_cut.set_track(i).exists():
                         a_cutter.run()
-                        self.cleanup_files.add(self.file.a_src_cut.set_track(i))
 
-        if self.config.a_encoders:
-            a_encoders = self._check_if_sequence(self.config.a_encoders)
-            for i, a_encoder in enumerate(a_encoders, start=1):
-                if self.file.a_enc_cut and not self.file.a_enc_cut.set_track(i).exists():
+        if self.config.a_encoders and self.file.a_enc_cut:
+            for i, a_encoder in enumerate(_toseq(self.config.a_encoders), start=1):
+                self.work_files.add(self.file.a_enc_cut.set_track(i))
+                if not self.file.a_enc_cut.set_track(i).exists():
                     a_encoder.run()
-                    self.cleanup_files.add(self.file.a_enc_cut.set_track(i))
-
-    @staticmethod
-    def _check_if_sequence(seq: Union[T, Sequence[T]]) -> Sequence[T]:
-        return cast(Sequence[T], seq) if isinstance(seq, Sequence) else cast(Sequence[T], [seq])
 
     def _muxer(self) -> None:
         if self.config.muxer:
-            wfs = self.config.muxer.run()
-            self.cleanup_files.update(wfs)
+            self.config.muxer.run()
+            self.work_files.add(self.file.name_clip_output)
+            if (c := self.file.chapter):
+                self.work_files.add(c)
+
+
+def _toseq(seq: T | Sequence[T]) -> Sequence[T]:
+    return cast(Sequence[T], seq) if isinstance(seq, Sequence) else cast(Sequence[T], [seq])
 
 
 class Patch:

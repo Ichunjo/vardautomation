@@ -11,7 +11,7 @@ from types import TracebackType
 from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
 
 from .status import Status
-from .types import AnyPath
+from .types import AnyPath, AbstractMutableSet
 
 
 class _Flavour(Protocol):
@@ -193,3 +193,40 @@ class VPath(Path):
                     exception=IsADirectoryError, chain_err=dir_err
                 )
 
+
+class CleanupSet(AbstractMutableSet[VPath]):
+    def clear(self, *, ignore_errors: bool = True) -> None:
+        """
+        Clear the set and delete files
+
+        :param ignore_errors:       Ignore errors emitted by os.remove
+        """
+        for path in self:
+            path.rm(ignore_errors)
+        return super().clear()
+
+    def add(self, value: AnyPath) -> None:
+        """
+        Add a generic path to this set and convert it to a VPath
+        This has no effect if the path is already present
+
+        :param value:       A path
+        """
+        return super().add(VPath(value))
+
+    def discard(self, value: VPath) -> None:
+        """
+        Remove a VPath from this set if it is a member.
+        If the VPath is not a member, do nothing
+
+        :param value:       A VPath
+        """
+        return super().discard(value)
+
+    def update(self, *s: Iterable[AnyPath]) -> None:
+        """
+        Update the set with the union of itself and others
+
+        :param s:           Iterable of path
+        """
+        return super().update([VPath(p) for iterable in s for p in iterable])
