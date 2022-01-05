@@ -84,7 +84,7 @@ def get_keyframes(path: AnyPath) -> KeyframesFile:
     kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
 
     BasicTool(BinaryPath.ffmsindex, ['-p', '-k', '-f', path.to_str(), idx_file.to_str()]).run()
-    os.remove(idx_file)
+    idx_file.rm()
 
     with kf_file.open('r', encoding='utf-8') as kfio:
         file = KeyframesFile(

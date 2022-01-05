@@ -9,7 +9,6 @@ import random
 from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
-from shutil import copyfile
 from typing import List, NamedTuple, NoReturn, Optional, Sequence, Type, Union, cast
 
 from lxml import etree
@@ -99,7 +98,7 @@ class Chapters(ABC):
         :param destination:     Destination path
         """
         destination = VPath(destination)
-        copyfile(self.chapter_file.resolve(), destination.resolve())
+        self.chapter_file.resolve().copyfile(destination.resolve())
         self.chapter_file = destination
         Status.info(
             f'{self.__class__.__name__}: Chapter file sucessfully copied from: '

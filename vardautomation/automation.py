@@ -8,7 +8,6 @@ __all__ = [
     'Patch'
 ]
 
-import shutil
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -306,7 +305,7 @@ class Patch:
 
     def do_cleanup(self) -> None:
         """Delete working directory folder"""
-        shutil.rmtree(self.workdir, ignore_errors=True)
+        self.workdir.rmtree(ignore_errors=True)
 
     def _resolve_range(self) -> None:
         idx_file = self.workdir / 'index.ffindex'

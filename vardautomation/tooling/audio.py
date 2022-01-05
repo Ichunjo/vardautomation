@@ -8,10 +8,8 @@ __all__ = [
     'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
 ]
 
-import os
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum, auto
-from shutil import copyfile
 from typing import Any, Dict, List, Literal, NoReturn, Optional, Sequence, Set, Union
 
 import numpy as np
@@ -275,9 +273,8 @@ class PassthroughAudioEncoder(AudioEncoder):
         assert self.file.a_enc_cut
 
         Status.info(f'{self.__class__.__name__}: copying audio...')
-        copyfile(
-            self.file.a_src_cut.set_track(self.track).absolute().to_str(),
-            self.file.a_enc_cut.set_track(self.track).absolute().to_str()
+        self.file.a_src_cut.set_track(self.track).resolve().copyfile(
+            self.file.a_enc_cut.set_track(self.track).absolute()
         )
 
 
@@ -647,14 +644,6 @@ class AudioCutter(ABC):
         :param bitdepth:        Bit depth, defaults to 16
         """
 
-    @staticmethod
-    def _cleanup(*files: AnyPath) -> None:
-        for f in files:
-            try:
-                os.remove(f)
-            except FileNotFoundError:
-                pass
-
 
 class ScipyCutter(AudioCutter):
     """Audio cutter using scipy.io.wavfile module"""
@@ -870,7 +859,7 @@ class EztrimCutter(AudioCutter):
         tmp_name = output.name + '_tmp_{track_number}' + src.suffix
         tmp = parent / tmp_name
 
-        tmp_files: Set[AnyPath] = set()
+        tmp_files: Set[VPath] = set()
         fps = ref_clip.fps
         f2ts = Convert.f2ts
 
@@ -911,7 +900,8 @@ class EztrimCutter(AudioCutter):
             cls.combine(concat_files, output)
 
         if cleanup:
-            cls._cleanup(*tmp_files)
+            for tmpf in tmp_files:
+                tmpf.rm(ignore_errors=True)
 
         del tmp_files
 
@@ -937,8 +927,8 @@ class EztrimCutter(AudioCutter):
         # Write a config concat file
         # paths should be in poxix format and space character escaped
         # this is so annoying
-        with open('_conf_concat.txt', 'w', encoding='utf-8') as _conf_concat:
-            _conf_concat.writelines(
+        with (concat_conf := VPath('_conf_concat.txt')).open('w', encoding='utf-8') as conf:
+            conf.writelines(
                 # pylint: disable=consider-using-f-string
                 'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
                 for af in files
@@ -946,10 +936,10 @@ class EztrimCutter(AudioCutter):
         BasicTool(
             BinaryPath.ffmpeg,
             cls._ffmpeg_warning
-            + ['-f', 'concat', '-safe', '0', '-i', '_conf_concat.txt', '-c', 'copy', str(output)]
+            + ['-f', 'concat', '-safe', '0', '-i', concat_conf.to_str(), '-c', 'copy', str(output)]
         ).run()
 
-        cls._cleanup('_conf_concat.txt')
+        concat_conf.rm()
 
     @staticmethod
     def _are_trims_only(trims_or_dfs: Union[List[Trim], List[Union[Trim, DuplicateFrame]]]) -> TypeGuard[List[Trim]]:
@@ -1014,7 +1004,7 @@ class SoxCutter(AudioCutter):
         tmp_name = output.name + '_tmp_{track_number}.wav'
         tmp = parent / tmp_name
 
-        tmp_files: Set[AnyPath] = set()
+        tmp_files: Set[VPath] = set()
         fps = ref_clip.fps
         f2s = Convert.f2seconds
 
@@ -1034,7 +1024,7 @@ class SoxCutter(AudioCutter):
                     Convert.f2seconds(df.dup, fps), tmp.set_track(i).to_str(),
                     nb_ch, srate, bitdepth
                 )
-                tmp_files.add(tmp.set_track(i).to_str())
+                tmp_files.add(tmp.set_track(i))
 
         if combine:
             tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
@@ -1044,8 +1034,8 @@ class SoxCutter(AudioCutter):
             ).run()
 
         if cleanup:
-            cls._cleanup(*tmp_files)
-
+            for tmpf in tmp_files:
+                tmpf.rm(ignore_errors=True)
         del tmp_files
 
     @classmethod
@@ -1070,9 +1060,8 @@ class PassthroughCutter(AudioCutter):
         assert self.file.a_src
         assert self.file.a_src_cut
         Status.info(f'{self.__class__.__name__}: copying audio...')
-        copyfile(
-            self.file.a_src.set_track(self.track).absolute().to_str(),
-            self.file.a_src_cut.set_track(self.track).absolute().to_str()
+        self.file.a_src.set_track(self.track).resolve().copyfile(
+            self.file.a_src_cut.set_track(self.track).resolve()
         )
 
     @classmethod

@@ -4,13 +4,23 @@ from __future__ import annotations
 
 __all__ = ['VPath']
 
+import os
+import shutil
 from pathlib import Path
-from typing import Any, Protocol
+from types import TracebackType
+from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
+
+from .status import Status
+from .types import AnyPath
 
 
 class _Flavour(Protocol):
     sep: str
     altsep: str
+
+
+_ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+_OptExcInfo = _ExcInfo | Tuple[None, None, None]  # type: ignore[operator]
 
 
 class VPath(Path):
@@ -70,3 +80,116 @@ class VPath(Path):
             raise ValueError(f'{self} has an empty name')
         name = name + suffix
         return self._from_parsed_parts(self._drv, self._root, self._parts[:-1] + [name])  # type: ignore
+
+    def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:
+        """
+        Wraps shutil.copy. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copy
+
+        :param target:              See Python official documentation
+        :param follow_symlinks:     See Python official documentation
+        """
+        shutil.copy(self, target, follow_symlinks=follow_symlinks)
+
+    def copy2(self, target: AnyPath, follow_symlinks: bool = True) -> None:
+        """
+        Wraps shutil.copy2. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copy2
+
+        :param target:              See Python official documentation
+        :param follow_symlinks:     See Python official documentation
+        """
+        shutil.copy2(self, target, follow_symlinks=follow_symlinks)
+
+    def copyfile(self, target: VPath, follow_symlinks: bool = True) -> None:
+        """
+        Wraps shutil.copyfile. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copyfile
+
+        :param target:              See Python official documentation
+        :param follow_symlinks:     See Python official documentation
+        """
+        shutil.copyfile(self, target, follow_symlinks=follow_symlinks)
+
+    def copymode(self, target: AnyPath, follow_symlinks: bool = True) -> None:
+        """
+        Wraps shutil.copymode. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copymode
+
+        :param target:              See Python official documentation
+        :param follow_symlinks:     See Python official documentation
+        """
+        shutil.copymode(self, target, follow_symlinks=follow_symlinks)
+
+    def copystat(self, target: AnyPath, follow_symlinks: bool = True) -> None:
+        """
+        Wraps shutil.copystat. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copystat
+
+        :param target:              See Python official documentation
+        :param follow_symlinks:     See Python official documentation
+        """
+        shutil.copystat(self, target, follow_symlinks=follow_symlinks)
+
+    def copytree(
+        self, target: AnyPath, symlinks: bool = False,
+        ignore: Optional[Callable[[AnyPath, List[str]], Iterable[str]]] = None,
+        copy_function: Callable[[AnyPath, AnyPath], Any] = shutil.copy2,
+        ignore_dangling_symlinks: bool = True, dirs_exist_ok: bool = False
+    ) -> None:
+        """
+        Wraps shutil.copytree. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.copytree
+
+        :param target:                      See Python official documentation
+        :param symlinks:                    See Python official documentation
+        :param ignore:                      See Python official documentation
+        :param copy_function:               See Python official documentation
+        :param ignore_dangling_symlinks:    See Python official documentation
+        :param dirs_exist_ok:               See Python official documentation
+        """
+        shutil.copytree(self, target, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok)
+
+    def rmtree(self, ignore_errors: bool = False,
+               onerror: Optional[Callable[[Callable[..., Any], str, _OptExcInfo], Any]] = None) -> None:
+        """
+        Wraps shutil.rmtree. Stolen from pathlib3x.
+
+        https://docs.python.org/3/library/shutil.html#shutil.rmtree
+
+        :param ignore_errors:           See Python official documentation
+        :param onerror:                 See Python official documentation
+        """
+        shutil.rmtree(self, ignore_errors, onerror)
+
+    def rm(self, ignore_errors: bool = False) -> None:
+        """
+        Wraps os.remove.
+
+        :param ignore_errors:           Ignore errors emitted by os.remove
+        """
+        if ignore_errors:
+            try:
+                os.remove(self)
+            except OSError:
+                pass
+        else:
+            try:
+                os.remove(self)
+            except FileNotFoundError as file_err:
+                Status.fail(
+                    f'{self.__class__.__name__}: This file doesn\'t exist',
+                    exception=FileNotFoundError, chain_err=file_err
+                )
+            except IsADirectoryError as dir_err:
+                Status.fail(
+                    f'{self.__class__.__name__}: {self} is a directory. Use ``rmtree`` instead.',
+                    exception=IsADirectoryError, chain_err=dir_err
+                )
+

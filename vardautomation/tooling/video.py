@@ -5,7 +5,6 @@ __all__ = [
     'progress_update_func'
 ]
 
-import os
 import subprocess
 from abc import ABC
 from typing import Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Set, Tuple, Union, cast
@@ -195,10 +194,7 @@ class SupportQpfile(VideoEncoder, ABC):
         super().run_enc(clip, file)
 
         for crap in _craps:
-            try:
-                os.remove(crap)
-            except FileNotFoundError:
-                pass
+            crap.rm(ignore_errors=True)
 
 
 class SupportResume(SupportQpfile, ABC):
@@ -234,7 +230,7 @@ class SupportResume(SupportQpfile, ABC):
                     del self._parts[-1]
                 else:
                     self._kfs.append(kf)
-                os.remove(kfnt.path)
+                kfnt.path.rm()
             # If subprocess throws an error the file is probably corrupted.
             # Let the encoder overwrite it
             except subprocess.CalledProcessError:
@@ -257,14 +253,14 @@ class SupportResume(SupportQpfile, ABC):
         super()._do_encode()
 
         # Files to delete
-        _craps: Set[AnyPath] = set()
+        _craps: Set[VPath] = set()
         # Split the files until the last keyframe
-        mkv_parts: List[str] = []
+        mkv_parts: List[VPath] = []
         for kf, part in zip(self._kfs, self._parts):
             p_mkv = part.with_suffix('.mkv')
             BasicTool(BinaryPath.mkvmerge, ['-o', p_mkv.to_str(), part.to_str(), '--split', f'frames:{kf}']).run()
             # Mkv files
-            p_mkv001 = p_mkv.append_stem('-001').to_str()
+            p_mkv001 = p_mkv.append_stem('-001')
             p_mkv002 = p_mkv.append_stem('-002')
             # We need them
             mkv_parts.append(p_mkv001)
@@ -273,8 +269,8 @@ class SupportResume(SupportQpfile, ABC):
         _craps.update(self._parts)
 
         # Also merge the last encoded part
-        last = self.file.name_clip_output.with_suffix('.mkv').to_str()
-        BasicTool(BinaryPath.mkvmerge, ['-o', last, self.file.name_clip_output.to_str()]).run()
+        last = self.file.name_clip_output.with_suffix('.mkv')
+        BasicTool(BinaryPath.mkvmerge, ['-o', last.to_str(), self.file.name_clip_output.to_str()]).run()
         mkv_parts.append(last)
         _craps.add(last)
         _craps.add(self.file.name_clip_output)
@@ -285,7 +281,7 @@ class SupportResume(SupportQpfile, ABC):
         # Merge the splitted files
         BasicTool(
             BinaryPath.mkvmerge,
-            ['-o', output.to_str(), '[', *mkv_parts, ']',
+            ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
              '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
         ).run()
         _craps.add(output)
@@ -296,8 +292,8 @@ class SupportResume(SupportQpfile, ABC):
         pattern_qpfile = self.file.name_clip_output.resolve().append_stem('_part_???_qpfile').with_suffix('.log')
         _craps.update(pattern_qpfile.parent.glob(pattern_qpfile.name))
         for crap in _craps:
-            os.remove(crap)
-        _craps.clear()
+            crap.rm()
+        del _craps
 
         return None
 
