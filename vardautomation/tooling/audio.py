@@ -153,6 +153,8 @@ class MKVAudioExtracter(_SimpleSetTrack):
 class Eac3toAudioExtracter(_SimpleSetTrack):
     """AudioExtracter using Eac3to"""
 
+    _eac3to_args: List[str]
+
     def __init__(self, file: FileInfo, /, *,
                  track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
                  eac3to_args: Optional[List[str]] = None) -> None:
@@ -160,11 +162,15 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
         :param file:                FileInfo object, needed
         :param track_in:            Input track(s) number
         :param track_out:           Output track(s) number
-        :param eac3to_args:         https://en.wikibooks.org/wiki/Eac3to/How_to_Use, defaults to None
+        :param eac3to_args:         https://en.wikibooks.org/wiki/Eac3to/How_to_Use, eg. ['-log=nul']
         """
         settings = ['{path:s}']
         super().__init__(BinaryPath.eac3to, settings, file, track_in=track_in, track_out=track_out)
-        self.params.extend(eac3to_args if eac3to_args else [])
+        self._eac3to_args = eac3to_args if eac3to_args else []
+
+    def _set_tracks_number(self) -> None:
+        super()._set_tracks_number()
+        self.params.extend(self._eac3to_args)
 
 
 class FFmpegAudioExtracter(_FFmpegSetTrack):
