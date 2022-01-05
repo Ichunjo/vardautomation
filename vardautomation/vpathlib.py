@@ -65,7 +65,7 @@ class VPath(Path):
     def append_suffix(self, suffix: str) -> VPath:
         """
         Append ``stem`` at the end of the VPath suffix.
-        Stoled from pathlib3x
+        Stolen from pathlib3x
 
         :param suffix:              Suffix to add. It has to start with '.'
         :return:                    New VPath with the file suffix appended
