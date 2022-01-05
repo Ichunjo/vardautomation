@@ -37,7 +37,7 @@ class ElementTree(etree._ElementTree):  # type: ignore
 
 
 class AbstractMutableSet(MutableSet[T], ABC):
-    __slots__ = ('__data')
+    __slots__ = ('__data', )
     __data: Set[T]
 
     def __init__(self, __iterable: Optional[Iterable[T]] = None) -> None:

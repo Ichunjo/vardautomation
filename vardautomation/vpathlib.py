@@ -195,6 +195,7 @@ class VPath(Path):
 
 
 class CleanupSet(AbstractMutableSet[VPath]):
+    # pylint: disable=arguments-differ
     def clear(self, *, ignore_errors: bool = True) -> None:
         """
         Clear the set and delete files
