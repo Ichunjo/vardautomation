@@ -10,4 +10,4 @@ types-colorama==0.4.6
 types-Pillow==9.0.0
 types-psutil==5.8.17
 types-requests==2.26.3
-types-setuptools==57.4.5
+types-setuptools==57.4.6
