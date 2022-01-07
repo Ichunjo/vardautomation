@@ -7,7 +7,7 @@ pylint==2.12.2
 pyflakes==2.4.0
 PyQt5-stubs==5.15.2.0
 types-colorama==0.4.6
-types-Pillow==9.0.0
+types-Pillow==9.0.2
 types-psutil==5.8.18
 types-requests==2.27.2
 types-setuptools==57.4.6
