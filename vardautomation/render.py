@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import struct
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, Union, overload
 
 import numpy as np
@@ -315,14 +315,18 @@ def _finish_frame_audio(frame: vs.AudioFrame, outfile: BinaryIO, _24bit: bool) -
         outfile.write(data.ravel().view(np.int8).tobytes())  # type: ignore
 
 
-class SceneChangeMode(Enum):
-    WWXD = 0
-    SCXVID = 1
-    WWXD_SCXVID_UNION = 2
-    WWXD_SCXVID_INTERSECTION = 3
+class SceneChangeMode(IntEnum):
+    WWXD = 11
+    SCXVID = 22
+    MV = 44
 
 
-def find_scene_changes(clip: vs.VideoNode, mode: SceneChangeMode = SceneChangeMode.WWXD) -> List[int]:  # noqa: C901
+def find_scene_changes(  # noqa: C901
+    clip: vs.VideoNode, mode: Union[int, SceneChangeMode] = SceneChangeMode.WWXD, *,
+    scxvid_use_slices: bool = False,
+    mv_vectors: Optional[vs.VideoNode] = None,
+    mv_thscd1: Optional[int] = None, mv_thscd2: Optional[int] = None,
+) -> List[int]:
     """
     Generate a list of scene changes (keyframes).
 
@@ -342,25 +346,39 @@ def find_scene_changes(clip: vs.VideoNode, mode: SceneChangeMode = SceneChangeMo
     :return:       List of scene changes.
     """
     frames: List[int] = []
+    props: List[str] = []
     clip = clip.resize.Bilinear(640, 360, format=vs.YUV420P8)
+    SCM = SceneChangeMode
+    wwxd_unions = {SCM.WWXD | SCM.SCXVID, SCM.WWXD | SCM.MV, SCM.WWXD | SCM.SCXVID | SCM.MV}
+    wwxd_inters = {SCM.WWXD & SCM.SCXVID, SCM.WWXD & SCM.MV, SCM.WWXD & SCM.SCXVID & SCM.MV}
+    scxvid_unions = {SCM.SCXVID | SCM.WWXD, SCM.SCXVID | SCM.MV, SCM.SCXVID | SCM.WWXD | SCM.MV}
+    scxvid_inters = {SCM.SCXVID & SCM.WWXD, SCM.SCXVID & SCM.MV, SCM.SCXVID & SCM.WWXD & SCM.MV}
+    mv_unions = {SCM.MV | SCM.WWXD, SCM.MV | SCM.SCXVID, SCM.MV | SCM.WWXD | SCM.SCXVID}
+    mv_inters = {SCM.MV & SCM.WWXD, SCM.MV & SCM.SCXVID, SCM.MV & SCM.WWXD & SCM.SCXVID}
 
-    if mode in (SceneChangeMode.WWXD, SceneChangeMode.WWXD_SCXVID_UNION, SceneChangeMode.WWXD_SCXVID_INTERSECTION):
+    # SCXVID and mv share the same prop
+    # https://github.com/dubhater/vapoursynth-scxvid/issues/3
+    if mode in {SCM.WWXD} | wwxd_unions | wwxd_inters:
         clip = clip.wwxd.WWXD()
-    if mode in (SceneChangeMode.SCXVID, SceneChangeMode.WWXD_SCXVID_UNION, SceneChangeMode.WWXD_SCXVID_INTERSECTION):
-        clip = clip.scxvid.Scxvid()
+        props.append('Scenechange')
+    if mode in {SCM.SCXVID} | scxvid_unions | scxvid_inters:
+        clip = clip.scxvid.Scxvid(use_slices=scxvid_use_slices)
+        props.append('_SceneChangePrev')
+    if mode in {SCM.MV} | mv_unions | mv_inters:
+        if not mv_vectors:
+            mv_vectors = clip.mv.Super().mv.Analyse()
+        clip = clip.mv.SCDetection(mv_vectors, mv_thscd1, mv_thscd2)
+        props.append('_SceneChangePrev')
 
     def _cb(n: int, f: vs.VideoFrame) -> None:
-        if mode == SceneChangeMode.WWXD:
-            if Properties.get_prop(f, "Scenechange", int) == 1:
+        if mode in {SCM.WWXD, SCM.SCXVID, SCM.MV}:
+            if Properties.get_prop(f, props[0], int) == 1:
                 frames.append(n)
-        elif mode == SceneChangeMode.SCXVID:
-            if Properties.get_prop(f, "_SceneChangePrev", int) == 1:
+        elif mode in wwxd_unions | scxvid_unions | mv_unions:
+            if any(Properties.get_prop(f, p, int) == 1 for p in props):
                 frames.append(n)
-        elif mode == SceneChangeMode.WWXD_SCXVID_UNION:
-            if Properties.get_prop(f, "Scenechange", int) == 1 or Properties.get_prop(f, "_SceneChangePrev", int) == 1:
-                frames.append(n)
-        elif mode == SceneChangeMode.WWXD_SCXVID_INTERSECTION:
-            if Properties.get_prop(f, "Scenechange", int) == 1 and Properties.get_prop(f, "_SceneChangePrev", int) == 1:
+        elif mode in wwxd_inters | scxvid_inters | mv_inters:
+            if all(Properties.get_prop(f, p, int) == 1 for p in props):
                 frames.append(n)
 
     clip_async_render(clip, progress="Detecting scene changes...", callback=_cb)

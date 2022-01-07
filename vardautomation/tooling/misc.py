@@ -8,7 +8,7 @@ __all__ = [
 import asyncio
 import inspect
 import os
-from typing import Iterable, List, NamedTuple, Optional
+from typing import Iterable, List, NamedTuple, Optional, Union
 
 import psutil
 import vapoursynth as vs
@@ -33,7 +33,7 @@ class Qpfile(NamedTuple):
 
 
 def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
-                overwrite: bool = True, mode: SCM = SCM.WWXD_SCXVID_UNION) -> Qpfile:
+                overwrite: bool = True, mode: Union[int, SCM] = SCM.WWXD | SCM.SCXVID) -> Qpfile:
     """
     Convenience function for making a qpfile
 
