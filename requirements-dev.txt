@@ -6,7 +6,7 @@ pycodestyle==2.8.0
 pylint==2.12.2
 pyflakes==2.4.0
 PyQt5-stubs==5.15.2.0
-types-colorama==0.4.5
+types-colorama==0.4.6
 types-Pillow==9.0.0
 types-psutil==5.8.17
 types-requests==2.26.3
