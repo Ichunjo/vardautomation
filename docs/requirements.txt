@@ -1,4 +1,4 @@
-sphinx-autodoc-typehints==1.15.1
+sphinx-autodoc-typehints==1.15.2
 lxml==4.7.1
 pymediainfo==5.1.0
 requests==2.27.1
