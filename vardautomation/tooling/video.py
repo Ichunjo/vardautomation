@@ -217,7 +217,7 @@ class SupportResume(SupportQpfile, ABC):
         self._output = VPath(self.file.name_clip_output)
 
         pattern = self.file.name_clip_output.resolve().append_stem('_part_???')
-        self._parts = sorted(pattern.parent.glob(pattern.stem))
+        self._parts = sorted(pattern.parent.glob(pattern.name))
 
         # Get the last keyframes where you can encode from
         self._kfs = []
