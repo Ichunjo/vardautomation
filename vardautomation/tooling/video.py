@@ -278,12 +278,17 @@ class SupportResume(SupportQpfile, ABC):
         # Restore original name
         self.file.name_clip_output = self._output
         output = self.file.name_clip_output.append_stem('_tmp').with_suffix('.mkv')
-        # Merge the splitted files
-        BasicTool(
-            BinaryPath.mkvmerge,
-            ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
-             '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
-        ).run()
+        if len(mkv_parts) > 1:
+            # Merge the splitted files
+            BasicTool(
+                BinaryPath.mkvmerge,
+                ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
+                 '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
+            ).run()
+        else:
+            mkvp = mkv_parts.pop(0)
+            mkvp.rename(output)
+            _craps.remove(mkvp)
         _craps.add(output)
 
         # Extract the merged file
