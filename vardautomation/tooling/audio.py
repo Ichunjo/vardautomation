@@ -84,14 +84,6 @@ class _AutoSetTrack(AudioExtracter, ABC):
         return dict(path=self.file.path.to_str())
 
 
-class _SimpleSetTrack(_AutoSetTrack, ABC):
-    def _set_tracks_number(self) -> None:
-        assert self.file.a_src
-        # Set the tracks for eac3to and mkvmerge since they share the same pattern
-        for t_in, t_out in zip(self.track_in, self.track_out):
-            self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
-
-
 class _FFmpegSetTrack(_AutoSetTrack, ABC):
     def _set_tracks_number(self) -> None:
         # ffmpeg is a bit more annoying since it can't guess the bitdepth
@@ -134,7 +126,7 @@ class _FFmpegSetTrack(_AutoSetTrack, ABC):
                 )
 
 
-class MKVAudioExtracter(_SimpleSetTrack):
+class MKVAudioExtracter(_AutoSetTrack):
     """AudioExtracter using MKVExtract"""
 
     def __init__(self, file: FileInfo, /, *,
@@ -149,8 +141,13 @@ class MKVAudioExtracter(_SimpleSetTrack):
         settings = ['{path:s}', '--abort-on-warnings', 'tracks'] + (mkvextract_args if mkvextract_args is not None else [])
         super().__init__(BinaryPath.mkvextract, settings, file, track_in=track_in, track_out=track_out)
 
+    def _set_tracks_number(self) -> None:
+        assert self.file.a_src
+        for t_in, t_out in zip(self.track_in, self.track_out):
+            self.params.append(f'{t_in}:{self.file.a_src.set_track(t_out).to_str():s}')
 
-class Eac3toAudioExtracter(_SimpleSetTrack):
+
+class Eac3toAudioExtracter(_AutoSetTrack):
     """AudioExtracter using Eac3to"""
 
     _eac3to_args: List[str]
@@ -169,7 +166,9 @@ class Eac3toAudioExtracter(_SimpleSetTrack):
         self._eac3to_args = eac3to_args if eac3to_args else []
 
     def _set_tracks_number(self) -> None:
-        super()._set_tracks_number()
+        assert self.file.a_src
+        for t_in, t_out in zip(self.track_in, self.track_out):
+            self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
         self.params.extend(self._eac3to_args)
 
 
