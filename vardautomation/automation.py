@@ -155,7 +155,8 @@ class SelfRunner:
         :param qpfile_clip:         Clip to be used to generate the Qpfile
         :param qpfile_func:         Function to be used to generate the Qpfile
         """
-        self._qpfile_params = _QpFileParams(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
+        self._qpfile_params['qpfile_clip'] = qpfile_clip
+        self._qpfile_params['qpfile_func'] = qpfile_func
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """
