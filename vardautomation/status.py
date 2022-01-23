@@ -1,10 +1,8 @@
 """Logger module"""
-import sys
-import traceback
+
 from typing import Any, List, NoReturn, Optional, Type
 
 import colorama
-import pkg_resources
 
 from ._logging import logger
 
@@ -43,38 +41,21 @@ class Status:
     @staticmethod
     def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
         logger.warning('Using Status is deprecated; please use "logger" instead')
-        curr_split: List[str] = []
-
-        # All that stuff is just for alternating colours lmao
-        if chain_err:
-            class _Exception(BaseException):
-                __cause__ = chain_err
-
-            curr = _Exception()
-
-            for p in traceback.format_exception(None, curr, None)[:-1]:
-                curr_split.extend(p.splitlines(keepends=True))
-
-        for p in traceback.format_stack()[:-2]:
-            curr_split.extend(p.splitlines(keepends=True))
-
-        curr_split.append(f'{exception.__name__}: {string}')
-
-        curr_split = [Colours.FAILS[i % 2] + line + Colours.RESET for i, line in enumerate(curr_split[::-1])][::-1]
-        sys.exit(''.join(curr_split) + Colours.RESET)
+        with logger.catch_ctx():
+            raise exception(string) from chain_err
 
     @staticmethod
     def warn(string: str, /) -> None:
         logger.warning('Using Status is deprecated; please use "logger" instead')
-        print(f'{Colours.WARN}{string}{Colours.RESET}')
+        logger.warning(string)
 
+    # pylint: disable=unused-argument
     @staticmethod
     def info(string: str, /, **kwargs: Any) -> None:
         logger.warning('Using Status is deprecated; please use "logger" instead')
-        print(f'{Colours.INFO}{string}{Colours.RESET}', **kwargs)
+        logger.info(string)
 
     @staticmethod
     def logo() -> None:
         logger.warning('Using Status is deprecated; please use "logger" instead')
-        with open(pkg_resources.resource_filename('vardautomation', 'logo.txt'), 'r', encoding='utf-8') as logo:
-            print(''.join(Colours.INFO + line + Colours.RESET for line in logo.readlines()), '\n')
+        logger.logo()
