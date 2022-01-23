@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, NoReturn, cast, final
+from typing import TYPE_CHECKING, Callable, Concatenate, Generic, List, NoReturn, cast, final
 
 import loguru
 
-from ..types import T
+from ..types import P, T
 
 if TYPE_CHECKING:
-    from .core import LogLevel
+    from .core import Logger, LogLevel
 
 
 __all__: List[str] = []
@@ -45,20 +45,20 @@ def sys_exit(_: BaseException) -> NoReturn:
 
 
 @final
-class _log_func_wrapper(Generic[T]):
+class _log_func_wrapper(Generic[P, T]):
     name: str
     no: int
     colour: str
     colour_close: str
 
-    def __call__(self, *args: Any, **kwargs: Any) -> T:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
         ...
 
 
-def add_log_attribute(log_level: LogLevel) -> Callable[[Callable[..., T]], _log_func_wrapper[T]]:
+def add_log_attribute(log_level: LogLevel) -> Callable[[Callable[Concatenate[Logger, P], T]], _log_func_wrapper[P, T]]:
 
-    def _wrapper(func: Callable[..., T]) -> _log_func_wrapper[T]:
-        funcw = cast(_log_func_wrapper[T], func)
+    def _wrapper(func: Callable[Concatenate[Logger, P], T]) -> _log_func_wrapper[P, T]:
+        funcw = cast(_log_func_wrapper[P, T], func)
         funcw.name = log_level.name
         funcw.no = log_level.no
         funcw.colour = log_level.colour
