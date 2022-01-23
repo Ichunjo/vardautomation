@@ -10,8 +10,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type, Union
 
-from .status import Status
-from .types import AbstractMutableSet, AnyPath
+from ._logging import logger
+from .types import AnyPath, AbstractMutableSet
 
 
 class _Flavour(Protocol):
@@ -28,6 +28,7 @@ class VPath(Path):
     # pylint: disable=no-member
     _flavour: _Flavour = type(Path())._flavour  # type: ignore
 
+    @logger.catch
     def format(self, *args: Any, **kwargs: Any) -> VPath:
         """
         :return:        Formatted version of `vpath`,
@@ -36,6 +37,7 @@ class VPath(Path):
         """
         return VPath(self.to_str().format(*args, **kwargs))
 
+    @logger.catch
     def set_track(self, track_number: int, /) -> VPath:
         """
         Set the track number by replacing the substitution "{track_number}"
@@ -81,6 +83,7 @@ class VPath(Path):
         name = name + suffix
         return self._from_parsed_parts(self._drv, self._root, self._parts[:-1] + [name])  # type: ignore
 
+    @logger.catch
     def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copy. Stolen from pathlib3x.
@@ -92,6 +95,7 @@ class VPath(Path):
         """
         shutil.copy(self, target, follow_symlinks=follow_symlinks)
 
+    @logger.catch
     def copy2(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copy2. Stolen from pathlib3x.
@@ -103,6 +107,7 @@ class VPath(Path):
         """
         shutil.copy2(self, target, follow_symlinks=follow_symlinks)
 
+    @logger.catch
     def copyfile(self, target: VPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copyfile. Stolen from pathlib3x.
@@ -114,6 +119,7 @@ class VPath(Path):
         """
         shutil.copyfile(self, target, follow_symlinks=follow_symlinks)
 
+    @logger.catch
     def copymode(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copymode. Stolen from pathlib3x.
@@ -125,6 +131,7 @@ class VPath(Path):
         """
         shutil.copymode(self, target, follow_symlinks=follow_symlinks)
 
+    @logger.catch
     def copystat(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copystat. Stolen from pathlib3x.
@@ -136,6 +143,7 @@ class VPath(Path):
         """
         shutil.copystat(self, target, follow_symlinks=follow_symlinks)
 
+    @logger.catch
     def copytree(
         self, target: AnyPath, symlinks: bool = False,
         ignore: Optional[Callable[[AnyPath, List[str]], Iterable[str]]] = None,
@@ -156,6 +164,7 @@ class VPath(Path):
         """
         shutil.copytree(self, target, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok)
 
+    @logger.catch
     def rmtree(self, ignore_errors: bool = False,
                onerror: Optional[Callable[[Callable[..., Any], str, _OptExcInfo], Any]] = None) -> None:
         """
@@ -168,6 +177,7 @@ class VPath(Path):
         """
         shutil.rmtree(self, ignore_errors, onerror)
 
+    @logger.catch
     def rm(self, ignore_errors: bool = False) -> None:
         """
         Wraps os.remove.
@@ -183,15 +193,9 @@ class VPath(Path):
             try:
                 os.remove(self)
             except FileNotFoundError as file_err:
-                Status.fail(
-                    f'{self.__class__.__name__}: This file doesn\'t exist',
-                    exception=FileNotFoundError, chain_err=file_err
-                )
+                logger.critical('This file doesn\'t exist', file_err)
             except IsADirectoryError as dir_err:
-                Status.fail(
-                    f'{self.__class__.__name__}: {self} is a directory. Use ``rmtree`` instead.',
-                    exception=IsADirectoryError, chain_err=dir_err
-                )
+                logger.critical(f'{self} is a directory. Use ``rmtree`` instead', dir_err)
 
 
 class CleanupSet(AbstractMutableSet[VPath]):

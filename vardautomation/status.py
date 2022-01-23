@@ -6,6 +6,8 @@ from typing import Any, List, NoReturn, Optional, Type
 import colorama
 import pkg_resources
 
+from ._logging import logger
+
 colorama.init()
 
 
@@ -40,6 +42,7 @@ class Status:
 
     @staticmethod
     def fail(string: str, /, *, exception: Type[BaseException] = Exception, chain_err: Optional[BaseException] = None) -> NoReturn:
+        logger.warning('Using Status is deprecated; please use "logger" instead')
         curr_split: List[str] = []
 
         # All that stuff is just for alternating colours lmao
@@ -62,13 +65,16 @@ class Status:
 
     @staticmethod
     def warn(string: str, /) -> None:
+        logger.warning('Using Status is deprecated; please use "logger" instead')
         print(f'{Colours.WARN}{string}{Colours.RESET}')
 
     @staticmethod
     def info(string: str, /, **kwargs: Any) -> None:
+        logger.warning('Using Status is deprecated; please use "logger" instead')
         print(f'{Colours.INFO}{string}{Colours.RESET}', **kwargs)
 
     @staticmethod
     def logo() -> None:
+        logger.warning('Using Status is deprecated; please use "logger" instead')
         with open(pkg_resources.resource_filename('vardautomation', 'logo.txt'), 'r', encoding='utf-8') as logo:
             print(''.join(Colours.INFO + line + Colours.RESET for line in logo.readlines()), '\n')

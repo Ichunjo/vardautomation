@@ -5,6 +5,8 @@ __all__ = [
     'WaveHeader', 'audio_async_render'
 ]
 
+# pylint: disable=no-member
+
 import struct
 from enum import IntEnum
 from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, Union, overload
@@ -14,6 +16,7 @@ import vapoursynth as vs
 from rich.progress import BarColumn, Progress, ProgressColumn, Task, TextColumn, TimeRemainingColumn
 from rich.text import Text
 
+from ._logging import logger
 from .utils import Properties
 
 
@@ -54,6 +57,7 @@ def clip_async_render(clip: vs.VideoNode,
     ...
 
 
+@logger.catch
 def clip_async_render(clip: vs.VideoNode,  # noqa: C901
                       outfile: Optional[BinaryIO] = None,
                       timecodes: Optional[TextIO] = None,
@@ -181,6 +185,7 @@ WAVE_FMT_EXTENSIBLE_SUBFORMAT = (
 )
 
 
+@logger.catch
 def audio_async_render(audio: vs.AudioNode,
                        outfile: BinaryIO,
                        header: WaveHeader = WaveHeader.AUTO,
@@ -238,6 +243,7 @@ def audio_async_render(audio: vs.AudioNode,
         p.stop()  # type: ignore
 
 
+@logger.catch
 def _wav_header(audio: vs.AudioNode, bps: int, block_align: int, data_size: int) -> bytes:
     header = WAVE_RIFF_TAG
     # Add 4 bytes for the length later

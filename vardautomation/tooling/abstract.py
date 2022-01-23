@@ -1,17 +1,13 @@
 
 
-__all__ = [
-    'Tool'
-]
+__all__ = ['Tool']
 
 import re
 import subprocess
-import sys
-import traceback
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, NoReturn, Union
 
-from ..status import Status
+from .._logging import logger
 from ..types import AnyPath
 from ..vpathlib import VPath
 
@@ -65,10 +61,7 @@ class Tool(ABC):
                 with open(settings, 'r', encoding='utf-8') as sttgs:
                     params_re = re.split(r'[\n\s]\s*', sttgs.read())
             except FileNotFoundError as file_err:
-                Status.fail(
-                    f'{self.__class__.__name__}: settings file not found',
-                    exception=FileNotFoundError, chain_err=file_err
-                )
+                logger.critical(f'{self.__class__.__name__}: settings file not found', file_err)
             self.params = [p for p in params_re if isinstance(p, str)]
 
         self._check_binary()
@@ -85,30 +78,17 @@ class Tool(ABC):
         Set variables in the settings\n
         """
 
+    @logger.catch
     def _update_settings(self) -> None:
         for i, p in enumerate(self.params):
-            # pylint: disable=W0702
-            # Check if the current string is formattable
-            if re.findall(r'(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))', p):
-                try:
-                    p = p.format(**self.set_variable())
-                except:  # noqa: E722
-                    excp_type, excp_val, trback = sys.exc_info()
-                    Status.fail(
-                        f'{self.__class__.__name__}: Unexpected exception from the following traceback:\n'
-                        + ''.join(traceback.format_tb(trback))
-                        + (excp_type.__name__ if excp_type else Exception.__name__) + ': '
-                        + str(excp_val), exception=Exception, chain_err=excp_val
-                    )
-                else:
-                    self.params[i] = p
+            if not re.findall(r'(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))', p):
+                continue
+            p = p.format(**self.set_variable())
+            self.params[i] = p
         self.params.insert(0, self.binary.to_str())
 
     def _check_binary(self) -> None:
         try:
             subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         except FileNotFoundError as file_not_found:
-            Status.fail(
-                f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!',
-                exception=FileNotFoundError, chain_err=file_not_found
-            )
+            logger.critical(f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!', file_not_found)

@@ -454,7 +454,7 @@ ignore-none=yes
 # some branches might not be evaluated, which results in partial inference. In
 # that case, it might be useful to still emit no-member and other checks for
 # the rest of the inferred objects.
-ignore-on-opaque-inference=yes
+ignore-on-opaque-inference=no
 
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of

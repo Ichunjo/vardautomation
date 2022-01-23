@@ -4,11 +4,17 @@ __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx
 
 from abc import ABC
 from os import PathLike
-from typing import Any, Callable, Dict, Iterable, Iterator, List, MutableSet, Optional, Set, TypeVar, Union, cast
+from typing import (
+    Any, Callable, Dict, Iterable, Iterator, List, MutableSet, Optional, Set, TypeVar,
+    Union, cast
+)
 
 from lxml import etree
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
+
+T = TypeVar('T')
+F = TypeVar('F', bound=Callable[..., Any])
 
 AnyPath = Union[PathLike[str], str]
 """Represents a PathLike"""
@@ -20,8 +26,6 @@ UpdateFunc = Callable[[int, int], None]
 
 VPSIdx = Callable[[str], VideoNode]
 """Vapoursynth function indexer"""
-
-T = TypeVar('T')
 
 
 class ElementTree(etree._ElementTree):  # type: ignore

@@ -28,8 +28,8 @@ from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
 from vardefunc.util import select_frames
 
+from ._logging import logger
 from .binary_path import BinaryPath
-from .status import Colours, Status
 from .tooling import SubProcessAsync, VideoEncoder
 from .types import AnyPath
 from .utils import Properties
@@ -97,6 +97,7 @@ class SlowPicsConf(NamedTuple):
     """Remove after N days"""
 
 
+@logger.catch
 class Comparison:
     """Extract frames, make diff between two clips and upload to slow.pics"""
 
@@ -117,22 +118,17 @@ class Comparison:
         # Check length of all clips
         lens = set(c.num_frames for c in clips.values())
         if len(lens) != 1:
-            Status.warn(
-                f'{self.__class__.__name__}: "clips" doesn\'t have the same length!'
-            )
+            logger.warning(f'{self.__class__.__name__}: "clips" doesn\'t have the same length!')
         lens_n = min(lens)
 
         try:
             self.path.mkdir(parents=True)
         except FileExistsError as file_err:
-            Status.fail(
-                f'{self.__class__.__name__}: path "{self.path.to_str()}" already exists!',
-                exception=ValueError, chain_err=file_err
-            )
+            raise ValueError(f'{self.__class__.__name__}: path "{self.path.to_str()}" already exists!') from file_err
 
         # Make samples
         if picture_type:
-            Status.info(f'{self.__class__.__name__}: Make samples according to specified picture types...')
+            logger.info(f'{self.__class__.__name__}: Make samples according to specified picture types...')
             samples = self._select_samples_ptypes(lens_n, num, picture_type)
         else:
             samples = set(random.sample(range(lens_n), num))
@@ -156,10 +152,7 @@ class Comparison:
             try:
                 path_name.mkdir(parents=True)
             except FileExistsError as file_err:
-                Status.fail(
-                    f'{self.__class__.__name__}: {path_name.to_str()} already exists!',
-                    exception=FileExistsError, chain_err=file_err
-                )
+                logger.critical(f'{self.__class__.__name__}: {path_name.to_str()} already exists!', file_err)
 
             clip = clip.resize.Bicubic(
                 format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
@@ -180,17 +173,18 @@ class Comparison:
 
                 outputs: List[str] = []
                 for i, path_image in enumerate(path_images):
-                    outputs += [
+                    outputs.extend([
                         '-compression_level', str(compression), '-pred', 'mixed',
                         '-ss', f'{i}', '-t', '1', f'{path_image.to_str()}'
-                    ]
+                    ])
 
                 settings = [
                     '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo',
                     '-video_size', f'{clip.width}x{clip.height}',
                     '-pixel_format', 'gbrp', '-framerate', str(clip.fps),
-                    '-i', 'pipe:', *outputs
+                    '-i', 'pipe:'
                 ]
+                settings.extend(outputs)
 
                 encoder = VideoEncoder(BinaryPath.ffmpeg, settings)
                 encoder.progress_update = _progress_update_func
@@ -206,13 +200,13 @@ class Comparison:
                 # zzzzzzzzz soooo slow
                 with open(os.devnull, 'wb') as devnull:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-                print()
+                logger.logger.opt(raw=True).info('\n')
             else:
                 clip = select_frames(clip, self.frames)
                 clip = clip.std.ModifyFrame(clip, partial(_saver(writer, compression), path_images=path_images))
                 with open(os.devnull, 'wb') as devnull:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-                print()
+                logger.logger.opt(raw=True).info('\n')
 
     def magick_compare(self) -> None:
         """
@@ -221,22 +215,16 @@ class Comparison:
         """
         # Make diff images
         if len(self.clips) > 2:
-            Status.fail(f'{self.__class__.__name__}: "magick_compare" can only be used with two clips!', exception=ValueError)
+            raise ValueError(f'{self.__class__.__name__}: "magick_compare" can only be used with two clips!')
 
         self.path_diff = self.path / 'diffs'
         try:
             subprocess.call(['magick', 'compare'], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             self.path_diff.mkdir(parents=True)
-        except FileNotFoundError as file_not_found:
-            Status.fail(
-                f'{self.__class__.__name__}: "magick compare" was not found!',
-                exception=FileNotFoundError, chain_err=file_not_found
-            )
-        except FileExistsError as file_err:
-            Status.fail(
-                f'{self.__class__.__name__}: {self.path_diff.to_str()} already exists!',
-                exception=FileExistsError, chain_err=file_err
-            )
+        except FileNotFoundError as f_err:
+            logger.critical(f'{self.__class__.__name__}: "magick compare" was not found!', f_err)
+        except FileExistsError as f_err:
+            logger.critical(f'{self.__class__.__name__}: {self.path_diff.to_str()} already exists!', f_err)
 
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
         images_a, images_b = all_images
@@ -248,9 +236,9 @@ class Comparison:
         ]
 
         # Launch asynchronously the Magick commands
-        Status.info('Diffing clips...')
-        print()
+        logger.info('Diffing clips...')
         SubProcessAsync(cmds)
+        logger.logger.opt(raw=True).info('\n')
 
     def upload_to_slowpics(self, config: SlowPicsConf) -> None:
         """
@@ -279,19 +267,19 @@ class Comparison:
             # TODO: yeet this
             files = MultipartEncoder(_make_api_compatible(config) | fields)
 
-            Status.info('Uploading images...')
-            print()
+            logger.info('Uploading images...\n')
+            logger.logger.opt(raw=True).info('\n')
             url = sess.post(
                 'https://slow.pics/api/comparison', data=files.to_string(),
                 headers=_get_slowpics_header(str(files.len), files.content_type, sess)
             )
 
         slowpics_url = f'https://slow.pics/c/{url.text}'
-        Status.info(f'Slowpics url: {slowpics_url}')
+        logger.info(f'Slowpics url: {slowpics_url}')
 
         url_file = self.path / 'slow.pics.url'
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
-        Status.info(f'url file copied to "{url_file.resolve().to_str()}"')
+        logger.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
     def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureType | List[PictureType]) -> Set[int]:
         samples: Set[int] = set()
@@ -304,14 +292,10 @@ class Comparison:
             while True:
                 # Check if we don't exceed the length of the clips
                 # if yes then that means we checked all the frames
-                if len(_rnum_checked) < num_frames:
-                    rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
-                    _rnum_checked.add(rnum)
-                else:
-                    Status.fail(
-                        f'{self.__class__.__name__}: There are not enough of {picture_types} in these clips',
-                        exception=ValueError
-                    )
+                if len(_rnum_checked) >= num_frames:
+                    raise ValueError(f'{self.__class__.__name__}: There are not enough of {picture_types} in these clips')
+                rnum = _rand_num_frames(_rnum_checked, partial(random.randrange, start=0, stop=num_frames))
+                _rnum_checked.add(rnum)
 
                 # Check _PictType
                 if all(
@@ -323,27 +307,24 @@ class Comparison:
                 _max_attempts += 1
 
                 if _attempts > _MAX_ATTEMPTS_PER_PICTURE_TYPE:
-                    Status.warn(
+                    logger.warning(
                         f'{self.__class__.__name__}: {_MAX_ATTEMPTS_PER_PICTURE_TYPE} attempts were made for sample {len(samples)} '
                         f'and no match found for {picture_types}; stopping iteration...'
                     )
                     break
 
             if _max_attempts > (curr_max_att := _MAX_ATTEMPTS_PER_PICTURE_TYPE * k):
-                Status.fail(
-                    f'{self.__class__.__name__}: attempts max of {curr_max_att} has been reached!',
-                    exception=RecursionError
-                )
+                raise RecursionError(f'{self.__class__.__name__}: attempts max of {curr_max_att} has been reached!')
 
             if _attempts < _MAX_ATTEMPTS_PER_PICTURE_TYPE:
                 samples.add(rnum)
-                print(
-                    "\r%sSelecting image: %i/%i ~ %.2f %%%s" % (
-                        Colours.INFO, len(samples), k, 100 * len(samples) / k, Colours.RESET
-                    ), end=""
+                logger.info(
+                    "\rSelecting image: %i/%i ~ %.2f %%" % (
+                        len(samples), k, 100 * len(samples) / k
+                    )
                 )
 
-        print()
+        logger.logger.opt(raw=True).info('\n')
         return samples
 
 
@@ -386,12 +367,13 @@ def _rand_num_frames(checked: Set[int], rand_func: Callable[[], int]) -> int:
     return rnum
 
 
+@logger.catch
 def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, List[VPath]], vs.VideoFrame]:  # noqa: C901
     if writer == Writer.OPENCV:
         try:
             import cv2
         except ImportError as imp_err:
-            Status.fail('comp: you need opencv to use this writer', exception=ValueError, chain_err=imp_err)
+            raise ValueError('comp: you need opencv to use this writer') from imp_err
 
         opencv_compression = [cv2.IMWRITE_PNG_COMPRESSION, compression] if compression >= 0 else []
 
@@ -405,7 +387,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         try:
             from PIL import Image
         except ImportError as imp_err:
-            Status.fail('comp: you need Pillow to use this writer', exception=ValueError, chain_err=imp_err)
+            raise ValueError('comp: you need Pillow to use this writer') from imp_err
 
         def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(f)  # type: ignore
@@ -418,7 +400,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         try:
             from PyQt5.QtGui import QImage
         except ImportError as imp_err:
-            Status.fail('comp: you need pyqt to use this writer', exception=ValueError, chain_err=imp_err)
+            raise ValueError('comp: you need pyqt to use this writer') from imp_err
 
         def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             frame_array = np.dstack(f)  # type: ignore
@@ -459,7 +441,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
             return f
         return _python_png
 
-    Status.fail(f'comp: unknown writer! "{writer}"', exception=ValueError)
+    raise ValueError(f'comp: unknown writer! "{writer}"')
 
 
 def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> Dict[str, str]:
@@ -491,11 +473,10 @@ def _make_api_compatible(config: SlowPicsConf) -> Dict[str, str]:
 
 
 def _progress_update_func(value: int, endvalue: int) -> None:
-    return print(
-        "\r%sExtracting image: %i/%i ~ %.2f %%%s" % (
-            Colours.INFO,
-            value, endvalue, 100 * value / endvalue,
-            Colours.RESET
-        ),
-        end=""
+    if value == 0:
+        return
+    logger.logger.opt(raw=True, colors=True).info(
+        logger.info.colour
+        + "\rExtracting image: %i/%i ~ %.2f %%" % (value, endvalue, 100 * value / endvalue)
+        + logger.info.colour_close
     )

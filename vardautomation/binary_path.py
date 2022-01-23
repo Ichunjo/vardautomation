@@ -12,6 +12,7 @@ __all__ = ['BinaryPath']
 
 from typing import NoReturn
 
+from ._logging import logger
 from .vpathlib import VPath
 
 
@@ -21,6 +22,7 @@ class BinaryPath:
     Just edit one of these attributes if the binary is not in your environment path
     """
 
+    @logger.catch
     def __init__(self) -> NoReturn:  # type: ignore[misc]
         raise RuntimeError('Cannot directly instantiate this class.')
 

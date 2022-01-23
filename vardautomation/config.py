@@ -29,10 +29,10 @@ from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
+from ._logging import logger
 from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
 from .render import audio_async_render
-from .status import Status
 from .types import AnyPath
 from .types import DuplicateFrame as DF
 from .types import Trim, VPSIdx
@@ -213,6 +213,7 @@ Preset for XML based chapters.
 """
 
 
+@logger.catch
 class FileInfo:
     """FileInfo object. This is the first thing you should initialise."""
     path: VPath
@@ -364,7 +365,7 @@ class FileInfo:
     @chapter.setter
     def chapter(self, chap: Optional[VPath]) -> None:
         if chap and chap.suffix not in {'.txt', '.xml'}:
-            Status.warn(f'{self.__class__.__name__}: Chapter extension "{chap.suffix}" is not recognised!')
+            logger.warning(f'{self.__class__.__name__}: Chapter extension "{chap.suffix}" is not recognised!')
         self._chapter = chap
 
     @property
@@ -414,6 +415,7 @@ class FileInfo:
             ]
 
 
+@logger.catch
 class FileInfo2(FileInfo):
     """Second version of FileInfo adding audio support"""
 
@@ -488,28 +490,26 @@ class FileInfo2(FileInfo):
         Using `audio_async_render` write the AudioNodes of the file
         as a WAV file to `a_src` path
         """
-        if self.a_src:
-            with self.a_src.set_track(index).open('wb') as binary:
-                audio_async_render(
-                    self.audios[index + offset], binary,
-                    progress=f'Writing a_src to {self.a_src.set_track(index).resolve().to_str()}'
-                )
-        else:
-            Status.fail(f'{self.__class__.__name__}: no a_src VPath found!', exception=ValueError)
+        if not self.a_src:
+            raise ValueError(f'{self.__class__.__name__}: no a_src VPath found!')
+        with self.a_src.set_track(index).open('wb') as binary:
+            audio_async_render(
+                self.audios[index + offset], binary,
+                progress=f'Writing a_src to {self.a_src.set_track(index).resolve().to_str()}'
+            )
 
     def write_a_src_cut(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file
         as a WAV file to `a_src_cut` path
         """
-        if self.a_src_cut:
-            with self.a_src_cut.set_track(index).open('wb') as binary:
-                audio_async_render(
-                    self.audios_cut[index + offset], binary,
-                    progress=f'Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}'
-                )
-        else:
-            Status.fail(f'{self.__class__.__name__}: no a_src_cut VPath found!', exception=ValueError)
+        if not self.a_src_cut:
+            raise ValueError(f'{self.__class__.__name__}: no a_src_cut VPath found!')
+        with self.a_src_cut.set_track(index).open('wb') as binary:
+            audio_async_render(
+                self.audios_cut[index + offset], binary,
+                progress=f'Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}'
+            )
 
 
 class _File(NamedTuple):
@@ -520,6 +520,7 @@ class _File(NamedTuple):
 _FileInfoType = TypeVar('_FileInfoType', bound=FileInfo)
 
 
+@logger.catch
 class BlurayShow:
     """Helper class for batching shows"""
 

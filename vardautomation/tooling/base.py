@@ -4,8 +4,8 @@ __all__ = ['BasicTool']
 import subprocess
 from typing import Any, Dict, List, Optional, Union
 
+from .._logging import logger
 from ..config import FileInfo
-from ..status import Status
 from ..types import AnyPath
 from ..utils import copy_docstring_from
 from .abstract import Tool
@@ -39,5 +39,6 @@ class BasicTool(Tool):
         return {}
 
     def _do_tooling(self) -> None:
-        Status.info(f'{self.binary.to_str()} command: ' + ' '.join(self.params))
-        subprocess.run(self.params, check=True, text=True, encoding='utf-8')
+        logger.info(f'{self.binary.to_str()} command: ' + ' '.join(self.params))
+        with logger.catch_ctx():
+            subprocess.run(self.params, check=True, text=True, encoding='utf-8')

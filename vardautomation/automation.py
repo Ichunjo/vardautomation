@@ -12,7 +12,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import Any, Callable, List, Optional, Sequence, Set, Tuple, TypedDict, Union, cast
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypedDict, Union, cast
 
 import vapoursynth as vs
 from typing_extensions import NotRequired
@@ -20,6 +20,7 @@ from vardefunc.misc import DebugOutput
 from vardefunc.types import Range
 from vardefunc.util import normalise_ranges
 
+from ._logging import logger
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .status import Status
@@ -139,7 +140,7 @@ class SelfRunner:
         :param show_logo:   Print vardoto logo.
         """
         if show_logo:
-            Status.logo()
+            logger.logo()
 
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
@@ -289,6 +290,7 @@ class Patch:
 
     _file_to_fix: VPath
 
+    @logger.catch
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
                  ranges: Union[Range, List[Range]],
                  output_filename: Optional[str] = None, *, debug: bool = False) -> None:
@@ -319,10 +321,7 @@ class Patch:
             self.output_filename = final / f'{self._file_to_fix.stem}_new.mkv'
 
         if self.workdir.exists():
-            Status.fail(
-                f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!',
-                exception=FileExistsError
-            )
+            raise FileExistsError(f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!')
 
     def run(self) -> None:
         """Launch patch"""
@@ -336,6 +335,7 @@ class Patch:
         """Delete working directory folder"""
         self.workdir.rmtree(ignore_errors=True)
 
+    @logger.catch
     def _resolve_range(self) -> None:
         idx_file = self.workdir / 'index.ffindex'
         kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
@@ -352,19 +352,19 @@ class Patch:
         kfsint = [int(x) for x in kfsstr[2:]] + [self.clip.num_frames]
 
         ranges = self._bound_to_keyframes(kfsint)
-        self._print_debug('_bound_to_keyframes', ranges)
+        logger.debug(f'Ranges: {str(ranges)}')
         nranges = normalise_ranges(self.clip, ranges, norm_dups=True)
-        self._print_debug('norm_dups', ranges)
+        logger.debug(f'Ranges: {str(nranges)}')
 
         if len(nranges) == 1 and nranges[0][0] == 0 and nranges[0][1] == self.clip.num_frames:
-            Status.fail(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode', exception=ValueError)
+            raise ValueError(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode')
 
         self.ranges = nranges
 
     def _encode(self) -> None:
         params = deepcopy(self.encoder.params)
         for i, (s, e) in enumerate(self.ranges, start=1):
-            self._print_debug('_encode', (s, e))
+            logger.debug(str((s, e)))
             fix = self.workdir / f'fix-{i:03.0f}'
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
@@ -414,6 +414,7 @@ class Patch:
             ['-o', self.output_filename.to_str(), tmpnoaudio.to_str(), '--no-video', self._file_to_fix.to_str()]
         ).run()
 
+    @logger.catch
     def _bound_to_keyframes(self, kfs: List[int]) -> List[Range]:
         rng_set: Set[Tuple[int, int]] = set()
         for start, end in self.ranges:
@@ -432,15 +433,9 @@ class Patch:
                     break
 
             if s is None or e is None:
-                self._print_debug('_bound_to_keyframes in loop', (s, e))
-                Status.fail('_bound_to_keyframes: Something is wrong in `s` or `e`', exception=ValueError)
+                logger.debug(str((s, e)))
+                raise ValueError(f'{self.__class__.__name__} Something is wrong in `s` or `e`')
 
             rng_set.add((s, e))
 
         return sorted(rng_set)
-
-    def _print_debug(self, *values: Any) -> None:
-        if self.debug:
-            print('--------------------------------')
-            print(*values)
-            print('--------------------------------')

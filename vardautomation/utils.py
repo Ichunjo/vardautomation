@@ -5,12 +5,14 @@ from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
 
 import vapoursynth as vs
 
-from .status import Status, VSColourRangeError, VSSubsamplingError
+from ._logging import logger
+from .status import VSColourRangeError, VSSubsamplingError
 from .types import AnyPath, T
 
 core = vs.core
 
 
+@logger.catch
 class Properties:
     """Collection of methods to get some properties from the parameters and/or the clip"""
 
@@ -40,7 +42,7 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail(f'{cls.__name__}: Wrong range in parameters!', exception=VSColourRangeError)
+                raise VSColourRangeError(f'{cls.__name__}: Wrong range in parameters!')
         elif '_ColorRange' in (props := _get_props(clip)):
             color_rng = props['_ColorRange']
             if color_rng == 1:
@@ -50,9 +52,9 @@ class Properties:
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                Status.fail(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!', exception=VSColourRangeError)
+                raise VSColourRangeError(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!')
         else:
-            Status.fail(f'{cls.__name__}: Cannot guess the color range!', exception=VSColourRangeError)
+            raise VSColourRangeError(f'{cls.__name__}: Cannot guess the color range!')
 
         return min_luma, max_luma
 
@@ -81,10 +83,7 @@ class Properties:
             try:
                 return csp_yuv_subs[(sub_w, sub_h)]
             except KeyError as k_err:
-                Status.fail(
-                    f'{Properties.__name__}: wrong subsampling "{(sub_w, sub_h)}"',
-                    exception=VSSubsamplingError, chain_err=k_err
-                )
+                raise VSSubsamplingError(f'{Properties.__name__}: wrong subsampling "{(sub_w, sub_h)}"') from k_err
 
         assert clip.format
 
@@ -165,7 +164,8 @@ def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callab
         elif mode == 't+o':
             target.__doc__ += original.__doc__
         else:
-            Status.fail('copy_docstring_from: Wrong mode!')
+            with logger.catch_ctx():
+                raise ValueError('copy_docstring_from: Wrong mode!')
         return target
 
     return wrapper

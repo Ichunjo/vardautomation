@@ -11,9 +11,9 @@ from typing import Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Opti
 
 import vapoursynth as vs
 
+from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
-from ..status import Status
 from ..types import AnyPath, UpdateFunc
 from ..utils import Properties, copy_docstring_from
 from ..vpathlib import VPath
@@ -30,11 +30,10 @@ def progress_update_func(value: int, endvalue: int) -> None:
     :param endvalue:    End value
     """
     # pylint: disable=consider-using-f-string
-    return print(
-        "\rVapourSynth: %i/%i ~ %.2f%% || Encoder: " % (
-            value, endvalue, 100 * value / endvalue
-        ),
-        end=""
+    if value == 0:
+        return
+    logger.logger.opt(raw=True).info(
+        "\rVapourSynth: %i/%i ~ %.2f%% || Encoder: " % (value, endvalue, 100 * value / endvalue)
     )
 
 
@@ -81,12 +80,13 @@ class VideoEncoder(Tool):
         self._update_settings()
         self._do_encode()
 
+    @logger.catch
     def run(self) -> NoReturn:
         """
         Shouldn't be used in VideoEncoder object.
         Use :py:func:`run_enc` instead
         """
-        Status.fail(f'{self.__class__.__name__}: Use `run_enc` instead', exception=NameError)
+        raise NameError(f'{self.__class__.__name__}: Use `run_enc` instead')
 
     @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
@@ -96,12 +96,14 @@ class VideoEncoder(Tool):
         """
         try:
             return dict(clip_output=self.file.name_clip_output.to_str(), filename=self.file.name)
-        except AttributeError:
+        except AttributeError as attr_err:
+            logger.warning(f'{self.__class__.__name__}: couldn\'t retrieve some attributes;')
+            logger.debug(str(attr_err))
             return {}
 
     def _do_encode(self) -> None:
-        Status.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
-        with subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
+        logger.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
+        with logger.catch_ctx(), subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
             self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
@@ -122,7 +124,9 @@ class LosslessEncoder(VideoEncoder):
                 clip_output_lossless=self.file.name_clip_output.append_stem(self.suffix_name).to_str(),
                 bits=Properties.get_depth(self.clip)
             )
-        except AttributeError:
+        except AttributeError as attr_err:
+            logger.warning(f'{self.__class__.__name__}: couldn\'t retrieve some attributes;')
+            logger.debug(str(attr_err))
             return {}
 
 
@@ -169,8 +173,9 @@ class FFV1(LosslessEncoder):
 
 
 class SupportQpfile(VideoEncoder, ABC):
-    @copy_docstring_from(VideoEncoder.run_enc, 'o+t')
     # pylint: disable=arguments-differ
+    @logger.catch
+    @copy_docstring_from(VideoEncoder.run_enc, 'o+t')
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,
                 qpfile_clip: Optional[vs.VideoNode] = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
@@ -181,9 +186,9 @@ class SupportQpfile(VideoEncoder, ABC):
         _craps: List[VPath] = []
         if qpfile_clip:
             if qpfile_clip.num_frames != clip.num_frames:
-                Status.fail(f'{self.__class__.__name__}: the ``qpfile_clip`` should have the same length than the ``clip``')
+                raise ValueError(f'{self.__class__.__name__}: the ``qpfile_clip`` should have the same length than the ``clip``')
             if not file:
-                Status.fail(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
+                raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
             qpfile = qpfile_func(
                 qpfile_clip,
                 file.name_clip_output.append_stem('_qpfile').with_suffix('.log')
@@ -203,6 +208,7 @@ class SupportResume(SupportQpfile, ABC):
     _parts: List[VPath]
     _kfs: List[int]
 
+    @logger.catch
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,
                 qpfile_clip: Optional[vs.VideoNode] = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
@@ -210,7 +216,7 @@ class SupportResume(SupportQpfile, ABC):
             return super().run_enc(clip, file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
 
         if not file:
-            Status.fail(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
+            raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
         self.file = file
 
         # Copy original name
@@ -233,7 +239,8 @@ class SupportResume(SupportQpfile, ABC):
                 kfnt.path.rm()
             # If subprocess throws an error the file is probably corrupted.
             # Let the encoder overwrite it
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as err:
+                logger.debug(str(err))
                 del self._parts[-1]
 
         self.file.name_clip_output = self.file.name_clip_output.append_stem(f'_part_{len(self._parts):03.0f}')
@@ -418,17 +425,18 @@ class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
         """
         try:
             bits = Properties.get_depth(self.clip)
-        except AttributeError:
+        except AttributeError as attr_err:
+            logger.warning(f'{self.__class__.__name__}: couldn\'t retrieve bit depth')
+            logger.debug(str(attr_err))
             return {}
-        else:
-            if not hasattr(self, '_bits') and bits > 10:
-                Status.warn(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
-                self._bits = bits
-            return dict(
-                clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
-                fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits,
-                min_keyint=round(self.clip.fps), keyint=round(self.clip.fps) * 10
-            )
+        if not hasattr(self, '_bits') and bits > 10:
+            logger.warning(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
+            self._bits = bits
+        return dict(
+            clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
+            fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits,
+            min_keyint=round(self.clip.fps), keyint=round(self.clip.fps) * 10
+        )
 
 
 class X265(VideoLanEncoder):

@@ -1,8 +1,10 @@
 """Chapterisation module"""
 
-__all__ = ['Chapter', 'Chapters', 'OGMChapters', 'MatroskaXMLChapters',
-           'MplsChapters', 'MplsReader',
-           'IfoChapters', 'IfoReader']
+__all__ = [
+    'Chapter', 'Chapters', 'OGMChapters', 'MatroskaXMLChapters',
+    'MplsChapters', 'MplsReader',
+    'IfoChapters', 'IfoReader'
+]
 
 import os
 import random
@@ -16,6 +18,7 @@ from pyparsebluray import mpls
 from pyparsedvd import vts_ifo
 from pytimeconv import Convert
 
+from ._logging import logger
 from .language import UNDEFINED, Lang
 from .status import Status
 from .types import AnyPath, Element, ElementTree
@@ -100,9 +103,9 @@ class Chapters(ABC):
         destination = VPath(destination)
         self.chapter_file.resolve().copyfile(destination.resolve())
         self.chapter_file = destination
-        Status.info(
+        logger.success(
             f'{self.__class__.__name__}: Chapter file sucessfully copied from: '
-            + f'"{self.chapter_file.resolve().to_str()}" to "{destination.resolve().to_str()}"'
+            f'"{self.chapter_file.resolve().to_str()}" to "{destination.resolve().to_str()}"'
         )
 
     def create_qpfile(self, qpfile: AnyPath, fps: Fraction) -> None:
@@ -119,13 +122,7 @@ class Chapters(ABC):
             encoding='utf-8'
         )
 
-        Status.info(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
-
-    def _logging(self, action: str) -> None:
-        Status.info(
-            f'{self.__class__.__name__}: Chapter file sucessfully {action} at: '
-            + f'"{self.chapter_file.resolve().to_str()}"'
-        )
+        logger.success(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
 
 
 class OGMChapters(Chapters):
@@ -151,8 +148,12 @@ class OGMChapters(Chapters):
             for i, chapter in enumerate(chapters, start=1):
                 file.writelines([f'CHAPTER{i:02.0f}={Convert.f2ts(chapter.start_frame, fps)}\n',
                                  f'CHAPTER{i:02.0f}NAME={chapter.name}\n'])
-        self._logging('created')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully created at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
+    @logger.catch
     def set_names(self, names: Sequence[Optional[str]]) -> None:
         data = self._get_data()
         names = list(names)
@@ -161,16 +162,19 @@ class OGMChapters(Chapters):
         old = data[1::2]
 
         if len(names) > len(old):
-            Status.fail(f'{self.__class__.__name__}: too many names!', exception=ValueError)
+            raise ValueError(f'{self.__class__.__name__}: too many names!')
         if len(names) < len(old):
             names += [None] * (len(old) - len(names))
 
         new = [f'CHAPTER{i+1:02.0f}NAME={names[i]}\n' if names[i] is not None else chapname
                for i, chapname in enumerate(old)]
 
-        self.chapter_file.write_text('\n'.join([val for tup in zip(times, new) for val in tup]), encoding='utf-8')
+        self.chapter_file.write_text('\n'.join(val for tup in zip(times, new) for val in tup), encoding='utf-8')
 
-        self._logging('updated')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully updated at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
     def shift_times(self, frames: int, fps: Fraction) -> None:
         data = self._get_data()
@@ -187,7 +191,10 @@ class OGMChapters(Chapters):
 
         self.chapter_file.write_text('\n'.join([val for tup in zip(newchaptimes, chapnames) for val in tup]), encoding='utf-8')
 
-        self._logging('shifted')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully shifted at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
     def to_chapters(self, fps: Fraction, lang: Optional[Lang]) -> List[Chapter]:
         data = self._get_data()
@@ -264,8 +271,12 @@ class MatroskaXMLChapters(Chapters):
                            pretty_print=True, doctype=self.__DOCTYPE)
         )
 
-        self._logging('created')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully created at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
+    @logger.catch
     def set_names(self, names: Sequence[Optional[str]]) -> None:
         tree = self._get_tree()
         names = list(names)
@@ -273,7 +284,7 @@ class MatroskaXMLChapters(Chapters):
         olds = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}')
 
         if len(names) > len(olds):
-            Status.fail(f'{self.__class__.__name__}: too many names!', exception=ValueError)
+            raise ValueError(f'{self.__class__.__name__}: too many names!')
         if len(names) < len(olds):
             names += [None] * (len(olds) - len(names))
 
@@ -283,7 +294,10 @@ class MatroskaXMLChapters(Chapters):
         with self.chapter_file.open('wb') as file:
             tree.write(file, pretty_print=True, xml_declaration=True, with_comments=True)
 
-        self._logging('updated')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully updated at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
     def shift_times(self, frames: int, fps: Fraction) -> None:
         tree = self._get_tree()
@@ -306,8 +320,12 @@ class MatroskaXMLChapters(Chapters):
         with self.chapter_file.open('wb') as file:
             tree.write(file, pretty_print=True, xml_declaration=True, with_comments=True)
 
-        self._logging('shifted')
+        logger.success(
+            f'{self.__class__.__name__}: Chapter file sucessfully shifted at: '
+            + f'"{self.chapter_file.resolve().to_str()}"'
+        )
 
+    @logger.catch
     def to_chapters(self, fps: Fraction, lang: Optional[Lang] = None) -> List[Chapter]:  # noqa: C901
         tree = self._get_tree()
 
@@ -343,10 +361,7 @@ class MatroskaXMLChapters(Chapters):
             if isinstance(timestart.text, str):
                 start_frame = Convert.ts2f(timestart.text, fps)
             else:
-                Status.fail(
-                    f'{self.__class__.__name__}: timestart.text is not a str, wtf are u doin',
-                    exception=ValueError
-                )
+                raise ValueError(f'{self.__class__.__name__}: timestart.text is not a str, wtf are u doin')
 
             end_frame: Optional[int] = None
             try:
@@ -362,7 +377,6 @@ class MatroskaXMLChapters(Chapters):
                     lng = UNDEFINED
             else:
                 lng = lang
-
 
             chapter = Chapter(name=nametxt, start_frame=start_frame, end_frame=end_frame, lang=lng)
             chapters.append(chapter)
@@ -390,7 +404,8 @@ class MatroskaXMLChapters(Chapters):
         try:
             return cast(ElementTree, etree.parse(self.chapter_file.to_str()))
         except OSError as oserr:
-            Status.fail(f'{self.__class__.__name__}: xml file not found!', exception=FileNotFoundError, chain_err=oserr)
+            logger.critical(f'{self.__class__.__name__}: xml file not found!', oserr)
+            raise
 
 
 def _not_implemented_func() -> NoReturn:
@@ -521,6 +536,7 @@ class MplsReader:
                     chaps = chapters_obj(output_folder / f'{mpls_file.mpls_file.stem}_{mpls_chapters.m2ts.stem}')
                     chaps.create(chapters, mpls_chapters.fps)
 
+    @logger.catch
     def parse_mpls(self, mpls_file: AnyPath) -> List[MplsChapters]:
         """
         Parse a mpls file and return a list of chapters that were in the MPLS file.
@@ -535,14 +551,14 @@ class MplsReader:
             playlist = mpls.load_playlist(file)
 
             if not playlist.play_items:
-                Status.fail(f'{self.__class__.__name__}: There is no play items in this file!', exception=ValueError)
+                raise ValueError(f'{self.__class__.__name__}: There is no play items in this file!')
 
             file.seek(header.playlist_mark_start_address, os.SEEK_SET)
             playlist_mark = mpls.load_playlist_mark(file)
             if (plsmarks := playlist_mark.playlist_marks) is not None:
                 marks = plsmarks
             else:
-                Status.fail(f'{self.__class__.__name__}: There is no playlist marks in this file!', exception=ValueError)
+                raise ValueError(f'{self.__class__.__name__}: There is no playlist marks in this file!')
 
         mpls_chaps: List[MplsChapters] = []
 
@@ -571,28 +587,24 @@ class MplsReader:
                     try:
                         mpls_chap.fps = mpls.FRAMERATE[fps_n]
                     except AttributeError as attr_err:
-                        Status.fail(f'{self.__class__.__name__}: Unknown framerate!', exception=ValueError, chain_err=attr_err)
+                        raise ValueError(f'{self.__class__.__name__}: Unknown framerate!') from attr_err
                 else:
-                    Status.fail(f'{self.__class__.__name__}: No STNTable in playitem!', exception=AttributeError)
+                    raise AttributeError(f'{self.__class__.__name__}: No STNTable in playitem!')
 
                 # Finally extract the chapters
-                mpls_chap.chapters = self._mplschapters_to_chapters(linked_marks, offset, mpls_chap.fps)
+                mpls_chap.chapters = [
+                    Chapter(
+                        name=f'{self.default_chap_name} {i:02.0f}',
+                        start_frame=Convert.seconds2f((mark.mark_timestamp - offset) / 45000, mpls_chap.fps),
+                        end_frame=None,
+                        lang=self.lang
+                    ) for i, mark in enumerate(marks, start=1)
+                ]
 
             # And add to the list
             mpls_chaps.append(mpls_chap)
 
         return mpls_chaps
-
-    def _mplschapters_to_chapters(self, marks: List[mpls.playlist_mark.PlaylistMark], offset: int, fps: Fraction) -> List[Chapter]:
-        return [
-            Chapter(
-                name=f'{self.default_chap_name} {i:02.0f}',
-                start_frame=Convert.seconds2f((mark.mark_timestamp - offset) / 45000, fps),
-                end_frame=None,
-                lang=self.lang
-            )
-            for i, mark in enumerate(marks, start=1)
-        ]
 
 
 class IfoReader:
@@ -644,7 +656,7 @@ class IfoReader:
                 chaps = chapters_obj(output_folder / f'{ifo_file}_{i:02.0f}')
                 chaps.create(chapters, ifo_chapter.fps)
 
-
+    @logger.catch
     def parse_ifo(self, ifo_file: AnyPath) -> List[IfoChapters]:
         """
         Parse a mpls file and return a list of chapters that were in the ifo file.
@@ -667,7 +679,7 @@ class IfoReader:
             if all(dvd_fpss[0] == dvd_fps for dvd_fps in dvd_fpss):
                 ifo_chap.fps = vts_ifo.FRAMERATE[dvd_fpss[0]]
             else:
-                Status.fail(f'{self.__class__.__name__}: No VFR allowed!', exception=ValueError)
+                raise ValueError(f'{self.__class__.__name__}: No VFR allowed!')
 
             # Add a zero PlaybackTime and the duration which is the last chapter
             playback_times = [vts_ifo.vts_pgci.PlaybackTime(dvd_fpss[0], 0, 0, 0, 0)]
@@ -680,7 +692,6 @@ class IfoReader:
             ifo_chaps.append(ifo_chap)
 
         return ifo_chaps
-
 
     def _ifochapters_to_chapters(self, pb_times: List[vts_ifo.vts_pgci.PlaybackTime], fps: Fraction) -> List[Chapter]:
         if (fpsnum := int(fps.numerator / 1000)) == 0:

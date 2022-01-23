@@ -5,12 +5,12 @@ __all__ = [
 
 from abc import ABC
 from pprint import pformat
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import List, Optional, Sequence, Set, Tuple, Union
 
+from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
 from ..language import UNDEFINED, Lang
-from ..status import Status
 from ..types import AnyPath
 from ..utils import recursive_dict
 from ..vpathlib import VPath
@@ -96,7 +96,6 @@ class ChapterStream(Stream):
         self.charset = charset
 
 
-
 class Mux:
     """Muxing interface using mkvmerge."""
 
@@ -113,7 +112,7 @@ class Mux:
     """ChapterStream object"""
     deterministic_seed: Optional[Union[int, str]]
     """https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.deterministic"""
-    merge_args: Dict[str, Any]
+    merge_args: List[str]
     """Additional arguments to be passed to mkvmerge"""
 
     __workfiles: Set[VPath]
@@ -127,8 +126,8 @@ class Mux:
                 Optional[ChapterStream]
             ]
         ] = None, *,
-        deterministic_seed: Union[int, str, None] = None,
-        merge_args: Optional[Dict[str, Any]] = None
+        deterministic_seed: int | str | None = None,
+        merge_args: Optional[List[str]] = None
     ) -> None:
         """
         If ``streams`` is not specified:
@@ -151,7 +150,7 @@ class Mux:
         """
         self.output = file.name_file_final
         self.deterministic_seed = deterministic_seed
-        self.merge_args = merge_args if merge_args is not None else {}
+        self.merge_args = merge_args if merge_args is not None else []
 
         if streams is not None:
             self.file = file
@@ -173,12 +172,12 @@ class Mux:
         cmd = ['-o', self.output.to_str()]
 
         if self.deterministic_seed is not None:
-            cmd += ['--deterministic', str(self.deterministic_seed)]
+            cmd.extend(['--deterministic', str(self.deterministic_seed)])
 
-        cmd += self._video_cmd()
+        cmd.extend(self._video_cmd())
 
         if self.audios is not None:
-            cmd += self._audios_cmd()
+            cmd.extend(self._audios_cmd())
         else:
             self.audios = []
             i = 1
@@ -192,80 +191,77 @@ class Mux:
                 else:
                     break
                 i += 1
-            cmd += self._audios_cmd()
+            cmd.extend(self._audios_cmd())
 
         if self.chapters is not None:
-            cmd += self._chapters_cmd()
-        else:
-            if (chap := self.file.chapter) and chap.exists():
-                self.chapters = ChapterStream(chap)
-                cmd += self._chapters_cmd()
+            cmd.extend(self._chapters_cmd())
+        elif (chap := self.file.chapter) and chap.exists():
+            self.chapters = ChapterStream(chap)
+            cmd.extend(self._chapters_cmd())
 
-        for k, v in self.merge_args.items():
-            cmd += [k] + ([str(v)] if v else [])
+        cmd.extend(self.merge_args)
 
         BasicTool(BinaryPath.mkvmerge, cmd).run()
 
         return self.__workfiles
 
-
+    @logger.catch
     def _video_cmd(self) -> List[str]:
         cmd: List[str] = []
 
         if self.video.tag_file:
-            if self.video.tag_file.exists():
-                cmd += ['--tags', '0:' + self.video.tag_file.to_str()]
-            else:
-                Status.fail(f'{self.__class__.__name__}: "{self.video.tag_file}" not found!')
+            if not self.video.tag_file.exists():
+                raise FileNotFoundError(f'{self.__class__.__name__}: "{self.video.tag_file}" not found!')
+            cmd.extend(['--tags', '0:' + self.video.tag_file.to_str()])
 
         if self.video.name:
-            cmd += ['--track-name', '0:' + self.video.name]
+            cmd.extend(['--track-name', '0:' + self.video.name])
 
-        if self.video.path.exists():
-            cmd += ['--language', '0:' + self.video.lang.iso639, self.video.path.to_str()]
-        else:
-            Status.fail(f'{self.__class__.__name__}: "{self.video.path}" not found!')
+        if not self.video.path.exists():
+            raise FileNotFoundError(f'{self.__class__.__name__}: "{self.video.path}" not found!')
+        cmd.extend(['--language', '0:' + self.video.lang.iso639, self.video.path.to_str()])
 
         self.__workfiles.add(self.video.path)
         return cmd
 
+    @logger.catch
     def _audios_cmd(self) -> List[str]:
         cmd: List[str] = []
         assert self.audios
         for audio in self.audios:
             if audio.tag_file:
-                if audio.tag_file.exists():
-                    cmd += ['--tags', '0:' + audio.tag_file.to_str()]
-                else:
-                    Status.fail(f'{self.__class__.__name__}: "{audio.tag_file} not found!')
+                if not audio.tag_file.exists():
+                    raise FileNotFoundError(f'{self.__class__.__name__}: "{audio.tag_file} not found!')
+                cmd.extend(['--tags', '0:' + audio.tag_file.to_str()])
             if audio.name:
-                cmd += ['--track-name', '0:' + audio.name]
+                cmd.extend(['--track-name', '0:' + audio.name])
 
             if audio.path.exists():
-                cmd += ['--language', '0:' + audio.lang.iso639, audio.path.to_str()]
+                cmd.extend(['--language', '0:' + audio.lang.iso639, audio.path.to_str()])
             else:
                 i = 1
                 while True:
                     if (a_good_path := audio.path.set_track(i)).exists():
-                        Status.warn(f'{self.__class__.__name__}: "{audio.path}" not found, found "{a_good_path}"" instead.')
-                        cmd += ['--language', '0:' + audio.lang.iso639, a_good_path.to_str()]
+                        logger.warning(f'{self.__class__.__name__}: "{audio.path}" not found, found "{a_good_path}"" instead.')
+                        cmd.extend(['--language', '0:' + audio.lang.iso639, a_good_path.to_str()])
                         break
                     i += 1
                     if i > 10:
-                        Status.fail(f'{self.__class__.__name__}: "{audio.path}" not found!')
+                        raise FileNotFoundError(f'{self.__class__.__name__}: "{audio.path}" not found!')
 
             self.__workfiles.add(audio.path)
         return cmd
 
+    @logger.catch
     def _chapters_cmd(self) -> List[str]:
         assert self.chapters
         cmd = ['--chapter-language', self.chapters.lang.iso639]
         if self.chapters.charset:
-            cmd += ['--chapter-charset', self.chapters.charset]
+            cmd.extend(['--chapter-charset', self.chapters.charset])
 
-        if self.chapters.path.exists():
-            cmd += ['--chapters', self.chapters.path.to_str()]
-        else:
-            Status.fail(f'{self.__class__.__name__}: "{self.chapters.path}" not found!')
+        if not self.chapters.path.exists():
+            raise FileNotFoundError(f'{self.__class__.__name__}: "{self.chapters.path}" not found!')
+        cmd.extend(['--chapters', self.chapters.path.to_str()])
+
         self.__workfiles.add(self.chapters.path)
         return cmd

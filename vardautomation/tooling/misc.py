@@ -13,10 +13,10 @@ from typing import Iterable, List, NamedTuple, Optional, Union
 import psutil
 import vapoursynth as vs
 
+from .._logging import logger
 from ..binary_path import BinaryPath
 from ..render import SceneChangeMode as SCM
 from ..render import find_scene_changes
-from ..status import Status
 from ..types import AnyPath
 from ..vpathlib import VPath
 from .base import BasicTool
@@ -47,7 +47,7 @@ def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
     path = VPath(inspect.stack()[-1].filename).with_suffix('.log') if not path else VPath(path)
 
     if not overwrite and path.exists():
-        Status.fail(f'make_qpfile: a qpfile already exists at "{path.resolve().to_str()}"')
+        logger.critical(f'make_qpfile: a qpfile already exists at "{path.resolve().to_str()}"')
 
     num_threads = vs.core.num_threads
     if (oscpu := os.cpu_count()) is not None:
@@ -118,6 +118,7 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
     return core
 
 
+@logger.catch
 class SubProcessAsync:
     __slots__ = ('sem', )
 
@@ -127,7 +128,7 @@ class SubProcessAsync:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)
         else:
-            Status.fail(f'{self.__class__.__name__}: no CPU found!', exception=ValueError)
+            raise ValueError(f'{self.__class__.__name__}: no CPU found!')
 
         loop = asyncio.get_event_loop()
         try:
@@ -142,10 +143,12 @@ class SubProcessAsync:
         )
 
     async def _safe_processing(self, cmd: str) -> None:
+        logger.debug(cmd)
         async with self.sem:
             return await self._run_cmd(cmd)
 
     @staticmethod
     async def _run_cmd(cmd: str) -> None:
         proc = await asyncio.create_subprocess_shell(cmd)
+        logger.debug(cmd)
         await proc.communicate()
