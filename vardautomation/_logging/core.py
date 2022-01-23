@@ -86,7 +86,7 @@ class Logger(Singleton):
 
     @add_log_attribute(WARNING)
     def warning(self, message: str, /, depth: int = 1) -> None:
-        kwargs = dict(colour=self.info.colour.replace('<YELLOW>', '')) if self.__level < 20 else {}
+        kwargs = dict(colour='<yellow><bold>') if self.__level < 20 else {}
         self.logger.opt(depth=depth).warning(message, **kwargs)
 
     # @add_log_attribute(log_level=ERROR)
@@ -96,7 +96,7 @@ class Logger(Singleton):
 
     # @add_log_attribute(log_level=CRITICAL)
     def critical(self, message: str, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
-        kwargs = dict(colour=self.info.colour.replace('<RED>', '')) if self.__level < 20 else {}
+        kwargs = dict(colour=CRITICAL.colour.replace('<RED>', '')) if self.__level < 20 else {}
         self.logger.opt(exception=exception, depth=depth).critical(message, **kwargs)
         sys.exit(1)
 
