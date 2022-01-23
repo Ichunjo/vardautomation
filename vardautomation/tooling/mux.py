@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 __all__ = [
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',

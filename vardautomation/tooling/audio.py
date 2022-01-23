@@ -1,4 +1,6 @@
 
+from __future__ import annotations
+
 __all__ = [
     'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FFmpegAudioExtracter',
 

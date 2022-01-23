@@ -403,6 +403,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
             raise ValueError('comp: you need pyqt to use this writer') from imp_err
 
         def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            # pylint: disable=no-member
             frame_array = np.dstack(f)  # type: ignore
             image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format.Format_RGB888)  # type: ignore
             image.save(path_images[n].to_str(), 'PNG', compression)
@@ -436,6 +437,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
                 _png_pack(b'IEND', b'')])
 
         def _python_png(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            # pylint: disable=no-member
             frame_bytes = _write_png(np.dstack(f).tobytes(), f.width, f.height)  # type: ignore
             path_images[n].write_bytes(frame_bytes)
             return f
