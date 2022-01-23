@@ -35,7 +35,7 @@ def loguru_format(record: loguru.Record) -> str:
     return (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         + "<level>{level.name: <8}</level> | "
-        + "<cyan>{name}</cyan>:<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        + "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
         + lvl_c[0] + "{message}" + lvl_c[1] + '\n{exception}'
     )
 
