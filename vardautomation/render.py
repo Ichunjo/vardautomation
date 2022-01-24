@@ -18,6 +18,7 @@ from rich.text import Text
 
 from ._logging import logger
 from .utils import Properties
+from .vpathlib import VPath
 
 
 class FPSColumn(ProgressColumn):
@@ -40,29 +41,41 @@ RenderCallback = Callable[[int, vs.VideoFrame], None]
 
 
 @overload
-def clip_async_render(clip: vs.VideoNode,  # type: ignore [misc]
-                      outfile: Optional[BinaryIO] = None,
-                      timecodes: None = ...,
-                      progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> None:
+def clip_async_render(
+    clip: vs.VideoNode,  # type: ignore [misc]
+    outfile: Optional[BinaryIO] = None,
+    timecodes: None = ...,
+    progress: Optional[str] = "Rendering clip...",
+    callback: Union[RenderCallback, List[RenderCallback], None] = None,
+    *,
+    export_as_array: bool = False
+) -> None:
     ...
 
 
 @overload
-def clip_async_render(clip: vs.VideoNode,
-                      outfile: Optional[BinaryIO] = None,
-                      timecodes: TextIO = ...,
-                      progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> List[float]:
+def clip_async_render(
+    clip: vs.VideoNode,
+    outfile: Optional[BinaryIO] = None,
+    timecodes: TextIO = ...,
+    progress: Optional[str] = "Rendering clip...",
+    callback: Union[RenderCallback, List[RenderCallback], None] = None,
+    *,
+    export_as_array: bool = False
+) -> List[float]:
     ...
 
 
 @logger.catch
-def clip_async_render(clip: vs.VideoNode,  # noqa: C901
-                      outfile: Optional[BinaryIO] = None,
-                      timecodes: Optional[TextIO] = None,
-                      progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> Union[None, List[float]]:
+def clip_async_render(
+    clip: vs.VideoNode,  # noqa: C901
+    outfile: Optional[BinaryIO] = None,
+    timecodes: Optional[TextIO] = None,
+    progress: Optional[str] = "Rendering clip...",
+    callback: Union[RenderCallback, List[RenderCallback], None] = None,
+    *,
+    export_as_array: bool = False
+) -> Union[None, List[float]]:
     """
     Render a clip by requesting frames asynchronously using clip.frames,
     providing for callback with frame number and frame object.
@@ -125,6 +138,8 @@ def clip_async_render(clip: vs.VideoNode,  # noqa: C901
         timecodes.write("# timestamp format v2\n")
 
     tc_list = [0.0]
+    if export_as_array:
+        VPath('_frame_arrays').mkdir()
 
     for n, f in enumerate(clip.frames(close=True)):
         for cb in cbl:
@@ -133,6 +148,10 @@ def clip_async_render(clip: vs.VideoNode,  # noqa: C901
             _write_timecodes(f, timecodes, tc_list)
         if outfile:
             _finish_frame_video(f, outfile)
+        if export_as_array:
+            np.savez(f'_frame_arrays/array{n}_01_y.npz', np.asarray(f[0]))  # type: ignore
+            np.savez(f'_frame_arrays/array{n}_02_u.npz', np.asarray(f[1]))  # type: ignore
+            np.savez(f'_frame_arrays/array{n}_03_v.npz', np.asarray(f[2]))  # type: ignore
     if progress:
         p.stop()  # type: ignore
 

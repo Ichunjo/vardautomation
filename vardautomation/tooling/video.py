@@ -17,6 +17,7 @@ from ..config import FileInfo
 from ..types import AnyPath, UpdateFunc
 from ..utils import Properties, copy_docstring_from
 from ..vpathlib import VPath
+from ..render import clip_async_render
 from .abstract import Tool
 from .base import BasicTool
 from .misc import Qpfile, get_keyframes, make_qpfile
@@ -65,6 +66,9 @@ class VideoEncoder(Tool):
     This argument is there to limit the memory this function uses storing frames.
     """
 
+    use_python: bool = False
+    export_array: bool = False
+
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
         """
         Run encoding toolchain
@@ -104,7 +108,10 @@ class VideoEncoder(Tool):
     def _do_encode(self) -> None:
         logger.info(f'{self.__class__.__name__} command: ' + ' '.join(self.params))
         with logger.catch_ctx(), subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
-            self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
+            if self.use_python:
+                clip_async_render(self.clip, cast(BinaryIO, process.stdin), export_as_array=self.export_array)
+            else:
+                self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
 class LosslessEncoder(VideoEncoder):
