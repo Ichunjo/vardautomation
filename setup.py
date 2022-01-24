@@ -23,7 +23,7 @@ setup(
     description='Encoding automation tools via Vapoursynth',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    packages=['vardautomation', 'vardautomation.tooling'],
+    packages=['vardautomation', 'vardautomation.tooling', 'vardautomation._logging'],
     package_data={
         'vardautomation': ['py.typed', 'logo.txt'],
     },
