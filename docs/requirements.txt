@@ -1,8 +1,8 @@
 sphinx-autodoc-typehints==1.15.3
+loguru==0.5.3
 lxml==4.7.1
 pymediainfo==5.1.0
 requests==2.27.1
-colorama==0.4.4
 langcodes==3.3.0
 language-data==1.1
 psutil==5.9.0
