@@ -5,7 +5,7 @@ __all__ = ['Tool']
 import re
 import subprocess
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, NoReturn, Union
+from typing import Any, Dict, List, NoReturn
 
 from .._logging import logger
 from ..types import AnyPath
@@ -24,7 +24,7 @@ class Tool(ABC):
     params: List[str]
     """Settings normalised and parsed"""
 
-    def __init__(self, binary: AnyPath, settings: Union[AnyPath, List[str], Dict[str, Any]]) -> None:
+    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any]) -> None:
         """
         ::
 
@@ -70,7 +70,7 @@ class Tool(ABC):
         super().__init__()
 
     @abstractmethod
-    def run(self) -> Union[None, NoReturn]:
+    def run(self) -> None | NoReturn:
         """Tooling chain"""
 
     @abstractmethod

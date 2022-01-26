@@ -1,13 +1,14 @@
-from __future__ import annotations
 
 __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree']
 
 from abc import ABC
 from os import PathLike
-from typing import Any, Callable, Iterable, Iterator, List, Mapping, MutableSet, Optional, Set, TypeVar, Union, cast
+from typing import (
+    Any, Callable, Iterable, Iterator, List, Mapping, MutableSet, Optional, ParamSpec, Set, TypeVar,
+    Union, cast
+)
 
 from lxml import etree
-from typing_extensions import ParamSpec
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
 
@@ -15,10 +16,10 @@ T = TypeVar('T')
 F = TypeVar('F', bound=Callable[..., Any])
 P = ParamSpec('P')
 
-AnyPath = Union[PathLike[str], str]
+AnyPath = PathLike[str] | str
 """Represents a PathLike"""
 
-Element = etree._Element  # type: ignore
+Element = etree._Element  # type: ignore[pylance-strict]
 
 UpdateFunc = Callable[[int, int], None]
 """An update function type suitable for ``vapoursynth.VideoNode.output``"""

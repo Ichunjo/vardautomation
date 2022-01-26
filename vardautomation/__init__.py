@@ -1,6 +1,5 @@
 """Collection of classes and helper functions to automate encoding"""
 # flake8: noqa
-from ._deprecated import *
 from ._logging import *
 from ._metadata import __author__, __version__, version  # type: ignore
 from .automation import *

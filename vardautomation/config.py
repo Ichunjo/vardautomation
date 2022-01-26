@@ -4,8 +4,6 @@ Configuration module
 Contains FileInfo, BlurayShow and the different Presets to pass to them.
 """
 
-from __future__ import annotations
-
 __all__ = [
     'FileInfo', 'FileInfo2',
     'PresetType',
@@ -53,7 +51,7 @@ class PresetType(IntEnum):
     """Chapter type"""
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Preset:
     """Preset class that fills some attributes of :py:class:`FileInfo`"""
 
@@ -252,14 +250,14 @@ class FileInfo:
     """Final file output path"""
 
     _num_prop: bool = False
-    _trims_or_dfs: Union[List[Union[Trim, DuplicateFrame]], Trim, None]
+    _trims_or_dfs: List[Union[Trim, DuplicateFrame]] | Trim | None
 
     @logger.catch
     def __init__(
         self, path: AnyPath, /,
-        trims_or_dfs: Union[List[Union[Trim, DuplicateFrame]], Trim, None] = None, *,
+        trims_or_dfs: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
         idx: Optional[VPSIdx] = None,
-        preset: Union[Sequence[Preset], Preset] = PresetGeneric,
+        preset: Preset | Sequence[Preset] = PresetGeneric,
         workdir: AnyPath = VPath().cwd()
     ) -> None:
         """
@@ -369,7 +367,7 @@ class FileInfo:
         self._chapter = chap
 
     @property
-    def trims_or_dfs(self) -> Union[List[Union[Trim, DuplicateFrame]], Trim, None]:
+    def trims_or_dfs(self) -> List[Union[Trim, DuplicateFrame]] | Trim | None:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -378,7 +376,7 @@ class FileInfo:
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: Union[List[Union[Trim, DuplicateFrame]], Trim, None]) -> None:
+    def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -450,7 +448,7 @@ class FileInfo2(FileInfo):
             self.audios_cut = self.audios.copy()
 
     @property
-    def trims_or_dfs(self) -> Union[List[Union[Trim, DuplicateFrame]], Trim, None]:
+    def trims_or_dfs(self) -> List[Union[Trim, DuplicateFrame]] | Trim | None:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -459,7 +457,7 @@ class FileInfo2(FileInfo):
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: Union[List[Union[Trim, DuplicateFrame]], Trim, None]) -> None:
+    def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -531,7 +529,6 @@ class BlurayShow:
     _file_ncops: List[_File]
     _file_nceds: List[_File]
 
-    @logger.catch
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
                  idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = PresetGeneric,
                  lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
@@ -573,15 +570,13 @@ class BlurayShow:
         """
         Add NCOP paths to the class
         """
-        for p in path:
-            self._file_ncops.append(_File(p, None))
+        self._file_ncops.extend(_File(p, None) for p in path)
 
     def register_nceds(self, *path: VPath) -> None:
         """
         Add NCED paths to the class
         """
-        for p in path:
-            self._file_nceds.append(_File(p, None))
+        self._file_nceds.extend(_File(p, None) for p in path)
 
     def ncops(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
         """

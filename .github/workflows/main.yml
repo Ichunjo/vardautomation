@@ -5,41 +5,50 @@ on: [push, pull_request]
 jobs:
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10']
 
     steps:
       - name: Install zimg
         run: |
-          git clone https://github.com/sekrit-twc/zimg --branch v3.0 --depth 1
+          git clone https://github.com/Varde-s-Forks/zimg.git --branch v3.0 --depth 1
           pushd zimg
           ./autogen.sh
-          ./configure --disable-static --disable-simd
-          make -j2
-          sudo make install -j2
+          ./configure --prefix=/usr --disable-static --disable-simd
+          make -j3
+          sudo make install -j3
           popd
           rm -rf zimg
 
       - uses: actions/checkout@v2
-      - name: Setup Python 3.9
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
-            python-version: '3.9'
+            python-version: ${{ matrix.python-version }}
 
-      - name: Install cython
+      - name: Install Cython
         run: |
           python3 -m pip install --upgrade pip
-          pip install cython
+          pip install Cython
 
       - name: Set PKG_CONFIG_PATH
         run: echo "PKG_CONFIG_PATH=$pythonLocation/lib/pkgconfig" >> $GITHUB_ENV
 
+      - name: Install Meson
+        run: pip install meson
+
+      - name: Install Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install ninja-build
+
       - name: Install VapourSynth
         run: |
-          git clone https://github.com/vapoursynth/vapoursynth --depth 1 vapoursynth-build
+          git clone https://github.com/Varde-s-Forks/vapoursynth.git --branch master-meson --depth 1 vapoursynth-build
           pushd vapoursynth-build
-          ./autogen.sh
-          ./configure --disable-static --disable-vspipe
-          make -j2
-          sudo make install -j2
+          meson build -Dprefix=/usr -Denable_vspipe=false -Denable_guard_pattern=false -Denable_x86_asm=false -Denable_vsscript=false -Denable_vspipe=false
+          sudo ninja -C build install
           pip install .
           popd
           rm -rf vapoursynth-build
