@@ -34,7 +34,7 @@ from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
 from .render import audio_async_render
 from .types import AnyPath
-from .types import DuplicateFrame as DF
+from .types import DuplicateFrame
 from .types import Trim, VPSIdx
 from .vpathlib import VPath
 
@@ -213,7 +213,6 @@ Preset for XML based chapters.
 """
 
 
-@logger.catch
 class FileInfo:
     """FileInfo object. This is the first thing you should initialise."""
     path: VPath
@@ -253,11 +252,12 @@ class FileInfo:
     """Final file output path"""
 
     _num_prop: bool = False
-    _trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None]
+    _trims_or_dfs: Union[List[Union[Trim, DuplicateFrame]], Trim, None]
 
+    @logger.catch
     def __init__(
         self, path: AnyPath, /,
-        trims_or_dfs: Union[List[Union[Trim, DF]], Trim, None] = None, *,
+        trims_or_dfs: Union[List[Union[Trim, DuplicateFrame]], Trim, None] = None, *,
         idx: Optional[VPSIdx] = None,
         preset: Union[Sequence[Preset], Preset] = PresetGeneric,
         workdir: AnyPath = VPath().cwd()
@@ -369,7 +369,7 @@ class FileInfo:
         self._chapter = chap
 
     @property
-    def trims_or_dfs(self) -> Union[List[Union[Trim, DF]], Trim, None]:
+    def trims_or_dfs(self) -> Union[List[Union[Trim, DuplicateFrame]], Trim, None]:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -378,7 +378,7 @@ class FileInfo:
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: Union[List[Union[Trim, DF]], Trim, None]) -> None:
+    def trims_or_dfs(self, x: Union[List[Union[Trim, DuplicateFrame]], Trim, None]) -> None:
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -415,7 +415,6 @@ class FileInfo:
             ]
 
 
-@logger.catch
 class FileInfo2(FileInfo):
     """Second version of FileInfo adding audio support"""
 
@@ -425,6 +424,7 @@ class FileInfo2(FileInfo):
     audios_cut: List[vs.AudioNode]
     """List of AudioNode cut with the specified trims"""
 
+    @logger.catch
     def __post_init__(self) -> None:
         self.audios = []
         self.audios_cut = []
@@ -450,7 +450,7 @@ class FileInfo2(FileInfo):
             self.audios_cut = self.audios.copy()
 
     @property
-    def trims_or_dfs(self) -> Union[List[Union[Trim, DF]], Trim, None]:
+    def trims_or_dfs(self) -> Union[List[Union[Trim, DuplicateFrame]], Trim, None]:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -459,7 +459,7 @@ class FileInfo2(FileInfo):
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: Union[List[Union[Trim, DF]], Trim, None]) -> None:
+    def trims_or_dfs(self, x: Union[List[Union[Trim, DuplicateFrame]], Trim, None]) -> None:
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -485,6 +485,7 @@ class FileInfo2(FileInfo):
         """
         return self.audios_cut[0]
 
+    @logger.catch
     def write_a_src(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file
@@ -498,6 +499,7 @@ class FileInfo2(FileInfo):
                 progress=f'Writing a_src to {self.a_src.set_track(index).resolve().to_str()}'
             )
 
+    @logger.catch
     def write_a_src_cut(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file
@@ -520,7 +522,6 @@ class _File(NamedTuple):
 _FileInfoType = TypeVar('_FileInfoType', bound=FileInfo)
 
 
-@logger.catch
 class BlurayShow:
     """Helper class for batching shows"""
 
@@ -530,8 +531,9 @@ class BlurayShow:
     _file_ncops: List[_File]
     _file_nceds: List[_File]
 
-    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: Union[List[Union[Trim, DF]], Trim, None] = None, *,
-                 idx: Optional[VPSIdx] = None, preset: Union[Sequence[Preset], Preset] = PresetGeneric,
+    @logger.catch
+    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
+                 idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = PresetGeneric,
                  lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
         """
         :param episodes:            A dictionnary of episodes.

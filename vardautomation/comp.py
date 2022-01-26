@@ -97,10 +97,10 @@ class SlowPicsConf(NamedTuple):
     """Remove after N days"""
 
 
-@logger.catch
 class Comparison:
     """Extract frames, make diff between two clips and upload to slow.pics"""
 
+    @logger.catch
     def __init__(self, clips: Dict[str, vs.VideoNode], path: AnyPath = 'comps',
                  num: int = 15, frames: Optional[Iterable[int]] = None,
                  picture_type: Optional[PictureType | List[PictureType]] = None) -> None:
@@ -139,6 +139,7 @@ class Comparison:
         self.max_num = max(samples)
         self.frames = sorted(samples)
 
+    @logger.catch
     def extract(self, writer: Writer = Writer.PYTHON, compression: int = -1, force_bt709: bool = False) -> None:
         """
         Extract images from the specified clips in the constructor
@@ -208,6 +209,7 @@ class Comparison:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
                 logger.logger.opt(raw=True).info('\n')
 
+    @logger.catch
     def magick_compare(self) -> None:
         """
         Make an image of differences between the first and second clip using ImageMagick.
@@ -240,6 +242,7 @@ class Comparison:
         SubProcessAsync(cmds)
         logger.logger.opt(raw=True).info('\n')
 
+    @logger.catch
     def upload_to_slowpics(self, config: SlowPicsConf) -> None:
         """
         Upload to slow.pics with given configuration
@@ -281,6 +284,7 @@ class Comparison:
         url_file.write_text(f'[InternetShortcut]\nURL={slowpics_url}', encoding='utf-8')
         logger.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
+    @logger.catch
     def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureType | List[PictureType]) -> Set[int]:
         samples: Set[int] = set()
         _max_attempts = 0

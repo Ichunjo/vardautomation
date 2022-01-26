@@ -118,12 +118,12 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
     return core
 
 
-@logger.catch
 class SubProcessAsync:
     __slots__ = ('sem', )
 
     sem: asyncio.Semaphore
 
+    @logger.catch
     def __init__(self, cmds: List[str], /, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)

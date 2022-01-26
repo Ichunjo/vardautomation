@@ -423,18 +423,22 @@ class MplsChapters(Chapters):
     fps: Fraction
     """Framerate Per Second"""
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t create a mpls file!', exception=NotImplementedError)
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t change name from a mpls file!', exception=NotImplementedError)
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t shift times from a mpls file!', exception=NotImplementedError)
 
+    @logger.catch
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
             self.chapters = []
@@ -449,18 +453,22 @@ class IfoChapters(Chapters):
     fps: Fraction
     """Framerate Per Second"""
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t create an ifo file!', exception=NotImplementedError)
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t change name from an ifo file!', exception=NotImplementedError)
 
+    @logger.catch
     @copy_docstring_from(_not_implemented_func)
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
         Status.fail(f'{self.__class__.__name__}: Can\'t shift times from an ifo file!', exception=NotImplementedError)
 
+    @logger.catch
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
         if not hasattr(self, 'chapters') or not hasattr(self, 'fps'):
             self.chapters = []

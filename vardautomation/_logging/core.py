@@ -4,19 +4,16 @@ from __future__ import annotations
 
 __all__: List[str] = ['logger']
 
-import inspect
 import sys
-from functools import partial
-from types import FunctionType, MethodType
-from typing import Any, Callable, ContextManager, List, NamedTuple, NoReturn, Type, cast, overload
+from functools import partial, wraps
+from typing import Any, Callable, ContextManager, List, NamedTuple, NoReturn, cast, overload
 
 import loguru
 import pkg_resources as pkgr
 
-from ..types import T, F
+from ..types import F, T
 from .abstract import Singleton
-from .helpers import loguru_format, sys_exit, add_log_attribute
-
+from .helpers import add_log_attribute, loguru_format, sys_exit
 
 loguru.logger.remove(0)
 
@@ -44,7 +41,7 @@ class Logger(Singleton):
         self.__level = 20
         __ids = loguru.logger.configure(
             handlers=[
-                dict(sink=sys.stderr, level=self.__level, format=loguru_format, backtrace=True, diagnose=True)
+                dict(sink=sys.stderr, level=self.__level, format=loguru_format, backtrace=True, diagnose=False),
             ],
             levels=[{'name': log.name, 'color': log.colour} for log in LOG_LEVELS],  # type: ignore
             extra=dict(global_level=self.__level)
@@ -58,7 +55,7 @@ class Logger(Singleton):
     def set_level(self, level: int) -> None:
         self.__level = level
         loguru.logger.remove(self.__id)
-        loguru.logger.add(sys.stderr, level=level, format=loguru_format, backtrace=True, diagnose=True)
+        loguru.logger.add(sys.stderr, level=level, format=loguru_format, backtrace=True, diagnose=False)
 
     def logo(self) -> None:
         with open(pkgr.resource_filename('vardautomation', 'logo.txt'), 'r', encoding='utf-8') as logo:
@@ -101,29 +98,23 @@ class Logger(Singleton):
         sys.exit(1)
 
     @overload
-    def catch(self, obj: Type[T]) -> Type[T]:
-        ...
-
-    @overload
-    def catch(self, obj: F) -> F:
+    def catch(self, func: F) -> F:
         ...
 
     @overload
     def catch(self, *, force_exit: bool = ..., **kwargs: Any) -> Callable[[T], T]:
         ...
 
-    def catch(self, obj: Type[T] | F | None = None, *,  # type: ignore[misc]
-              force_exit: bool = True, **kwargs: Any) -> Type[T] | F | Callable[[T], T]:
-        if obj is None:
-            return cast(Callable[[T], T], partial(self.catch, force_exit=force_exit, **kwargs))
+    def catch(self, func: F | None = None, **kwargs: Any) -> F | Callable[[T], T]:
+        if func is None:
+            return cast(Callable[[T], T], partial(self.catch, **kwargs))
 
-        if isinstance(obj, type):
-            for name, fn in inspect.getmembers(obj):
-                if isinstance(fn, (FunctionType, MethodType)):
-                    setattr(obj, name, partial(self.catch, force_exit=force_exit, **kwargs)(fn))
-            return obj
+        @wraps(func)
+        def _wrapper(*args: Any, **kwrgs: Any) -> Any:
+            with self.logger.catch(**kwargs, level='CRITICAL', onerror=sys_exit):
+                return func(*args, **kwrgs)
 
-        return self.logger.catch(obj, **dict(onerror=sys_exit if force_exit else None) | kwargs)
+        return _wrapper
 
     def catch_ctx(self) -> ContextManager[None]:
         return cast(ContextManager[None], self.logger.catch(level='CRITICAL', onerror=sys_exit))

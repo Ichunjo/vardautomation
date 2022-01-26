@@ -12,11 +12,11 @@ from .types import AnyPath, T
 core = vs.core
 
 
-@logger.catch
 class Properties:
     """Collection of methods to get some properties from the parameters and/or the clip"""
 
     @classmethod
+    @logger.catch
     def get_colour_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
         """
         Get the luma colour range specified in the params.
@@ -28,10 +28,9 @@ class Properties:
         """
         bits = cls.get_depth(clip)
 
-        def _get_props(clip: vs.VideoNode) -> vs.FrameProps:
+        def _get_props(clip: vs.VideoNode) -> Dict[str, Any]:
             with clip.get_frame(0) as frame:
-                props = frame.props
-            return props
+                return frame.props.copy()
 
         if '--range' in params:
             rng_param = params[params.index('--range') + 1]
@@ -70,6 +69,7 @@ class Properties:
         return clip.format.bits_per_sample
 
     @staticmethod
+    @logger.catch
     def get_csp(clip: vs.VideoNode) -> str:
         """
         Get the colourspace a the given clip based on its format
@@ -104,9 +104,11 @@ class Properties:
         """
         ffprobe_args = ['ffprobe', '-loglevel', 'quiet', '-show_entries', 'format_tags=encoder',
                         '-print_format', 'default=nokey=1:noprint_wrappers=1', str(path)]
-        return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
+        with logger.catch_ctx():
+            return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
 
     @staticmethod
+    @logger.catch
     def get_prop(frame: vs.VideoFrame, key: str, t: Type[T]) -> T:
         """
         Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``

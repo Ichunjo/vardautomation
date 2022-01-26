@@ -65,6 +65,7 @@ class VideoEncoder(Tool):
     This argument is there to limit the memory this function uses storing frames.
     """
 
+    @logger.catch
     def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
         """
         Run encoding toolchain
@@ -478,6 +479,7 @@ class X265(VideoLanEncoder):
         Replaces ``{min_luma:d}`` and ``{max_luma:d}`` by ``Properties.get_colour_range(self.params, self.clip)``\n
         """
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
+        logger.debug('min_luma, max_luma: ' + str((min_luma, max_luma)))
         return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
 
 
