@@ -65,36 +65,36 @@ class Logger(Singleton):
         self.logger.opt(raw=True).info('\n')
 
     @add_log_attribute(TRACE)
-    def trace(self, message: str, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).trace(message)
+    def trace(self, message: Any, /, depth: int = 1) -> None:
+        self.logger.opt(depth=depth).trace(str(message))
 
     @add_log_attribute(DEBUG)
-    def debug(self, message: str, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).debug(message)
+    def debug(self, message: Any, /, depth: int = 1) -> None:
+        self.logger.opt(depth=depth).debug(str(message))
 
     @add_log_attribute(INFO)
-    def info(self, message: str, /, depth: int = 1) -> None:
+    def info(self, message: Any, /, depth: int = 1) -> None:
         kwargs = dict(colour=self.info.colour.replace('<BLUE>', '')) if self.__level < 20 else {}
-        self.logger.opt(depth=depth).info(message, **kwargs)
+        self.logger.opt(depth=depth).info(str(message), **kwargs)
 
     @add_log_attribute(SUCCESS)
-    def success(self, message: str, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).success(message)
+    def success(self, message: Any, /, depth: int = 1) -> None:
+        self.logger.opt(depth=depth).success(str(message))
 
     @add_log_attribute(WARNING)
-    def warning(self, message: str, /, depth: int = 1) -> None:
+    def warning(self, message: Any, /, depth: int = 1) -> None:
         kwargs = dict(colour='<yellow><bold>') if self.__level < 20 else {}
-        self.logger.opt(depth=depth).warning(message, **kwargs)
+        self.logger.opt(depth=depth).warning(str(message), **kwargs)
 
     # @add_log_attribute(log_level=ERROR)
-    def error(self, message: str, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
-        self.logger.opt(exception=exception, depth=depth).error(message)
+    def error(self, message: Any, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
+        self.logger.opt(exception=exception, depth=depth).error(str(message))
         sys.exit(1)
 
     # @add_log_attribute(log_level=CRITICAL)
-    def critical(self, message: str, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
+    def critical(self, message: Any, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
         kwargs = dict(colour=CRITICAL.colour.replace('<RED>', '')) if self.__level < 20 else {}
-        self.logger.opt(exception=exception, depth=depth).critical(message, **kwargs)
+        self.logger.opt(exception=exception, depth=depth).critical(str(message), **kwargs)
         sys.exit(1)
 
     @overload
@@ -102,7 +102,7 @@ class Logger(Singleton):
         ...
 
     @overload
-    def catch(self, *, force_exit: bool = ..., **kwargs: Any) -> Callable[[T], T]:
+    def catch(self, **kwargs: Any) -> Callable[[T], T]:
         ...
 
     def catch(self, func: F | None = None, **kwargs: Any) -> F | Callable[[T], T]:
@@ -111,6 +111,7 @@ class Logger(Singleton):
 
         @wraps(func)
         def _wrapper(*args: Any, **kwrgs: Any) -> Any:
+            assert func
             with self.logger.catch(**kwargs, level='CRITICAL', onerror=sys_exit):
                 return func(*args, **kwrgs)
 
