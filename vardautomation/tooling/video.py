@@ -185,6 +185,7 @@ class SupportQpfile(VideoEncoder, ABC):
         """
         _craps: List[VPath] = []
         if qpfile_clip:
+            logger.info('Qpfiling is enabled...')
             if qpfile_clip.num_frames != clip.num_frames:
                 raise ValueError(f'{self.__class__.__name__}: the ``qpfile_clip`` should have the same length than the ``clip``')
             if not file:
@@ -193,6 +194,7 @@ class SupportQpfile(VideoEncoder, ABC):
                 qpfile_clip,
                 file.name_clip_output.append_stem('_qpfile').with_suffix('.log')
             )
+            logger.trace(str(qpfile._asdict()))
             self.params.extend(['--qpfile', qpfile.path.to_str()])
             _craps.append(qpfile.path)
 
@@ -215,6 +217,8 @@ class SupportResume(SupportQpfile, ABC):
         if not self.resumable:
             return super().run_enc(clip, file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
 
+        logger.info('Resumable encode is enabled...')
+
         if not file:
             raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
         self.file = file
@@ -225,11 +229,15 @@ class SupportResume(SupportQpfile, ABC):
         pattern = self.file.name_clip_output.resolve().append_stem('_part_???')
         self._parts = sorted(pattern.parent.glob(pattern.name))
 
+        logger.info(f'{len(self._parts)} existing part(s) have been detected')
+
         # Get the last keyframes where you can encode from
         self._kfs = []
         for part in self._parts:
+            logger.debug('Part:' + part.to_str())
             try:
                 kfnt = get_keyframes(part)
+                logger.trace(str(kfnt._asdict()))
                 kf = kfnt.frames[-1]
                 # If the last keyframe is 0 then we can just overwrite the last encode
                 if kf == 0:
@@ -242,29 +250,38 @@ class SupportResume(SupportQpfile, ABC):
             except subprocess.CalledProcessError as err:
                 logger.debug(str(err))
                 del self._parts[-1]
+        logger.debug(str(self._parts))
 
         self.file.name_clip_output = self.file.name_clip_output.append_stem(f'_part_{len(self._parts):03.0f}')
         self._parts.append(self.file.name_clip_output)
 
-        self.clip = clip[sum(self._kfs):]
+        start_frame = sum(self._kfs)
+        if start_frame > 0:
+            logger.info(f'Start frame of the clip is now {start_frame}')
+        self.clip = clip[start_frame:]
         if qpfile_clip:
-            qpfile_clip = qpfile_clip[sum(self._kfs):]
+            logger.debug(f'Start frame of the qpfile_clip is now {start_frame}')
+            qpfile_clip = qpfile_clip[start_frame:]
+
         return super().run_enc(self.clip, self.file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
 
     def _do_encode(self) -> None:
+        super()._do_encode()
         # Just do the encode if not resumable
         if not self.resumable:
-            return super()._do_encode()
+            return
 
-        # Run encode
-        super()._do_encode()
+        logger.info('Resumable encode; merging...')
 
         # Files to delete
         _craps: Set[VPath] = set()
         # Split the files until the last keyframe
         mkv_parts: List[VPath] = []
+        logger.debug('Merging the parts...')
         for kf, part in zip(self._kfs, self._parts):
             p_mkv = part.with_suffix('.mkv')
+            logger.trace('p_mkv: ' + p_mkv.to_str())
+            logger.trace('part: ' + part.to_str())
             BasicTool(BinaryPath.mkvmerge, ['-o', p_mkv.to_str(), part.to_str(), '--split', f'frames:{kf}']).run()
             # Mkv files
             p_mkv001 = p_mkv.append_stem('-001')
@@ -274,29 +291,39 @@ class SupportResume(SupportQpfile, ABC):
             # Those are crappy
             _craps.update([p_mkv001, p_mkv002])
         _craps.update(self._parts)
+        logger.trace('mkv_parts: ' + str(mkv_parts))
+        logger.trace('craps: ' + str(_craps))
 
         # Also merge the last encoded part
+        logger.debug('Merging the last encoded part...')
         last = self.file.name_clip_output.with_suffix('.mkv')
+        logger.trace('last: ' + last.to_str())
+        logger.trace('output: ' + self.file.name_clip_output.to_str())
         BasicTool(BinaryPath.mkvmerge, ['-o', last.to_str(), self.file.name_clip_output.to_str()]).run()
         mkv_parts.append(last)
         _craps.add(last)
         _craps.add(self.file.name_clip_output)
+        logger.trace('mkv_parts: ' + str(mkv_parts))
+        logger.trace('craps: ' + str(_craps))
 
         # Restore original name
         self.file.name_clip_output = self._output
         output = self.file.name_clip_output.append_stem('_tmp').with_suffix('.mkv')
         if len(mkv_parts) > 1:
             # Merge the splitted files
+            logger.debug('Merge the splitted files')
             BasicTool(
                 BinaryPath.mkvmerge,
                 ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
                  '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
             ).run()
         else:
+            logger.debug('One part detected')
             mkvp = mkv_parts.pop(0)
             mkvp.rename(output)
             _craps.remove(mkvp)
         _craps.add(output)
+        logger.trace('craps: ' + str(_craps))
 
         # Extract the merged file
         BasicTool(BinaryPath.mkvextract, [output.to_str(), 'tracks', f'0:{self.file.name_clip_output.to_str()}']).run()
@@ -306,8 +333,6 @@ class SupportResume(SupportQpfile, ABC):
         for crap in _craps:
             crap.rm()
         del _craps
-
-        return None
 
 
 class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
