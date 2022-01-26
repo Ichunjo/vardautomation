@@ -1,19 +1,17 @@
-from __future__ import annotations
-
 __all__ = [
     'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
 ]
 
 from abc import ABC
 from pprint import pformat
-from typing import List, Optional, Sequence, Set, Tuple, Union
+from typing import List, Optional, Sequence, Set, Tuple
 
 from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
 from ..language import UNDEFINED, Lang
 from ..types import AnyPath
-from ..utils import recursive_dict
+from ..utils import modify_docstring_for, recursive_dict
 from ..vpathlib import VPath
 from .base import BasicTool
 
@@ -63,10 +61,12 @@ class MediaStream(Stream, ABC):
             self.tag_file = VPath(tag_file)
 
 
+@modify_docstring_for('__init__', lambda d: d.replace('MediaStream', 'VideoStream'))
 class VideoStream(MediaStream):
     ...
 
 
+@modify_docstring_for('__init__', lambda d: d.replace('MediaStream', 'AudioStream'))
 class AudioStream(MediaStream):
     ...
 
@@ -111,7 +111,7 @@ class Mux:
     """AudioStream object list"""
     chapters: Optional[ChapterStream]
     """ChapterStream object"""
-    deterministic_seed: Optional[Union[int, str]]
+    deterministic_seed: int | str | None
     """https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.description.deterministic"""
     merge_args: List[str]
     """Additional arguments to be passed to mkvmerge"""
@@ -123,7 +123,7 @@ class Mux:
         streams: Optional[
             Tuple[
                 VideoStream,
-                Optional[Union[AudioStream, Sequence[AudioStream]]],
+                Optional[AudioStream | Sequence[AudioStream]],
                 Optional[ChapterStream]
             ]
         ] = None, *,

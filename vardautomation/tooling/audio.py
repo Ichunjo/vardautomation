@@ -1,6 +1,4 @@
 
-from __future__ import annotations
-
 __all__ = [
     'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FFmpegAudioExtracter',
 
@@ -12,7 +10,7 @@ __all__ = [
 
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum, auto
-from typing import Any, ClassVar, Dict, Final, List, Literal, NoReturn, Optional, Sequence, Set, Union
+from typing import Any, ClassVar, Dict, Final, List, Literal, NoReturn, Optional, Sequence, Set, TypeGuard, Union
 
 import numpy as np
 import vapoursynth as vs
@@ -20,7 +18,6 @@ from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
 from pytimeconv import Convert
-from typing_extensions import TypeGuard
 from vardefunc.util import normalise_ranges
 
 from .._logging import logger
@@ -59,7 +56,7 @@ class AudioExtracter(BasicTool):
 class _AutoSetTrack(AudioExtracter, ABC):
     @logger.catch
     def __init__(self, binary: AnyPath, settings: List[str], /, file: FileInfo,
-                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
+                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1) -> None:
 
         track_in = [track_in] if isinstance(track_in, int) else track_in
         track_out = [track_out] if isinstance(track_out, int) else track_out
@@ -130,7 +127,7 @@ class MKVAudioExtracter(_AutoSetTrack):
     """AudioExtracter using MKVExtract"""
 
     def __init__(self, file: FileInfo, /, *,
-                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
+                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1,
                  mkvextract_args: Optional[List[str]] = None) -> None:
         """
         :param file:                FileInfo object, needed
@@ -153,7 +150,7 @@ class Eac3toAudioExtracter(_AutoSetTrack):
     _eac3to_args: List[str]
 
     def __init__(self, file: FileInfo, /, *,
-                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1,
+                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1,
                  eac3to_args: Optional[List[str]] = None) -> None:
         """
         :param file:                FileInfo object, needed
@@ -178,7 +175,7 @@ class FFmpegAudioExtracter(_FFmpegSetTrack):
     _ffmpeg_warning = ['-hide_banner', '-loglevel', 'info']
 
     def __init__(self, file: FileInfo, /, *,
-                 track_in: Union[int, Sequence[int]] = -1, track_out: Union[int, Sequence[int]] = -1) -> None:
+                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1) -> None:
         """
         :param file:                FileInfo object, needed
         :param track_in:            Input track(s) number
@@ -633,7 +630,7 @@ class AudioCutter(ABC):
     def generate_silence(
         cls, s: float, output: AnyPath,
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
-    ) -> Union[None, NoReturn]:
+    ) -> None | NoReturn:
         """
         Generate silence if supported by the current interface
 
@@ -656,7 +653,7 @@ class ScipyCutter(AudioCutter):
 
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         try:
-            import scipy as _  # type: ignore  # noqa F401
+            import scipy as _  # noqa F401
         except ImportError as imp_err:
             logger.critical(f'{self.__class__.__name__}: you need to install scipy to use this cutter!', imp_err)
         super().__init__(file, track=track, **kwargs)
@@ -680,7 +677,7 @@ class ScipyCutter(AudioCutter):
     @classmethod
     def scipytrim(
         cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
         ref_clip: vs.VideoNode, *, combine: bool = True
     ) -> None:
         """
@@ -695,7 +692,7 @@ class ScipyCutter(AudioCutter):
         :param combine:         Keep all performed trims in the same file, defaults to True
         """
         try:
-            from scipy.io import wavfile  # type: ignore
+            from scipy.io import wavfile
         except ImportError as imp_err:
             logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
 
@@ -722,18 +719,18 @@ class ScipyCutter(AudioCutter):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
                 arrays.append(
-                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]  # type: ignore
+                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]
                 )
             else:
                 # Handle DuplicateFrame
                 df = trim
                 _, channels = array.shape
                 arrays.append(
-                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)  # type: ignore
+                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)  # type: ignore[pylance-strict]
                 )
 
         if combine:
-            narray = arrays.pop() if len(arrays) == 1 else np.concatenate(arrays, axis=0)  # type: ignore
+            narray = arrays.pop() if len(arrays) == 1 else np.concatenate(arrays, axis=0)  # type: ignore[pylance-strict]
             wavfile.write(output, sample_rate, narray)
             del narray
         else:
@@ -747,11 +744,11 @@ class ScipyCutter(AudioCutter):
         num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         try:
-            from scipy.io import wavfile  # type: ignore
+            from scipy.io import wavfile
         except ImportError as imp_err:
             logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
 
-        silence_arr = np.array(  # type: ignore
+        silence_arr = np.array(  # type: ignore[pylance-strict]
             [(0, ) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth]
         )
         wavfile.write(output, sample_rate, silence_arr)
@@ -804,7 +801,7 @@ class EztrimCutter(AudioCutter):
     @classmethod
     def ezpztrim(
         cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
         ref_clip: vs.VideoNode, *,
         combine: bool = True, cleanup: bool = True
     ) -> None:
@@ -925,7 +922,7 @@ class EztrimCutter(AudioCutter):
         concat_conf.rm()
 
     @staticmethod
-    def _are_trims_only(trims_or_dfs: Union[List[Trim], List[Union[Trim, DuplicateFrame]]]) -> TypeGuard[List[Trim]]:
+    def _are_trims_only(trims_or_dfs: List[Trim] | List[Union[Trim, DuplicateFrame]]) -> TypeGuard[List[Trim]]:
         return not any(isinstance(t, DuplicateFrame) for t in trims_or_dfs)
 
 
@@ -951,7 +948,7 @@ class SoxCutter(AudioCutter):
     @classmethod
     def soxtrim(
         cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame, List[Trim], List[Union[Trim, DuplicateFrame]]],
+        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
         ref_clip: vs.VideoNode, *,
         combine: bool = True, cleanup: bool = True
     ) -> None:

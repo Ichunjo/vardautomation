@@ -7,7 +7,7 @@ __all__ = [
 
 import subprocess
 from abc import ABC
-from typing import Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Set, Tuple, Union, cast
+from typing import Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Set, Tuple, cast
 
 import vapoursynth as vs
 
@@ -338,7 +338,7 @@ class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
     _bits: int
 
     @copy_docstring_from(Tool.__init__, 'o+t')
-    def __init__(self, settings: Union[AnyPath, List[str], Dict[str, Any]], /,
+    def __init__(self, settings: AnyPath | List[str] | Dict[str, Any], /,
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
                  override_params: Optional[Dict[str, Any]] = None,
                  progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
