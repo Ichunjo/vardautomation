@@ -8,6 +8,6 @@ python -m pip install git+https://github.com/Ichunjo/vardautomation.git -U
 ```
 
 # Requirements
-* Python 3.9 or newer
-* VapourSynth r57 & the following plugins `bas`, `ffms2`, `imwri`, `lsmas`, `scxvid`, `wwxd`
+* Python 3.10 or newer
+* VapourSynth r58 & the following plugins `bas`, `ffms2`, `imwri`, `lsmas`, `scxvid`, `wwxd`
 * Other modules in `requirements.txt`

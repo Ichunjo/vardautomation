@@ -1,7 +1,5 @@
 """Automation module"""
 
-from __future__ import annotations
-
 __all__ = [
     'RunnerConfig', 'SelfRunner',
 
@@ -12,7 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypedDict, Union, cast
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypedDict, cast
 
 import vapoursynth as vs
 from typing_extensions import NotRequired
@@ -23,10 +21,9 @@ from vardefunc.util import normalise_ranges
 from ._logging import logger
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
-from .status import Status
 from .tooling import (
     AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, Mux, Qpfile,
-    VideoEncoder, VideoLanEncoder, get_keyframes, make_qpfile
+    VideoEncoder, get_keyframes, make_qpfile
 )
 from .tooling.video import SupportQpfile
 from .types import AnyPath, T
@@ -35,7 +32,7 @@ from .vpathlib import CleanupSet, VPath
 core = vs.core
 
 
-@dataclass(repr=False, eq=False, order=False, unsafe_hash=False, frozen=True)
+@dataclass(repr=False, eq=False, order=False, unsafe_hash=False, frozen=True, slots=True)
 class RunnerConfig:
     """
     Config for the SelfRunner
@@ -50,22 +47,16 @@ class RunnerConfig:
     """Video encoder"""
     v_lossless_encoder: Optional[LosslessEncoder] = None
     """Lossless video encoder"""
-    a_extracters: Union[AudioExtracter, Sequence[AudioExtracter], None] = None
+    a_extracters: AudioExtracter | Sequence[AudioExtracter] | None = None
     """Audio extracter(s)"""
-    a_cutters: Union[AudioCutter, Sequence[AudioCutter], None] = None
+    a_cutters: AudioCutter | Sequence[AudioCutter] | None = None
     """Audio cutter(s)"""
-    a_encoders: Union[AudioEncoder, Sequence[AudioEncoder], None] = None
+    a_encoders: AudioEncoder | Sequence[AudioEncoder] | None = None
     """Audio encoder(s)"""
     muxer: Optional[Mux] = None
     """Muxer"""
 
-    qpfile: Optional[Qpfile] = None
-    """
-    DEPRECATED\n
-    Qpfile NamedTuple
-    """
-
-    order: RunnerConfig.Order = Order.VIDEO
+    order: Order = Order.VIDEO
     """Priority order"""
 
     clear_outputs: bool = True
@@ -127,12 +118,6 @@ class SelfRunner:
         self.work_files = CleanupSet()
         self._qpfile_params = _QpFileParams()
 
-    @property
-    def cleanup_files(self) -> CleanupSet:
-        """DEPRECATED"""
-        Status.warn(f'{self.__class__.__name__}.cleanup_files: Deprecated attribute; please use ``work_files`` instead')
-        return self.work_files
-
     def run(self, *, show_logo: bool = True) -> None:
         """
         Main tooling chain
@@ -160,20 +145,6 @@ class SelfRunner:
         self._qpfile_params['qpfile_clip'] = qpfile_clip
         self._qpfile_params['qpfile_func'] = qpfile_func
         logger.debug(self._qpfile_params)
-
-    def do_cleanup(self, *extra_files: AnyPath) -> None:
-        """
-        DEPRECATED\n
-        Delete working files
-
-        :param extra_files:     Additional files to be deleted
-        """
-        Status.warn(
-            f'{self.__class__.__name__}: This method is deprecated. '
-            'Just use ``runner.work_files.clear()``'
-        )
-        self.work_files.update(extra_files)
-        self.work_files.clear()
 
     def rename_final_file(self, name: AnyPath) -> None:
         """
@@ -214,19 +185,6 @@ class SelfRunner:
             self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
 
         if not self.file.name_clip_output.exists():
-            if self.config.qpfile:
-                Status.warn(
-                    f'{self.__class__.__name__}: RunnerConfig.qpfile is deprecated.'
-                    'Use SelfRunner.inject_qpfile_params instead.'
-                )
-                if isinstance(self.config.v_encoder, VideoLanEncoder):
-                    self.config.v_encoder.params.extend(['--qpfile', self.config.qpfile.path.to_str()])
-                else:
-                    Status.warn(
-                        f'{self.__class__.__name__}: "{self.config.v_encoder.__class__.__name__}" '
-                        'is not an instance of VideoLanEncoder; qpfile skipped...'
-                    )
-
             if isinstance(self.config.v_encoder, SupportQpfile):
                 self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
             else:
@@ -303,7 +261,7 @@ class Patch:
 
     @logger.catch
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
-                 ranges: Union[Range, List[Range]],
+                 ranges: Range | List[Range],
                  output_filename: Optional[str] = None, *, debug: bool = False) -> None:
         """
         :param encoder:             VideoEncoder to be used

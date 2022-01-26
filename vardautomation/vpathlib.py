@@ -8,7 +8,7 @@ import os
 import shutil
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type, Union
+from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
 
 from ._logging import logger
 from .types import AnyPath, AbstractMutableSet
@@ -20,13 +20,13 @@ class _Flavour(Protocol):
 
 
 _ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-_OptExcInfo = Union[_ExcInfo, Tuple[None, None, None]]
+_OptExcInfo = _ExcInfo | Tuple[None, None, None]  # type: ignore[operator]
 
 
 class VPath(Path):
     """Modified version of pathlib.Path"""
     # pylint: disable=no-member
-    _flavour: _Flavour = type(Path())._flavour  # type: ignore
+    _flavour: _Flavour = type(Path())._flavour  # type: ignore[attr-defined]
 
     @logger.catch
     def format(self, *args: Any, **kwargs: Any) -> VPath:
@@ -81,7 +81,7 @@ class VPath(Path):
         if not name:
             raise ValueError(f'{self} has an empty name')
         name = name + suffix
-        return self._from_parsed_parts(self._drv, self._root, self._parts[:-1] + [name])  # type: ignore
+        return self._from_parsed_parts(self._drv, self._root, self._parts[:-1] + [name])  # type: ignore[attr-defined, no-any-return]
 
     @logger.catch
     def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:

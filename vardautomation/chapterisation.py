@@ -11,7 +11,7 @@ import random
 from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
-from typing import List, NamedTuple, NoReturn, Optional, Sequence, Type, Union, cast
+from typing import List, NamedTuple, NoReturn, Optional, Sequence, Type, cast
 
 from lxml import etree
 from pyparsebluray import mpls
@@ -20,9 +20,8 @@ from pytimeconv import Convert
 
 from ._logging import logger
 from .language import UNDEFINED, Lang
-from .status import Status
 from .types import AnyPath, Element, ElementTree
-from .utils import copy_docstring_from, recursive_dict
+from .utils import modify_docstring_for, recursive_dict
 from .vpathlib import VPath
 
 
@@ -60,7 +59,7 @@ class Chapters(ABC):
         return pformat(recursive_dict(self), indent=1, width=200, sort_dicts=False)
 
     @abstractmethod
-    def create(self, chapters: List[Chapter], fps: Fraction) -> Union[None, NoReturn]:
+    def create(self, chapters: List[Chapter], fps: Fraction) -> None | NoReturn:
         """
         Create the current Chapters object by passing a list of Chapter
 
@@ -69,7 +68,7 @@ class Chapters(ABC):
         """
 
     @abstractmethod
-    def set_names(self, names: Sequence[Optional[str]]) -> Union[None, NoReturn]:
+    def set_names(self, names: Sequence[Optional[str]]) -> None | NoReturn:
         """
         Change/set names of the current Chapters object
 
@@ -77,7 +76,7 @@ class Chapters(ABC):
         """
 
     @abstractmethod
-    def shift_times(self, frames: int, fps: Fraction) -> Union[None, NoReturn]:
+    def shift_times(self, frames: int, fps: Fraction) -> None | NoReturn:
         """
         Shift timestamps by given number of frames.
 
@@ -363,12 +362,10 @@ class MatroskaXMLChapters(Chapters):
             else:
                 raise ValueError(f'{self.__class__.__name__}: timestart.text is not a str, wtf are u doin')
 
-            end_frame: Optional[int] = None
-            try:
-                end_frame = Convert.ts2f(timeend.text, fps)  # type: ignore
-            except AttributeError:
-                pass
-
+            if timeend and timeend.text:
+                end_frame = Convert.ts2f(timeend.text, fps)
+            else:
+                end_frame = None
 
             if lang is None:
                 if ietf is not None and isinstance(ietf.text, str):
@@ -408,11 +405,10 @@ class MatroskaXMLChapters(Chapters):
             raise
 
 
-def _not_implemented_func() -> NoReturn:
-    """This function is not implemented"""
-    Status.fail('', exception=NotImplementedError, chain_err=NotImplementedError())
+_modify_docstring = modify_docstring_for(['create', 'set_names', 'shift_times'], lambda _: 'This function is not implemented')
 
 
+@_modify_docstring
 class MplsChapters(Chapters):
     """MplsChapters object"""
 
@@ -424,19 +420,16 @@ class MplsChapters(Chapters):
     """Framerate Per Second"""
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t create a mpls file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t create a mpls file!')
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t change name from a mpls file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t change name from a mpls file!')
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t shift times from a mpls file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t shift times from a mpls file!')
 
     @logger.catch
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:
@@ -445,6 +438,7 @@ class MplsChapters(Chapters):
         return self.chapters
 
 
+@_modify_docstring
 class IfoChapters(Chapters):
     """IfoChapters object"""
 
@@ -454,19 +448,16 @@ class IfoChapters(Chapters):
     """Framerate Per Second"""
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def create(self, chapters: List[Chapter], fps: Fraction) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t create an ifo file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t create an ifo file!')
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def set_names(self, names: Sequence[Optional[str]]) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t change name from an ifo file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t change name from an ifo file!')
 
     @logger.catch
-    @copy_docstring_from(_not_implemented_func)
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
-        Status.fail(f'{self.__class__.__name__}: Can\'t shift times from an ifo file!', exception=NotImplementedError)
+        raise NotImplementedError(f'{self.__class__.__name__}: Can\'t shift times from an ifo file!')
 
     @logger.catch
     def to_chapters(self, fps: Optional[Fraction] = None, lang: Optional[Lang] = None) -> List[Chapter]:

@@ -9,7 +9,7 @@ __all__ = [
 
 import struct
 from enum import IntEnum
-from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, Union, overload
+from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, overload
 
 import numpy as np
 import vapoursynth as vs
@@ -44,7 +44,7 @@ def clip_async_render(clip: vs.VideoNode,  # type: ignore [misc]
                       outfile: Optional[BinaryIO] = None,
                       timecodes: None = ...,
                       progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> None:
+                      callback: RenderCallback | List[RenderCallback] | None = None) -> None:
     ...
 
 
@@ -53,16 +53,16 @@ def clip_async_render(clip: vs.VideoNode,
                       outfile: Optional[BinaryIO] = None,
                       timecodes: TextIO = ...,
                       progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> List[float]:
+                      callback: RenderCallback | List[RenderCallback] | None = None) -> List[float]:
     ...
 
 
 @logger.catch
 def clip_async_render(clip: vs.VideoNode,  # noqa: C901
                       outfile: Optional[BinaryIO] = None,
-                      timecodes: Optional[TextIO] = None,
+                      timecodes: TextIO | None = None,
                       progress: Optional[str] = "Rendering clip...",
-                      callback: Union[RenderCallback, List[RenderCallback], None] = None) -> Union[None, List[float]]:
+                      callback: RenderCallback | List[RenderCallback] | None = None) -> None | List[float]:
     """
     Render a clip by requesting frames asynchronously using clip.frames,
     providing for callback with frame number and frame object.
@@ -232,7 +232,7 @@ def audio_async_render(audio: vs.AudioNode,
 
     for f in audio.frames(close=True):
         if progress:
-            p.update(task, advance=1)  # type: ignore
+            p.update(task, advance=1)  # type: ignore[pylance-strict]
         _finish_frame_audio(f, outfile, audio.bits_per_sample == 24)
     # Determine file size and place the value at the correct position
     # at the beginning of the file
@@ -244,7 +244,7 @@ def audio_async_render(audio: vs.AudioNode,
         outfile.seek(4)
         outfile.write(struct.pack('<I', size - 8))
     if progress:
-        p.stop()  # type: ignore
+        p.stop()  # type: ignore[pylance-strict]
 
 
 @logger.catch
@@ -311,7 +311,7 @@ def _w64_header(audio: vs.AudioNode, bps: int, block_align: int, data_size: int)
 
 def _finish_frame_audio(frame: vs.AudioFrame, outfile: BinaryIO, _24bit: bool) -> None:
     # For some reason f[i] is faster than list(f) or just passing f to stack
-    data = np.stack([frame[i] for i in range(frame.num_channels)], axis=1)  # type: ignore
+    data = np.stack([frame[i] for i in range(frame.num_channels)], axis=1)  # type: ignore[var-annotated]
 
     if _24bit:
         if data.ndim == 1:
@@ -319,10 +319,10 @@ def _finish_frame_audio(frame: vs.AudioFrame, outfile: BinaryIO, _24bit: bool) -
             data.shape += (1, )
         # Data values are stored in 32 bits so we must convert them to 24 bits
         # Then by shifting first 0 bits, then 8, then 16, the resulting output is 24 bit little-endian.
-        data = ((data // 2 ** 8).reshape(data.shape + (1, )) >> np.array([0, 8, 16]))  # type: ignore [attr-defined]
-        outfile.write(data.ravel().astype(np.uint8).tobytes())  # type: ignore
+        data = ((data // 2 ** 8).reshape(data.shape + (1, )) >> np.array([0, 8, 16], np.uint32))  # type: ignore[pylance-strict]
+        outfile.write(data.ravel().astype(np.uint8).tobytes())
     else:
-        outfile.write(data.ravel().view(np.int8).tobytes())  # type: ignore
+        outfile.write(data.ravel().view(np.int8).tobytes())
 
 
 class SceneChangeMode(IntEnum):
@@ -332,7 +332,7 @@ class SceneChangeMode(IntEnum):
 
 
 def find_scene_changes(  # noqa: C901
-    clip: vs.VideoNode, mode: Union[int, SceneChangeMode] = SceneChangeMode.WWXD, *,
+    clip: vs.VideoNode, mode: int | SceneChangeMode = SceneChangeMode.WWXD, *,
     scxvid_use_slices: bool = False,
     mv_vectors: Optional[vs.VideoNode] = None,
     mv_thscd1: Optional[int] = None, mv_thscd2: Optional[int] = None,
@@ -390,6 +390,16 @@ def find_scene_changes(  # noqa: C901
         elif mode in wwxd_inters | scxvid_inters | mv_inters:
             if all(Properties.get_prop(f, p, int) == 1 for p in props):
                 frames.append(n)
+        # match mode:
+        #     case SCM.WWXD | SCM.SCXVID | SCM.MV:
+        #         if Properties.get_prop(f, props[0], int):
+        #             frames.append(n)
+        #     case _ if mode in wwxd_unions | scxvid_unions | mv_unions:
+        #         if any(Properties.get_prop(f, p, int) for p in props):
+        #             frames.append(n)
+        #     case _ if mode in wwxd_inters | scxvid_inters | mv_inters:
+        #         if all(Properties.get_prop(f, p, int) for p in props):
+        #             frames.append(n)
 
     clip_async_render(clip, progress="Detecting scene changes...", callback=_cb)
 

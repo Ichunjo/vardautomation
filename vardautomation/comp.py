@@ -1,7 +1,5 @@
 """Comparison module"""
 
-from __future__ import annotations
-
 __all__ = [
     # Enums
     'Writer', 'PictureType',
@@ -23,6 +21,7 @@ from typing import Any, Callable, Dict, Final, Iterable, List, NamedTuple, Optio
 
 import numpy as np
 import vapoursynth as vs
+from numpy.typing import NDArray
 from requests import Session
 from requests_toolbelt import MultipartEncoder
 from vardefunc.types import Zimg
@@ -149,6 +148,7 @@ class Comparison:
         :param compression:         Compression level. It depends of the writer used, defaults to -1 which means automatic selection
         :param force_bt709:         Force BT709 matrix before conversion to RGB24, defaults to False
         """
+        # pylint: disable=cell-var-from-loop
         for name, clip in self.clips.items():
             path_name = self.path / name
             try:
@@ -205,7 +205,7 @@ class Comparison:
                 logger.logger.opt(raw=True).info('\n')
             else:
                 clip = select_frames(clip, self.frames)
-                clip = clip.std.ModifyFrame(clip, partial(_saver(writer, compression), path_images=path_images))
+                clip = clip.std.ModifyFrame(clip, lambda n, f: _saver(writer, compression)(n, f, path_images))
                 with open(os.devnull, 'wb') as devnull:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
                 logger.logger.opt(raw=True).info('\n')
@@ -253,7 +253,7 @@ class Comparison:
         # Upload to slow.pics
         all_images = [sorted((self.path / name).glob('*.png')) for name in self.clips.keys()]
         if self.path_diff:
-            all_images.append(sorted(self.path_diff.glob('*.png')))  # type: ignore
+            all_images.append(sorted(self.path_diff.glob('*.png')))
 
         fields: Dict[str, Any] = {}
 
@@ -383,7 +383,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
         opencv_compression = [cv2.IMWRITE_PNG_COMPRESSION, compression] if compression >= 0 else []
 
         def _opencv(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-            frame_array = np.dstack(tuple(reversed(f)))  # type: ignore
+            frame_array = np.dstack(tuple(reversed(f)))  # type: ignore[var-annotated]
             cv2.imwrite(path_images[n].to_str(), frame_array, opencv_compression)
             return f
         return _opencv
@@ -395,8 +395,8 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
             raise ValueError('comp: you need Pillow to use this writer') from imp_err
 
         def _pillow(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
-            frame_array = np.dstack(f)  # type: ignore
-            img = Image.fromarray(frame_array, 'RGB')  # type: ignore
+            frame_array: NDArray[Any] = np.dstack(f)  # type: ignore[call-overload]
+            img = Image.fromarray(frame_array, 'RGB')  # type: ignore[pylance-strict]
             img.save(path_images[n], format='PNG', optimize=False, compress_level=abs(compression))
             return f
         return _pillow
@@ -408,9 +408,9 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
             raise ValueError('comp: you need pyqt to use this writer') from imp_err
 
         def _pyqt(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
+            frame_array: NDArray[Any] = np.dstack(f)  # type: ignore[call-overload]
             # pylint: disable=no-member
-            frame_array = np.dstack(f)  # type: ignore
-            image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format.Format_RGB888)  # type: ignore
+            image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format_RGB888)
             image.save(path_images[n].to_str(), 'PNG', compression)
             return f
         return _pyqt
@@ -443,7 +443,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, Li
 
         def _python_png(n: int, f: vs.VideoFrame, path_images: List[VPath]) -> vs.VideoFrame:
             # pylint: disable=no-member
-            frame_bytes = _write_png(np.dstack(f).tobytes(), f.width, f.height)  # type: ignore
+            frame_bytes = _write_png(np.dstack(f).tobytes(), f.width, f.height)  # type: ignore[call-overload]
             path_images[n].write_bytes(frame_bytes)
             return f
         return _python_png

@@ -1,12 +1,13 @@
 """Properties and helpers functions"""
 import subprocess
 from functools import wraps
-from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
+from types import FunctionType
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, TypeVar, cast
 
 import vapoursynth as vs
 
 from ._logging import logger
-from .status import VSColourRangeError, VSSubsamplingError
+from .exception import VSColourRangeError, VSSubsamplingError
 from .types import AnyPath, T
 
 core = vs.core
@@ -133,7 +134,7 @@ class Properties:
 
 
 
-def recursive_dict(obj: object) -> Union[Dict[str, Any], str]:
+def recursive_dict(obj: object) -> Dict[str, Any] | str:
     # pylint: disable=no-else-return
     if hasattr(obj, '__dict__') and obj.__dict__:
         return {k: recursive_dict(v) for k, v in obj.__dict__.items()}
@@ -171,3 +172,36 @@ def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callab
         return target
 
     return wrapper
+
+
+def modify_docstring(edit_func: Callable[[str], str], /) -> Callable[[F], F]:
+
+    def _wrapper(target: F) -> F:
+        if not target.__doc__:
+            logger.debug(f'modify_docstring: missing docstring in {target}')
+            target.__doc__ = ''
+        target.__doc__ = edit_func(target.__doc__)
+        return target
+
+    return _wrapper
+
+
+# pylint: disable=unused-argument
+def modify_docstring_for(fn_name: str | Iterable[str], edit_func: Callable[[str], str], /) -> Callable[[Type[T]], Type[T]]:
+
+    def _wrapper(target: Type[T]) -> Type[T]:
+        nonlocal fn_name
+        with logger.catch_ctx():
+            if isinstance(fn_name, str):
+                fn_name = [fn_name]
+
+            for fnn in fn_name:
+                func = cast(FunctionType, getattr(target, fnn))
+                func_c = FunctionType(func.__code__, func.__globals__, fnn, func.__defaults__, func.__closure__)
+                func_c = modify_docstring(edit_func)(func_c)
+                func_c = wraps(target)(func_c)
+                setattr(target, fnn, func_c)
+
+        return target
+
+    return _wrapper
