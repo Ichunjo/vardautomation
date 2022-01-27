@@ -126,15 +126,19 @@ def clip_async_render(clip: vs.VideoNode,  # noqa: C901
 
     tc_list = [0.0]
 
-    for n, f in enumerate(clip.frames(close=True)):
-        for cb in cbl:
-            cb(n, f)
-        if timecodes:
-            _write_timecodes(f, timecodes, tc_list)
-        if outfile:
-            _finish_frame_video(f, outfile)
-    if progress:
-        p.stop()  # type: ignore
+    try:
+        for n, f in enumerate(clip.frames(close=True)):
+            for cb in cbl:
+                cb(n, f)
+            if timecodes:
+                _write_timecodes(f, timecodes, tc_list)
+            if outfile:
+                _finish_frame_video(f, outfile)
+    except KeyboardInterrupt as keyb_err:
+        logger.error('', keyb_err)
+    finally:
+        if progress:
+            p.stop()  # type: ignore
 
     return tc_list if timecodes else None
 

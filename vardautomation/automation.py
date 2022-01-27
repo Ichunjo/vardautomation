@@ -141,11 +141,13 @@ class SelfRunner:
         """
         if show_logo:
             logger.logo()
+        logger.info('SelfRunning...')
 
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
             funcs.reverse()
         funcs.append(self._muxer)
+        logger.debug(funcs)
         for f in funcs:
             f()
 
@@ -157,6 +159,7 @@ class SelfRunner:
         """
         self._qpfile_params['qpfile_clip'] = qpfile_clip
         self._qpfile_params['qpfile_func'] = qpfile_func
+        logger.debug(self._qpfile_params)
 
     def do_cleanup(self, *extra_files: AnyPath) -> None:
         """
@@ -178,6 +181,7 @@ class SelfRunner:
 
         :param name:            New filename
         """
+        logger.debug('Renaming')
         self.file.name_file_final = self.file.name_file_final.replace(VPath(name))
 
     def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: Optional[List[str]] = None) -> None:
@@ -237,18 +241,24 @@ class SelfRunner:
                     self.work_files.update(all_a_src)
                     if not any(a_src.exists() for a_src in all_a_src):
                         a_extracter.run()
+                    else:
+                        logger.warning(f'Skipping "{[p.to_str() for p in all_a_src]}" to extract...')
 
             if self.config.a_cutters and self.file.a_src_cut:
                 for i, a_cutter in enumerate(_toseq(self.config.a_cutters), start=1):
                     self.work_files.add(self.file.a_src_cut.set_track(i))
                     if not self.file.a_src_cut.set_track(i).exists():
                         a_cutter.run()
+                    else:
+                        logger.warning(f'Skipping "{self.file.a_src_cut.set_track(i).to_str()}" to cut...')
 
         if self.config.a_encoders and self.file.a_enc_cut:
             for i, a_encoder in enumerate(_toseq(self.config.a_encoders), start=1):
                 self.work_files.add(self.file.a_enc_cut.set_track(i))
                 if not self.file.a_enc_cut.set_track(i).exists():
                     a_encoder.run()
+                else:
+                    logger.warning(f'Skipping "{self.file.a_enc_cut.set_track(i).to_str()}" to encode...')
 
     def _muxer(self) -> None:
         if self.config.muxer:
