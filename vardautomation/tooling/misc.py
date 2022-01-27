@@ -78,6 +78,7 @@ def get_keyframes(path: AnyPath) -> KeyframesFile:
     :param path:        Path of the video
     :return:            A KeyframesFile
     """
+    logger.debug(path)
     path = VPath(path)
 
     idx_file = path.parent / 'index.ffindex'

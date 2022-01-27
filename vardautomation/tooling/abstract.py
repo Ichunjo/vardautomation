@@ -65,6 +65,7 @@ class Tool(ABC):
             self.params = [p for p in params_re if isinstance(p, str)]
 
         self._check_binary()
+        self.params.insert(0, self.binary.to_str())
 
         super().__init__()
 
@@ -85,7 +86,6 @@ class Tool(ABC):
                 continue
             p = p.format(**self.set_variable())
             self.params[i] = p
-        self.params.insert(0, self.binary.to_str())
 
     def _check_binary(self) -> None:
         try:

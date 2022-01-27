@@ -108,7 +108,6 @@ class Properties:
             return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
 
     @staticmethod
-    @logger.catch
     def get_prop(frame: vs.VideoFrame, key: str, t: Type[T]) -> T:
         """
         Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
@@ -124,10 +123,11 @@ class Properties:
         try:
             prop = frame.props[key]
         except KeyError as key_err:
-            raise KeyError(f"get_prop: 'Key {key} not present in props'") from key_err
+            logger.critical(f"get_prop: 'Key {key} not present in props'", key_err)
 
         if not isinstance(prop, t):
-            raise ValueError(f"get_prop: 'Key {key} did not contain expected type: Expected {t} got {type(prop)}'")
+            with logger.catch_ctx():
+                raise ValueError(f"get_prop: 'Key {key} did not contain expected type: Expected {t} got {type(prop)}'")
 
         return prop
 

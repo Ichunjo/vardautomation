@@ -4,17 +4,16 @@ __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx
 
 from abc import ABC
 from os import PathLike
-from typing import (
-    Any, Callable, Dict, Iterable, Iterator, List, MutableSet, Optional, Set, TypeVar,
-    Union, cast
-)
+from typing import Any, Callable, Dict, Iterable, Iterator, List, MutableSet, Optional, Set, TypeVar, Union, cast
 
 from lxml import etree
+from typing_extensions import ParamSpec
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
 
 T = TypeVar('T')
 F = TypeVar('F', bound=Callable[..., Any])
+P = ParamSpec('P')
 
 AnyPath = Union[PathLike[str], str]
 """Represents a PathLike"""

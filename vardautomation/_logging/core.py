@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 # pylint: disable=no-member
+# pylint: disable=broad-except
+# pylint: disable=inconsistent-return-statements
 
 __all__: List[str] = ['logger']
 
 import sys
 from functools import partial, wraps
-from typing import Any, Callable, ContextManager, List, NamedTuple, NoReturn, cast, overload
+from typing import Any, Callable, ContextManager, Dict, List, NamedTuple, NoReturn, cast, overload
 
 import loguru
 import pkg_resources as pkgr
 
-from ..types import F, T
+from ..types import P, T
 from .abstract import Singleton
 from .helpers import add_log_attribute, loguru_format, sys_exit
 
@@ -65,55 +67,66 @@ class Logger(Singleton):
         self.logger.opt(raw=True).info('\n')
 
     @add_log_attribute(TRACE)
-    def trace(self, message: Any, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).trace(str(message))
+    def trace(self, message: Any, /, depth: int = 1, **kwargs: Any) -> None:
+        self.logger.opt(depth=depth).trace(str(message), **kwargs)
 
     @add_log_attribute(DEBUG)
-    def debug(self, message: Any, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).debug(str(message))
+    def debug(self, message: Any, /, depth: int = 1, **kwargs: Any) -> None:
+        self.logger.opt(depth=depth).debug(str(message), **kwargs)
 
     @add_log_attribute(INFO)
-    def info(self, message: Any, /, depth: int = 1) -> None:
-        kwargs = dict(colour=self.info.colour.replace('<BLUE>', '')) if self.__level < 20 else {}
+    def info(self, message: Any, /, depth: int = 1, **kwargs: Any) -> None:
+        if self.__level < 20:
+            kwargs.setdefault('colour', self.info.colour.replace('<BLUE>', ''))
         self.logger.opt(depth=depth).info(str(message), **kwargs)
 
     @add_log_attribute(SUCCESS)
-    def success(self, message: Any, /, depth: int = 1) -> None:
-        self.logger.opt(depth=depth).success(str(message))
+    def success(self, message: Any, /, depth: int = 1, **kwargs: Any) -> None:
+        self.logger.opt(depth=depth).success(str(message), **kwargs)
 
     @add_log_attribute(WARNING)
-    def warning(self, message: Any, /, depth: int = 1) -> None:
-        kwargs = dict(colour='<yellow><bold>') if self.__level < 20 else {}
+    def warning(self, message: Any, /, depth: int = 1, **kwargs: Any) -> None:
+        if self.__level < 20:
+            kwargs.setdefault('colour', '<yellow><bold>')
         self.logger.opt(depth=depth).warning(str(message), **kwargs)
 
     # @add_log_attribute(log_level=ERROR)
-    def error(self, message: Any, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
-        self.logger.opt(exception=exception, depth=depth).error(str(message))
+    def error(self, message: Any, /, exception: bool | BaseException | None = True,
+              depth: int = 1, record: bool = False, **kwargs: Any) -> NoReturn:
+        self.logger.opt(exception=exception, record=record, depth=depth).error(str(message), **kwargs)
         sys.exit(1)
 
     # @add_log_attribute(log_level=CRITICAL)
-    def critical(self, message: Any, /, exception: bool | BaseException | None = True, depth: int = 1) -> NoReturn:
-        kwargs = dict(colour=CRITICAL.colour.replace('<RED>', '')) if self.__level < 20 else {}
-        self.logger.opt(exception=exception, depth=depth).critical(str(message), **kwargs)
+    def critical(self, message: Any, /, exception: bool | BaseException | None = True,
+                 depth: int = 1, record: bool = False, **kwargs: Any) -> NoReturn:
+        if self.__level < 20:
+            kwargs.setdefault('colour', CRITICAL.colour.replace('<RED>', ''))
+        self.logger.opt(exception=exception, record=record, depth=depth).critical(str(message), **kwargs)
         sys.exit(1)
 
     @overload
-    def catch(self, func: F) -> F:
+    def catch(self, func: Callable[P, T]) -> Callable[P, T]:
         ...
 
     @overload
     def catch(self, **kwargs: Any) -> Callable[[T], T]:
         ...
 
-    def catch(self, func: F | None = None, **kwargs: Any) -> F | Callable[[T], T]:
+    def catch(self, func: Callable[P, T] | None = None, **kwargs: Any) -> Callable[P, T] | Callable[[T], T]:
         if func is None:
             return cast(Callable[[T], T], partial(self.catch, **kwargs))
 
         @wraps(func)
-        def _wrapper(*args: Any, **kwrgs: Any) -> Any:
+        def _wrapper(*args: P.args, **kwrgs: P.kwargs) -> T:
             assert func
-            with self.logger.catch(**kwargs, level='CRITICAL', onerror=sys_exit):
+            try:
                 return func(*args, **kwrgs)
+            except Exception as e:
+                kwargs_c: Dict[str, Any] = dict(depth=2, record=True) | kwargs
+                self.critical(
+                    "{record[name]}:{record[line]}: An error has been caught in function '{record[function]}'",
+                    e, **kwargs_c
+                )
 
         return _wrapper
 

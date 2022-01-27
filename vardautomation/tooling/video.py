@@ -82,7 +82,7 @@ class VideoEncoder(Tool):
         self._do_encode()
 
     @logger.catch
-    def run(self) -> NoReturn:
+    def run(self) -> NoReturn:  # type: ignore[pylance-strict]
         """
         Shouldn't be used in VideoEncoder object.
         Use :py:func:`run_enc` instead
@@ -207,12 +207,9 @@ class SupportQpfile(VideoEncoder, ABC):
 
 class SupportResume(SupportQpfile, ABC):
     resumable = False
-    _output: VPath
-    _parts: List[VPath]
-    _kfs: List[int]
 
     @logger.catch
-    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,
+    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,  # noqa C901
                 qpfile_clip: Optional[vs.VideoNode] = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         if not self.resumable:
@@ -225,52 +222,45 @@ class SupportResume(SupportQpfile, ABC):
         self.file = file
 
         # Copy original name
-        self._output = VPath(self.file.name_clip_output)
+        _output = VPath(self.file.name_clip_output)
 
         pattern = self.file.name_clip_output.resolve().append_stem('_part_???')
-        self._parts = sorted(pattern.parent.glob(pattern.name))
+        _parts = sorted(pattern.parent.glob(pattern.name))
 
-        logger.info(f'{len(self._parts)} existing part(s) have been detected')
+        logger.info(f'{len(_parts)} existing part(s) have been detected')
 
         # Get the last keyframes where you can encode from
-        self._kfs = []
-        for part in self._parts:
-            logger.debug('Part:' + part.to_str())
+        _kfs = list[int]()
+        for part in _parts:
             try:
                 kfnt = get_keyframes(part)
                 logger.trace(str(kfnt._asdict()))
                 kf = kfnt.frames[-1]
                 # If the last keyframe is 0 then we can just overwrite the last encode
                 if kf == 0:
-                    del self._parts[-1]
+                    del _parts[-1]
                 else:
-                    self._kfs.append(kf)
+                    _kfs.append(kf)
                 kfnt.path.rm()
             # If subprocess throws an error the file is probably corrupted.
             # Let the encoder overwrite it
             except subprocess.CalledProcessError as err:
                 logger.debug(str(err))
-                del self._parts[-1]
-        logger.debug(str(self._parts))
+                del _parts[-1]
+        logger.debug(str(_parts))
 
-        self.file.name_clip_output = self.file.name_clip_output.append_stem(f'_part_{len(self._parts):03.0f}')
-        self._parts.append(self.file.name_clip_output)
+        self.file.name_clip_output = self.file.name_clip_output.append_stem(f'_part_{len(_parts):03.0f}')
+        _parts.append(self.file.name_clip_output)
 
-        start_frame = sum(self._kfs)
+        start_frame = sum(_kfs)
         if start_frame > 0:
             logger.info(f'Start frame of the clip is now {start_frame}')
-        self.clip = clip[start_frame:]
-        if qpfile_clip:
-            logger.debug(f'Start frame of the qpfile_clip is now {start_frame}')
-            qpfile_clip = qpfile_clip[start_frame:]
+            clip = clip[start_frame:]
+            if qpfile_clip:
+                logger.info(f'Start frame of the qpfile_clip is now {start_frame}')
+                qpfile_clip = qpfile_clip[start_frame:]
 
-        return super().run_enc(self.clip, self.file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
-
-    def _do_encode(self) -> None:
-        super()._do_encode()
-        # Just do the encode if not resumable
-        if not self.resumable:
-            return
+        super().run_enc(clip, self.file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
 
         logger.info('Resumable encode; merging...')
 
@@ -279,7 +269,7 @@ class SupportResume(SupportQpfile, ABC):
         # Split the files until the last keyframe
         mkv_parts: List[VPath] = []
         logger.debug('Merging the parts...')
-        for kf, part in zip(self._kfs, self._parts):
+        for kf, part in zip(_kfs, _parts):
             p_mkv = part.with_suffix('.mkv')
             logger.trace('p_mkv: ' + p_mkv.to_str())
             logger.trace('part: ' + part.to_str())
@@ -291,7 +281,7 @@ class SupportResume(SupportQpfile, ABC):
             mkv_parts.append(p_mkv001)
             # Those are crappy
             _craps.update([p_mkv001, p_mkv002])
-        _craps.update(self._parts)
+        _craps.update(_parts)
         logger.trace('mkv_parts: ' + str(mkv_parts))
         logger.trace('craps: ' + str(_craps))
 
@@ -308,7 +298,7 @@ class SupportResume(SupportQpfile, ABC):
         logger.trace('craps: ' + str(_craps))
 
         # Restore original name
-        self.file.name_clip_output = self._output
+        self.file.name_clip_output = _output
         output = self.file.name_clip_output.append_stem('_tmp').with_suffix('.mkv')
         if len(mkv_parts) > 1:
             # Merge the splitted files
@@ -316,7 +306,7 @@ class SupportResume(SupportQpfile, ABC):
             BasicTool(
                 BinaryPath.mkvmerge,
                 ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
-                 '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(self._parts) - 1))]
+                 '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(_parts) - 1))]
             ).run()
         else:
             logger.debug('One part detected')
@@ -334,6 +324,8 @@ class SupportResume(SupportQpfile, ABC):
         for crap in _craps:
             crap.rm()
         del _craps
+
+        return None
 
 
 class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
@@ -458,6 +450,7 @@ class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
         if not hasattr(self, '_bits') and bits > 10:
             logger.warning(f'{self.__class__.__name__}: Bitdepth is > 10. Are you sure about that?')
             self._bits = bits
+        logger.debug(self.file.name_clip_output.to_str())
         return dict(
             clip_output=self.file.name_clip_output.to_str(), filename=self.file.name, frames=self.clip.num_frames,
             fps_num=self.clip.fps.numerator, fps_den=self.clip.fps.denominator, bits=bits,
