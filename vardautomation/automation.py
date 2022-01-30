@@ -22,8 +22,8 @@ from ._logging import logger
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .tooling import (
-    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, Mux, Qpfile,
-    VideoEncoder, get_keyframes, make_qpfile
+    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, MatroskaFile,
+    Qpfile, Track, VideoEncoder, get_keyframes, make_qpfile
 )
 from .tooling.video import SupportQpfile
 from .types import AnyPath, T
@@ -53,7 +53,7 @@ class RunnerConfig:
     """Audio cutter(s)"""
     a_encoders: AudioEncoder | Sequence[AudioEncoder] | None = None
     """Audio encoder(s)"""
-    muxer: Optional[Mux] = None
+    mkv: MatroskaFile | None = None
     """Muxer"""
 
     order: Order = Order.VIDEO
@@ -131,7 +131,7 @@ class SelfRunner:
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
             funcs.reverse()
-        funcs.append(self._muxer)
+        funcs.append(self._mux)
         logger.debug(funcs)
         for f in funcs:
             f()
@@ -218,12 +218,10 @@ class SelfRunner:
                 else:
                     logger.warning(f'Skipping "{self.file.a_enc_cut.set_track(i).to_str()}" to encode...')
 
-    def _muxer(self) -> None:
-        if self.config.muxer:
-            self.config.muxer.run()
-            self.work_files.add(self.file.name_clip_output)
-            if (c := self.file.chapter):
-                self.work_files.add(c)
+    def _mux(self) -> None:
+        if self.config.mkv is not None:
+            wf = self.config.mkv.mux(True)
+            self.work_files.update(wf)
 
 
 def _toseq(seq: T | Sequence[T]) -> Sequence[T]:
@@ -327,50 +325,33 @@ class Patch:
             self.file.name_clip_output = fix
             self.encoder.run_enc(self.clip[s:e], self.file)
             self.encoder.params = params
-
-            BasicTool(BinaryPath.mkvmerge, ['-o', fix.with_suffix('.mkv').to_str(), fix.to_str()]).run()
+            MatroskaFile(fix.with_suffix('.mkv'), fix).mux()
 
     def _cut_and_merge(self) -> None:
         tmp = self.workdir / 'tmp.mkv'
         tmpnoaudio = self.workdir / 'tmp_noaudio.mkv'
 
         if (start := (rng := list(chain.from_iterable(self.ranges)))[0]) == 0:
-            rng = rng[1:]
+            rng.pop(0)
         if rng[-1] == self.clip.num_frames:
-            rng = rng[:-1]
-        split_args = ['--split', 'frames:' + ','.join(map(str, rng))]
+            rng.pop(-1)
 
-        BasicTool(
-            BinaryPath.mkvmerge,
-            ['-o', tmp.to_str(), '--no-audio', '--no-track-tags', '--no-chapters',
-             self._file_to_fix.to_str(), *split_args]
-        ).run()
+        MatroskaFile(tmp, self._file_to_fix, '--no-audio', '--no-track-tags', '--no-chapters').split_frames(rng)
 
         tmp_files = sorted(self.workdir.glob('tmp-???.mkv'))
         fix_files = sorted(self.workdir.glob('fix-???.mkv'))
 
-        # merge_args: List[str] = []
-        # for i, tmp in enumerate(tmp_files):
-        #     merge_args += [
-        #         fix_files[int(i/2)].to_str()
-        #         if i % 2 == (0 if start == 0 else 1) else tmp.to_str()
-        #     ] + ['+']
-        merge_args = [
-            fix_files[int(i/2)].to_str() if i % 2 == (0 if start == 0 else 1) else tmp.to_str()
+
+        parts = [
+            fix_files[int(i/2)] if i % 2 == (0 if start == 0 else 1) else tmp
             for i, tmp in enumerate(tmp_files)
         ]
 
-        BasicTool(
-            BinaryPath.mkvmerge,
-            ['-o', tmpnoaudio.to_str(),
-             '--no-audio', '--no-track-tags', '--no-chapters',
-             '[', *merge_args, ']',
-             '--append-to', ','.join([f'{i+1}:0:{i}:0' for i in range(len(merge_args) - 1)])]
-        ).run()
-        BasicTool(
-            BinaryPath.mkvmerge,
-            ['-o', self.output_filename.to_str(), tmpnoaudio.to_str(), '--no-video', self._file_to_fix.to_str()]
-        ).run()
+        MatroskaFile(tmpnoaudio, None, '--no-audio', '--no-track-tags', '--no-chapters').append_to(
+            parts, [(i + 1, 0, i, 0) for i in range(len(parts) - 1)]
+        )
+
+        MatroskaFile(self.output_filename, [Track(tmpnoaudio), Track(self._file_to_fix, '--no-video')]).mux()
 
     @logger.catch
     def _bound_to_keyframes(self, kfs: List[int]) -> List[Range]:
