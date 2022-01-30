@@ -138,24 +138,31 @@ Audio encoders
 
 Muxing
 -------
-.. autoclass:: vardautomation.tooling.mux.Mux
-   :members:
-.. autoclass:: vardautomation.tooling.mux.Stream
+.. autoclass:: vardautomation.tooling.mux.MatroskaFile
    :members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.mux.MediaStream
+.. autoclass:: vardautomation.tooling.mux.SplitMode
+   :members:
+.. autoclass:: vardautomation.tooling.mux.Track
+   :members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.mux.MediaTrack
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.mux.VideoStream
+.. autoclass:: vardautomation.tooling.mux.VideoTrack
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.mux.AudioStream
+.. autoclass:: vardautomation.tooling.mux.AudioTrack
    :members:
    :inherited-members:
    :show-inheritance:
-.. autoclass:: vardautomation.tooling.mux.ChapterStream
+.. autoclass:: vardautomation.tooling.mux.SubtitleTrack
+   :members:
+   :inherited-members:
+   :show-inheritance:
+.. autoclass:: vardautomation.tooling.mux.ChaptersTrack
    :members:
    :inherited-members:
    :show-inheritance:
