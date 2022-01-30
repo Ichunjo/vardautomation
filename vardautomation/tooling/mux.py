@@ -149,6 +149,10 @@ class Mux:
         :param deterministic_seed:  :py:attr:`deterministic_seed`, defaults to None
         :param merge_args:          :py:attr:`merge_args`, defaults to None
         """
+        logger.warning(
+            'Mux will be deleted in the next major update of vardautomation.'
+            '\nSee #28 for more information about it.'
+        )
         self.output = file.name_file_final
         self.deterministic_seed = deterministic_seed
         self.merge_args = merge_args if merge_args is not None else []
