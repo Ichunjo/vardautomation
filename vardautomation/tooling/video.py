@@ -20,6 +20,7 @@ from ..vpathlib import VPath
 from .abstract import Tool
 from .base import BasicTool
 from .misc import Qpfile, get_keyframes, make_qpfile
+from .mux import MatroskaFile
 
 
 def progress_update_func(value: int, endvalue: int) -> None:
@@ -273,7 +274,7 @@ class SupportResume(SupportQpfile, ABC):
             p_mkv = part.with_suffix('.mkv')
             logger.trace('p_mkv: ' + p_mkv.to_str())
             logger.trace('part: ' + part.to_str())
-            BasicTool(BinaryPath.mkvmerge, ['-o', p_mkv.to_str(), part.to_str(), '--split', f'frames:{kf}']).run()
+            MatroskaFile(p_mkv, part).split_frames(kf)
             # Mkv files
             p_mkv001 = p_mkv.append_stem('-001')
             p_mkv002 = p_mkv.append_stem('-002')
@@ -290,7 +291,7 @@ class SupportResume(SupportQpfile, ABC):
         last = self.file.name_clip_output.with_suffix('.mkv')
         logger.trace('last: ' + last.to_str())
         logger.trace('output: ' + self.file.name_clip_output.to_str())
-        BasicTool(BinaryPath.mkvmerge, ['-o', last.to_str(), self.file.name_clip_output.to_str()]).run()
+        MatroskaFile(last, self.file.name_clip_output).mux()
         mkv_parts.append(last)
         _craps.add(last)
         _craps.add(self.file.name_clip_output)
@@ -303,11 +304,7 @@ class SupportResume(SupportQpfile, ABC):
         if len(mkv_parts) > 1:
             # Merge the splitted files
             logger.debug('Merge the splitted files')
-            BasicTool(
-                BinaryPath.mkvmerge,
-                ['-o', output.to_str(), '[', *[p.to_str() for p in mkv_parts], ']',
-                 '--append-to', ','.join(f'{i+1}:0:{i}:0' for i in range(len(_parts) - 1))]
-            ).run()
+            MatroskaFile(output).append_to(mkv_parts)
         else:
             logger.debug('One part detected')
             mkvp = mkv_parts.pop(0)

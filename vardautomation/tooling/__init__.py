@@ -20,7 +20,9 @@ __all__ = [
 
     'make_qpfile', 'Qpfile', 'KeyframesFile', 'get_keyframes', 'get_vs_core',
 
-    'Mux', 'Stream', 'MediaStream', 'VideoStream', 'AudioStream', 'ChapterStream',
+    'Track', 'MediaTrack', 'VideoTrack', 'AudioTrack', 'SubtitleTrack', 'ChaptersTrack',
+    'SplitMode',
+    'MatroskaFile',
 
     'SubProcessAsync'
 ]
