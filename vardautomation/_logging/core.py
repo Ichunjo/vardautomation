@@ -13,7 +13,7 @@ from typing import Any, Callable, ContextManager, Dict, List, NamedTuple, NoRetu
 import loguru
 import pkg_resources as pkgr
 
-from ..types import P, T
+from ..types import F
 from .abstract import Singleton
 from .helpers import add_log_attribute, loguru_format, sys_exit
 
@@ -105,19 +105,19 @@ class Logger(Singleton):
         sys.exit(1)
 
     @overload
-    def catch(self, func: Callable[P, T]) -> Callable[P, T]:
+    def catch(self, func: F) -> F:
         ...
 
     @overload
-    def catch(self, **kwargs: Any) -> Callable[[T], T]:
+    def catch(self, **kwargs: Any) -> Callable[[F], F]:
         ...
 
-    def catch(self, func: Callable[P, T] | None = None, **kwargs: Any) -> Callable[P, T] | Callable[[T], T]:
+    def catch(self, func: F | None = None, **kwargs: Any) -> F | Callable[[F], F]:
         if func is None:
-            return cast(Callable[[T], T], partial(self.catch, **kwargs))
+            return cast(Callable[[F], F], partial(self.catch, **kwargs))
 
         @wraps(func)
-        def _wrapper(*args: P.args, **kwrgs: P.kwargs) -> T:
+        def _wrapper(*args: Any, **kwrgs: Any) -> Any:
             assert func
             try:
                 return func(*args, **kwrgs)
