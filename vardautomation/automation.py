@@ -26,7 +26,7 @@ from .config import FileInfo, FileInfo2
 from .status import Status
 from .tooling import (
     AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, Mux, Qpfile,
-    VideoEncoder, VideoLanEncoder, make_qpfile
+    VideoEncoder, VideoLanEncoder, get_keyframes, make_qpfile
 )
 from .tooling.video import SupportQpfile
 from .types import AnyPath, T
@@ -348,19 +348,8 @@ class Patch:
 
     @logger.catch
     def _resolve_range(self) -> None:
-        idx_file = self.workdir / 'index.ffindex'
-        kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
-
-        BasicTool(
-            BinaryPath.ffmsindex,
-            ['-k', '-f', self._file_to_fix.to_str(), idx_file.to_str()]
-        ).run()
-
-        with kf_file.open('r', encoding='utf-8') as f:
-            kfsstr = f.read().splitlines()
-
-        # Convert to int and add the last frame
-        kfsint = [int(x) for x in kfsstr[2:]] + [self.clip.num_frames]
+        kf = get_keyframes(self._file_to_fix)
+        kfsint = kf.frames + [self.clip.num_frames]
 
         ranges = self._bound_to_keyframes(kfsint)
         logger.debug(f'Ranges: {str(ranges)}')
