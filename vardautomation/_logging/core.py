@@ -45,7 +45,7 @@ class Logger(Singleton):
             handlers=[
                 dict(sink=sys.stderr, level=self.__level, format=loguru_format, backtrace=True, diagnose=False),
             ],
-            levels=[{'name': log.name, 'color': log.colour} for log in LOG_LEVELS],  # type: ignore
+            levels=[{'name': log.name, 'color': log.colour} for log in LOG_LEVELS],
             extra=dict(global_level=self.__level)
         )
         self.__id = __ids.pop(0)

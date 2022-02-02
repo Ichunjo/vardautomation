@@ -94,7 +94,7 @@ class VideoEncoder(Tool):
         self._do_encode()
 
     @logger.catch
-    def run(self) -> NoReturn:  # type: ignore[pylance-strict]
+    def run(self) -> NoReturn:
         """
         Shouldn't be used in VideoEncoder object.
         Use :py:func:`run_enc` instead
