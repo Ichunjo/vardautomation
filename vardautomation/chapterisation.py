@@ -219,7 +219,6 @@ class OGMChapters(Chapters):
         return data
 
 
-
 class MatroskaXMLChapters(Chapters):
     """
     MatroskaXMLChapters object\n
@@ -303,7 +302,6 @@ class MatroskaXMLChapters(Chapters):
 
         shifttime = Convert.f2seconds(frames, fps)
 
-
         timestarts = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}')
         timeends = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}')
 
@@ -314,7 +312,6 @@ class MatroskaXMLChapters(Chapters):
         for t_e in timeends:
             if isinstance(t_e.text, str) and t_e.text != '':
                 t_e.text = Convert.seconds2ts(max(0, Convert.ts2seconds(t_e.text) + shifttime), precision=9)
-
 
         with self.chapter_file.open('wb') as file:
             tree.write(file, pretty_print=True, xml_declaration=True, with_comments=True)
@@ -330,24 +327,20 @@ class MatroskaXMLChapters(Chapters):
 
         timestarts = tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}')
 
-
         timeends: List[Optional[Element]] = []
         timeends += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}')
         if len(timeends) != len(timestarts):
             timeends += [None] * (len(timestarts) - len(timeends))
-
 
         names: List[Optional[Element]] = []
         names += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}')
         if len(names) != len(timestarts):
             names += [None] * (len(timestarts) - len(names))
 
-
         ietfs: List[Optional[Element]] = []
         ietfs += tree.xpath(f'/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_IETF}')
         if len(ietfs) != len(timestarts):
             ietfs += [None] * (len(timestarts) - len(ietfs))
-
 
         chapters: List[Chapter] = []
         for name, timestart, timeend, ietf in zip(names, timestarts, timeends, ietfs):

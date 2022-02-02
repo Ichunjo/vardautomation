@@ -133,7 +133,6 @@ class Properties:
         return prop
 
 
-
 def recursive_dict(obj: object) -> Dict[str, Any] | str:
     # pylint: disable=no-else-return
     if hasattr(obj, '__dict__') and obj.__dict__:
