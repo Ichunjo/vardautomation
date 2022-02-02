@@ -8,10 +8,13 @@ __all__ = [
 import asyncio
 import inspect
 import os
+from fractions import Fraction
+from itertools import accumulate
 from typing import Iterable, List, NamedTuple, Optional, Union
 
 import psutil
 import vapoursynth as vs
+from pytimeconv import Convert
 
 from .._logging import logger
 from ..binary_path import BinaryPath
@@ -58,7 +61,6 @@ def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
     with path.open('w', encoding='utf-8') as file:
         file.writelines(f'{s} K\n' for s in scenes)
     return Qpfile(path, scenes)
-
 
 
 class KeyframesFile(NamedTuple):
@@ -117,6 +119,38 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
         core.max_cache_size = max_cache_size
 
     return core
+
+
+def make_tcfile(clips: Iterable[vs.VideoNode], path: Optional[AnyPath] = None, precision: int = 6) -> VPath:
+    """
+    Convenience function for making a tcfile
+
+    :param clips:       Source clips
+    :param path:        tcfile path
+    :param precision:   Precision of fps
+    :return:            tcfile path
+    """
+    num_frames, fpss, times = list[int](), list[Fraction](), list[float]()
+
+    for clip in clips:
+        num_frames.append(clip.num_frames)
+        fpss.append(clip.fps)
+        times.append(Convert.f2seconds(clip.num_frames, clip.fps))
+
+    start_frames = accumulate(num_frames[:-1], lambda x, y: x + y, initial=0)
+    end_frames = accumulate(num_frames[1:], lambda x, y: x + y, initial=num_frames[0] - 1)
+
+    path = VPath(inspect.stack()[-1].filename).with_suffix('.tcfile') if not path else VPath(path)
+
+    with path.open('w', encoding='utf-8') as file:
+        file.write('# timestamp format v1\n')
+        file.write(f'assume {round(sum(num_frames) / sum(times), precision)}\n')  # type: ignore[arg-type]
+        file.writelines(
+            f'{s},{e},{round(float(fps), precision)}\n'
+            for s, e, fps in zip(start_frames, end_frames, fpss)
+        )
+
+    return path
 
 
 class SubProcessAsync:

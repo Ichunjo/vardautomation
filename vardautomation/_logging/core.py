@@ -54,6 +54,10 @@ class Logger(Singleton):
     def logger(self) -> loguru.Logger:
         return loguru.logger.bind(global_level=self.__level)
 
+    @property
+    def level(self) -> int:
+        return self.__level
+
     def set_level(self, level: int) -> None:
         self.__level = level
         loguru.logger.remove(self.__id)
