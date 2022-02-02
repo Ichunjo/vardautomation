@@ -79,6 +79,10 @@ class Tool(ABC):
         Set variables in the settings\n
         """
 
+    @property
+    def _quiet(self) -> bool:
+        return logger.level >= logger.info.no
+
     @logger.catch
     def _update_settings(self) -> None:
         for i, p in enumerate(self.params):

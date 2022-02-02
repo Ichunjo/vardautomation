@@ -7,7 +7,10 @@ __all__ = [
 
 import subprocess
 from abc import ABC
-from typing import Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Set, Tuple, cast
+from typing import (
+    Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Sequence, Set, Tuple, cast,
+    overload
+)
 
 import vapoursynth as vs
 
@@ -19,7 +22,7 @@ from ..utils import Properties, copy_docstring_from
 from ..vpathlib import VPath
 from .abstract import Tool
 from .base import BasicTool
-from .misc import Qpfile, get_keyframes, make_qpfile
+from .misc import Qpfile, get_keyframes, make_qpfile, make_tcfile
 from .mux import MatroskaFile
 
 
@@ -66,8 +69,16 @@ class VideoEncoder(Tool):
     This argument is there to limit the memory this function uses storing frames.
     """
 
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None) -> None:
+        ...
+
     @logger.catch
-    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo]) -> None:
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo | None) -> None:
         """
         Run encoding toolchain
 
@@ -176,10 +187,31 @@ class FFV1(LosslessEncoder):
 
 class SupportQpfile(VideoEncoder, ABC):
     # pylint: disable=arguments-differ
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo, *,
+                qpfile_clip: vs.VideoNode,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None, *,
+                qpfile_clip: None = ...,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
     @logger.catch
     @copy_docstring_from(VideoEncoder.run_enc, 'o+t')
-    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,
-                qpfile_clip: Optional[vs.VideoNode] = None,
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo | None, *,
+                qpfile_clip: vs.VideoNode | None = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         """
         :param qpfile_clip:         Clip to be used to generate the Qpfile
@@ -191,7 +223,7 @@ class SupportQpfile(VideoEncoder, ABC):
             if qpfile_clip.num_frames != clip.num_frames:
                 raise ValueError(f'{self.__class__.__name__}: the ``qpfile_clip`` should have the same length than the ``clip``')
             if not file:
-                raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when `resumable` is enabled')
+                raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when a qpfile_clip is provided')
             qpfile = qpfile_func(
                 qpfile_clip,
                 file.name_clip_output.append_stem('_qpfile').with_suffix('.log')
@@ -207,14 +239,35 @@ class SupportQpfile(VideoEncoder, ABC):
 
 
 class SupportResume(SupportQpfile, ABC):
+    # pylint: disable=arguments-differ
     resumable = False
 
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo, *,
+                qpfile_clip: vs.VideoNode,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None, *,
+                qpfile_clip: None = ...,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
     @logger.catch
-    def run_enc(self, clip: vs.VideoNode, file: Optional[FileInfo], *,  # noqa C901
-                qpfile_clip: Optional[vs.VideoNode] = None,
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo | None, *,  # noqa C901
+                qpfile_clip: vs.VideoNode | None = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         if not self.resumable:
-            return super().run_enc(clip, file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
+            return super().run_enc(clip, file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
 
         logger.info('Resumable encode is enabled...')
 
@@ -254,14 +307,13 @@ class SupportResume(SupportQpfile, ABC):
         _parts.append(self.file.name_clip_output)
 
         start_frame = sum(_kfs)
-        if start_frame > 0:
-            logger.info(f'Start frame of the clip is now {start_frame}')
-            clip = clip[start_frame:]
-            if qpfile_clip:
-                logger.info(f'Start frame of the qpfile_clip is now {start_frame}')
-                qpfile_clip = qpfile_clip[start_frame:]
+        logger.info(f'Start frame of the clip is now {start_frame}')
+        clip = clip[start_frame:]
+        if qpfile_clip:
+            logger.info(f'Start frame of the qpfile_clip is now {start_frame}')
+            qpfile_clip = qpfile_clip[start_frame:]
 
-        super().run_enc(clip, self.file, qpfile_clip=qpfile_clip, qpfile_func=qpfile_func)
+        super().run_enc(clip, self.file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
 
         logger.info('Resumable encode; merging...')
 
@@ -274,7 +326,7 @@ class SupportResume(SupportQpfile, ABC):
             p_mkv = part.with_suffix('.mkv')
             logger.trace('p_mkv: ' + p_mkv.to_str())
             logger.trace('part: ' + part.to_str())
-            MatroskaFile(p_mkv, part).split_frames(kf)
+            MatroskaFile(p_mkv, part, ('--quiet' if self._quiet else '')).split_frames(kf)
             # Mkv files
             p_mkv001 = p_mkv.append_stem('-001')
             p_mkv002 = p_mkv.append_stem('-002')
@@ -291,7 +343,7 @@ class SupportResume(SupportQpfile, ABC):
         last = self.file.name_clip_output.with_suffix('.mkv')
         logger.trace('last: ' + last.to_str())
         logger.trace('output: ' + self.file.name_clip_output.to_str())
-        MatroskaFile(last, self.file.name_clip_output).mux()
+        MatroskaFile(last, self.file.name_clip_output, ('--quiet' if self._quiet else '')).mux()
         mkv_parts.append(last)
         _craps.add(last)
         _craps.add(self.file.name_clip_output)
@@ -304,7 +356,7 @@ class SupportResume(SupportQpfile, ABC):
         if len(mkv_parts) > 1:
             # Merge the splitted files
             logger.debug('Merge the splitted files')
-            MatroskaFile(output).append_to(mkv_parts)
+            MatroskaFile(output, None, ('--quiet' if self._quiet else '')).append_to(mkv_parts)
         else:
             logger.debug('One part detected')
             mkvp = mkv_parts.pop(0)
@@ -325,7 +377,70 @@ class SupportResume(SupportQpfile, ABC):
         return None
 
 
-class VideoLanEncoder(SupportResume, SupportQpfile, VideoEncoder, ABC):
+class SupportManualVFR(SupportResume, ABC):
+    # pylint: disable=arguments-differ
+    tcfile: VPath
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: Sequence[vs.VideoNode], file: FileInfo) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: FileInfo, *,
+                qpfile_clip: vs.VideoNode,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: vs.VideoNode, file: None, *,
+                qpfile_clip: None = ...,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: Sequence[vs.VideoNode], file: FileInfo, *,
+                qpfile_clip: vs.VideoNode,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @logger.catch
+    def run_enc(self, clip: vs.VideoNode | Sequence[vs.VideoNode], file: FileInfo | None, *,
+                qpfile_clip: vs.VideoNode | None = None,
+                qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
+        if isinstance(clip, vs.VideoNode):
+            return super().run_enc(clip, file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
+
+        logger.info('Manual VFR encode is enabled...')
+        if not file:
+            raise ValueError(f'{self.__class__.__name__}: a FileInfo file is needed when enabling manual VFR encode')
+
+        base_name = VPath(file.name_clip_output)
+        outputs = list[VPath]()
+
+        for i, c in enumerate(clip):
+            params = self.params.copy()
+            file.name_clip_output = base_name.append_stem(f'_vfr_{i:03.0f}_{c.fps.numerator}_{c.fps.denominator}')
+            outputs.append(file.name_clip_output)
+            if self.resumable and file.name_clip_output.exists():
+                continue
+            super().run_enc(c, file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
+            self.params = params
+
+        self.tcfile = make_tcfile(clip, file.name_file_final.with_suffix('.tcfile'))
+        MatroskaFile(base_name, None, ('--quiet' if self._quiet else ''), '--timestamps', f'0:{self.tcfile.to_str()}').append_to(outputs)
+
+        return None
+
+
+class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, VideoEncoder, ABC):
     """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
 
     resumable: bool

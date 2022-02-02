@@ -360,5 +360,14 @@ class MatroskaFile(_AbstractMatroskaFile):
             cmd.append(','.join(':'.join(map(str, id_)) for id_ in ids))
         BasicTool(BinaryPath.mkvmerge, cmd).run()
 
+    def add_timestamps(self, path: AnyPath, id_: int = 0) -> None:
+        """
+        Add timestamps global command
+
+        :param path:        Timecode path
+        :param id_: [description], defaults to 0
+        """
+        self.global_opts = (f'{id_}:' + str(path), '--timestamps') + self.global_opts
+
     def add_attachments(self) -> NoReturn:
         raise NotImplementedError
