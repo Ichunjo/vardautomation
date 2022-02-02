@@ -184,7 +184,6 @@ class FFV1(LosslessEncoder):
         self.progress_update = None
 
 
-
 class SupportQpfile(VideoEncoder, ABC):
     # pylint: disable=arguments-differ
 

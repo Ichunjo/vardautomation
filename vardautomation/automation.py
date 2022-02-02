@@ -349,9 +349,8 @@ class Patch:
         tmp_files = sorted(self.workdir.glob('tmp-???.mkv'))
         fix_files = sorted(self.workdir.glob('fix-???.mkv'))
 
-
         parts = [
-            fix_files[int(i/2)] if i % 2 == (0 if start == 0 else 1) else tmp
+            fix_files[int(i / 2)] if i % 2 == (0 if start == 0 else 1) else tmp
             for i, tmp in enumerate(tmp_files)
         ]
 
@@ -368,7 +367,7 @@ class Patch:
             s, e = (None, ) * 2
             for i, kf in enumerate(kfs):
                 if kf > start:
-                    s = kfs[i-1]
+                    s = kfs[i - 1]
                     break
                 if kf == start:
                     s = kf
