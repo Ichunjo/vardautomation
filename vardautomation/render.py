@@ -138,7 +138,7 @@ def clip_async_render(clip: vs.VideoNode,  # noqa: C901
         logger.error('', keyb_err)
     finally:
         if progress:
-            p.stop()  # type: ignore
+            p.stop()  # type: ignore[pylance]
 
     return tc_list if timecodes else None
 
