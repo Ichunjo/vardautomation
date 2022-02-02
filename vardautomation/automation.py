@@ -22,10 +22,10 @@ from ._logging import logger
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .tooling import (
-    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, MatroskaFile,
-    Qpfile, Track, VideoEncoder, get_keyframes, make_qpfile
+    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, MatroskaFile, Qpfile,
+    Track, VideoEncoder, get_keyframes, make_qpfile
 )
-from .tooling.video import SupportQpfile
+from .tooling.video import SupportManualVFR, SupportQpfile
 from .types import AnyPath, T
 from .vpathlib import CleanupSet, VPath
 
@@ -64,14 +64,14 @@ class RunnerConfig:
 
 
 class _QpFileParams(TypedDict):
-    qpfile_clip: NotRequired[Optional[vs.VideoNode]]
+    qpfile_clip: NotRequired[vs.VideoNode]
     qpfile_func: NotRequired[Callable[[vs.VideoNode, AnyPath], Qpfile]]
 
 
 class SelfRunner:
     """Self runner interface"""
 
-    clip: vs.VideoNode
+    clip: vs.VideoNode | Sequence[vs.VideoNode]
     """Clip to be encoded"""
 
     file: FileInfo
@@ -106,7 +106,7 @@ class SelfRunner:
 
     _qpfile_params: _QpFileParams
 
-    def __init__(self, clip: vs.VideoNode, file: FileInfo, /, config: RunnerConfig) -> None:
+    def __init__(self, clip: vs.VideoNode | Sequence[vs.VideoNode], file: FileInfo, /, config: RunnerConfig) -> None:
         """
         :param clip:        Clip to be encoded
         :param file:        FileInfo object
@@ -136,8 +136,7 @@ class SelfRunner:
         for f in funcs:
             f()
 
-    def inject_qpfile_params(self, *, qpfile_clip: Optional[vs.VideoNode] = None,
-                             qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
+    def inject_qpfile_params(self, qpfile_clip: vs.VideoNode, qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         """
         :param qpfile_clip:         Clip to be used to generate the Qpfile
         :param qpfile_func:         Function to be used to generate the Qpfile
@@ -168,7 +167,8 @@ class SelfRunner:
             + [self.file.name_file_final.absolute().as_posix(), f'{ftp_name}:{VPath(destination).to_str()}']
         ).run()
 
-    def _encode(self) -> None:
+    @logger.catch
+    def _encode(self) -> None:  # noqa C901
         if self.config.clear_outputs:
             for k in globals().keys():
                 # pylint: disable=eval-used
@@ -177,6 +177,8 @@ class SelfRunner:
             vs.clear_outputs()
 
         if self.config.v_lossless_encoder:
+            if isinstance(self.clip, Sequence):
+                raise NotImplementedError(f'{self.__class__.__name__}: Multiple clips for lossless encode isn\'t implemented')
             if not (
                 path_lossless
                 := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
@@ -185,10 +187,16 @@ class SelfRunner:
             self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
 
         if not self.file.name_clip_output.exists():
-            if isinstance(self.config.v_encoder, SupportQpfile):
+            if isinstance(self.clip, vs.VideoNode):
+                if isinstance(self.config.v_encoder, SupportQpfile):
+                    self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
+                else:
+                    self.config.v_encoder.run_enc(self.clip, self.file)
+            elif isinstance(self.config.v_encoder, SupportManualVFR):
                 self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
+                self.work_files.add(self.config.v_encoder.tcfile)
             else:
-                self.config.v_encoder.run_enc(self.clip, self.file)
+                raise TypeError(f'{self.__class__.__name__}: Wrong video encoder and/or type of clip')
         self.work_files.add(self.file.name_clip_output)
 
     def _audio_getter(self) -> None:  # noqa C901
