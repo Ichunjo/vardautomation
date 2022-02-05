@@ -78,6 +78,7 @@ class PictureType(bytes, Enum):
 
 
 class SlowPicsConf(NamedTuple):
+    """Slow.pics configuration"""
     collection_name: str = VPath(inspect.stack()[-1].filename).stem
     """
     Slowpics's collection name.\n
