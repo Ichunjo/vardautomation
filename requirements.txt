@@ -4,7 +4,7 @@ language-data==1.1
 loguru==0.6.0
 lvsfunc==0.3.11
 lxml==4.7.1
-numpy==1.22.1
+numpy==1.22.2
 psutil==5.9.0
 pymediainfo==5.1.0
 pyparsebluray==0.1.3
