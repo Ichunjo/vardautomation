@@ -603,10 +603,10 @@ class MplsReader:
                 mpls_chap.chapters = [
                     Chapter(
                         name=f'{self.default_chap_name} {i:02.0f}',
-                        start_frame=Convert.seconds2f((mark.mark_timestamp - offset) / 45000, mpls_chap.fps),
+                        start_frame=Convert.seconds2f((lmark.mark_timestamp - offset) / 45000, mpls_chap.fps),
                         end_frame=None,
                         lang=self.lang
-                    ) for i, mark in enumerate(marks, start=1)
+                    ) for i, lmark in enumerate(linked_marks, start=1)
                 ]
 
             # And add to the list
