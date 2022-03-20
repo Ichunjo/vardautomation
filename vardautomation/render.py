@@ -381,25 +381,18 @@ def find_scene_changes(  # noqa: C901
         props.append('_SceneChangePrev')
 
     def _cb(n: int, f: vs.VideoFrame) -> None:
-        if mode in {SCM.WWXD, SCM.SCXVID, SCM.MV}:
-            if Properties.get_prop(f, props[0], int) == 1:
-                frames.append(n)
-        elif mode in wwxd_unions | scxvid_unions | mv_unions:
-            if any(Properties.get_prop(f, p, int) == 1 for p in props):
-                frames.append(n)
-        elif mode in wwxd_inters | scxvid_inters | mv_inters:
-            if all(Properties.get_prop(f, p, int) == 1 for p in props):
-                frames.append(n)
-        # match mode:
-        #     case SCM.WWXD | SCM.SCXVID | SCM.MV:
-        #         if Properties.get_prop(f, props[0], int):
-        #             frames.append(n)
-        #     case _ if mode in wwxd_unions | scxvid_unions | mv_unions:
-        #         if any(Properties.get_prop(f, p, int) for p in props):
-        #             frames.append(n)
-        #     case _ if mode in wwxd_inters | scxvid_inters | mv_inters:
-        #         if all(Properties.get_prop(f, p, int) for p in props):
-        #             frames.append(n)
+        match mode:
+            case SCM.WWXD | SCM.SCXVID | SCM.MV:
+                if Properties.get_prop(f, props[0], int):
+                    frames.append(n)
+            case _ if mode in wwxd_unions | scxvid_unions | mv_unions:
+                if any(Properties.get_prop(f, p, int) for p in props):
+                    frames.append(n)
+            case _ if mode in wwxd_inters | scxvid_inters | mv_inters:
+                if all(Properties.get_prop(f, p, int) for p in props):
+                    frames.append(n)
+            case _:
+                pass
 
     clip_async_render(clip, progress="Detecting scene changes...", callback=_cb)
 
