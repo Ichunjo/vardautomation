@@ -4,7 +4,7 @@ __all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx
 
 from abc import ABC
 from os import PathLike
-from typing import Any, Callable, Dict, Iterable, Iterator, List, MutableSet, Optional, Set, TypeVar, Union, cast
+from typing import Any, Callable, Iterable, Iterator, List, Mapping, MutableSet, Optional, Set, TypeVar, Union, cast
 
 from lxml import etree
 from typing_extensions import ParamSpec
@@ -29,7 +29,7 @@ VPSIdx = Callable[[str], VideoNode]
 
 class ElementTree(etree._ElementTree):  # type: ignore
     def xpath(self, _path: Union[str, bytes],  # type: ignore
-              namespaces: Optional[Union[Dict[str, str], Dict[bytes, bytes]]] = None,
+              namespaces: Optional[Mapping[str, str]] = None,
               extensions: Any = None, smart_strings: bool = True,
               **_variables: Any) -> List[Element]:
         xpathobject = super().xpath(
