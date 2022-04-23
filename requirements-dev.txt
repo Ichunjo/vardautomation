@@ -9,4 +9,4 @@ pyflakes~=2.4.0
 PyQt5-stubs~=5.15.2.0
 types-colorama~=0.4.11
 types-Pillow~=9.0.13
-types-psutil~=5.8.20
+types-psutil~=5.8.22
