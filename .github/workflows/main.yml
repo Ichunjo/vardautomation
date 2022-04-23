@@ -10,9 +10,17 @@ jobs:
         python-version: ['3.10']
 
     steps:
+      - uses: actions/checkout@v3
+
+      - name: Upgrade automake
+        run: |
+          sudo add-apt-repository ppa:devacom/devel
+          sudo apt-get update
+          sudo apt-get install automake
+
       - name: Install zimg
         run: |
-          git clone https://github.com/Varde-s-Forks/zimg.git --branch v3.0 --depth 1
+          git clone https://github.com/sekrit-twc/zimg --branch v3.0 --depth 1
           pushd zimg
           ./autogen.sh
           ./configure --prefix=/usr --disable-static --disable-simd
@@ -21,9 +29,8 @@ jobs:
           popd
           rm -rf zimg
 
-      - uses: actions/checkout@v2
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
             python-version: ${{ matrix.python-version }}
 
@@ -35,23 +42,20 @@ jobs:
       - name: Set PKG_CONFIG_PATH
         run: echo "PKG_CONFIG_PATH=$pythonLocation/lib/pkgconfig" >> $GITHUB_ENV
 
-      - name: Install Meson
-        run: pip install meson
-
-      - name: Install Ninja
+      - name: Install Vapoursynth
         run: |
-          sudo apt-get update
-          sudo apt-get install ninja-build
-
-      - name: Install VapourSynth
-        run: |
-          git clone https://github.com/Varde-s-Forks/vapoursynth.git --branch master-meson --depth 1 vapoursynth-build
+          git clone https://github.com/vapoursynth/vapoursynth.git --depth 1 vapoursynth-build
           pushd vapoursynth-build
-          meson build -Dprefix=/usr -Denable_vspipe=false -Denable_guard_pattern=false -Denable_x86_asm=false -Denable_vsscript=false -Denable_vspipe=false
-          sudo ninja -C build install
-          pip install .
+          ./autogen.sh
+          ./configure --prefix=/usr --disable-vspipe --disable-guard-pattern --disable-x86-asm --disable-vsscript --disable-vspipe
+          make -j2
+          sudo make install -j2
+          python setup.py sdist -d sdist
+          mkdir empty
+          pushd empty
+          pip install vapoursynth --no-index --find-links ../sdist
           popd
-          rm -rf vapoursynth-build
+          popd
 
       - name: Install dependencies
         run: |
