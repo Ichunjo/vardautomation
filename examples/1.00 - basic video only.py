@@ -1,6 +1,7 @@
 import vapoursynth as vs
-from vardautomation import FileInfo, PresetAAC, PresetBD, X265Encoder
 from vsutil import depth
+
+from vardautomation import X265, FileInfo, PresetAAC, PresetBD
 
 core = vs.core
 
@@ -15,6 +16,6 @@ out = depth(clip, 10)
 
 
 if __name__ == '__main__':
-    X265Encoder('path/to/your/x265/settings').run_enc(out, FILE)
+    X265('path/to/your/x265/settings').run_enc(out, FILE)
 else:
     out.set_output(0)

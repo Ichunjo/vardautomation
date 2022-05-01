@@ -1,7 +1,10 @@
 import vapoursynth as vs
-from vardautomation import (EztrimCutter, FileInfo, Mux, PresetAAC, PresetBD,
-                            QAACEncoder, X265Encoder, FFmpegAudioExtracter)
 from vsutil import depth
+
+from vardautomation import (
+    X265, EztrimCutter, FFmpegAudioExtracter, FileInfo, MatroskaFile, PresetAAC, PresetBD,
+    QAACEncoder
+)
 
 core = vs.core
 
@@ -16,10 +19,10 @@ out = depth(clip, 10)
 
 
 if __name__ == '__main__':
-    X265Encoder('path/to/your/x265/settings').run_enc(out, FILE)
+    X265('path/to/your/x265/settings').run_enc(out, FILE)
     FFmpegAudioExtracter(FILE, track_in=1, track_out=1).run()
     EztrimCutter(FILE, track=1).run()
     QAACEncoder(FILE, track=1).run()
-    Mux(FILE).run()
+    MatroskaFile.automux(FILE)
 else:
     out.set_output(0)
