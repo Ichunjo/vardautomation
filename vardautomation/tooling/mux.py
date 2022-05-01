@@ -17,6 +17,7 @@ from typing import Iterable, List, Literal, MutableSequence, NoReturn, Optional,
 
 # from .._logging import logger
 from ..binary_path import BinaryPath
+from ..config import FileInfo
 from ..language import UNDEFINED, Lang
 from ..types import AnyPath
 from ..utils import recursive_dict
@@ -237,6 +238,30 @@ class MatroskaFile(_AbstractMatroskaFile):
         cmd.extend([self._output.to_str(), '-o'])
         cmd.reverse()
         return cmd
+
+    @classmethod
+    def autotrack(cls, file: FileInfo) -> MatroskaFile:
+        streams: List[AnyPath | Track] = [file.name_clip_output]
+        i = 1
+        while True:
+            if file.a_enc_cut is not None and file.a_enc_cut.set_track(i).exists():
+                streams.append(file.a_enc_cut.set_track(i))
+            elif file.a_src_cut is not None and file.a_src_cut.set_track(i).exists():
+                streams.append(file.a_src_cut.set_track(i))
+            elif file.a_src is not None and file.a_src.set_track(i).exists():
+                streams.append(file.a_src.set_track(i))
+            else:
+                break
+            i += 1
+
+        if file.chapter and file.chapter.exists():
+            streams.append(ChaptersTrack(file.chapter))
+
+        return cls(file.name_file_final, streams)
+
+    @staticmethod
+    def automux(file: FileInfo) -> None:
+        MatroskaFile.autotrack(file).mux(return_workfiles=False)
 
     @overload
     def mux(self, return_workfiles: Literal[True] = ...) -> CleanupSet:
