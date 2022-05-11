@@ -14,7 +14,7 @@ __all__ = [
     'AudioEncoder', 'BitrateMode', 'QAACEncoder', 'OpusEncoder', 'FDKAACEncoder', 'FlacCompressionLevel', 'FlacEncoder',
     'PassthroughAudioEncoder',
 
-    'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
+    'AudioCutter', 'ScipyCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
     'VideoEncoder', 'VideoLanEncoder', 'X265', 'X264', 'LosslessEncoder', 'NVEncCLossless', 'FFV1',
     'progress_update_func',
 

@@ -5,7 +5,7 @@ __all__ = [
     'AudioEncoder', 'BitrateMode', 'QAACEncoder', 'OpusEncoder', 'FDKAACEncoder', 'FlacCompressionLevel', 'FlacEncoder',
     'PassthroughAudioEncoder',
 
-    'AudioCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
+    'AudioCutter', 'ScipyCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
 ]
 
 from abc import ABC, abstractmethod
