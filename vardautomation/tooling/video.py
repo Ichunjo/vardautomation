@@ -592,7 +592,7 @@ class X265(VideoLanEncoder):
             primaries = Properties.get_prop(frame, '_Primaries', int)
             transfer = Properties.get_prop(frame, '_Transfer', int)
 
-        if not all([matrix, primaries, transfer]):
+        if len({matrix, primaries, transfer}) != 1:
             logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
                            f'({matrix}/{primaries}/{transfer})! Make sure this is what you want!')
 
@@ -627,7 +627,7 @@ class X264(VideoLanEncoder):
             primaries = Properties.get_matrix_name(frame, '_Primaries')
             transfer = Properties.get_matrix_name(frame, '_Transfer')
 
-        if not all([matrix, primaries, transfer]):
+        if len({matrix, primaries, transfer}) != 1:
             logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
                            f'({matrix}/{primaries}/{transfer})! Make sure this is what you want!')
 
