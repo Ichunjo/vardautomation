@@ -109,6 +109,40 @@ class Properties:
             return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
 
     @staticmethod
+    def get_matrix_names(frame: vs.VideoFrame, key: str, t: Type[T]) -> str:
+        """
+        Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
+        and then returns a corresponding string.
+        This is necessary because x264 does not accept integers for the matrix/primaries/transfer.
+
+        For a full list of accepted matrices, please check
+            http://www.chaneru.com/Roku/HLS/X264_Settings.htm#colormatrix
+
+        :param frame:           Frame containing props
+        :param key:             Prop to get. Must be _Matrix, _Primaries, or _Transfer!
+        :param t:               Type of prop
+
+        :return:                string signalling the clip's matrix
+        """
+        if key.lower() in ('matrix', 'transfer', 'primaries'):
+            key = "_" + key.capitalize()
+
+        try:
+            prop = frame.props[key]
+        except KeyError as key_err:
+            logger.critical(f"get_matrix_names: 'Key {key} not present in props'", key_err)
+
+        match prop:
+            case 0: return 'GBR'
+            case 1: return 'bt709'
+            case 2: return 'undef'
+            case 5: return 'bt470m'
+            case 6: return 'smpte170m'
+            case 7: return 'smpte240m'
+            case 9: raise ValueError("get_matrix_names: 'x264 does not support BT2020 yet!'")
+            case _: raise ValueError("get_matrix_names: 'Invalid matrix passed!'")
+
+    @staticmethod
     def get_prop(frame: vs.VideoFrame, key: str, t: Type[T]) -> T:
         """
         Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
