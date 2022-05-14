@@ -543,14 +543,14 @@ class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, VideoEncod
     @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{clip_output:s}`` by ``self.file.name_clip_output``\n
-        Replaces ``{filename:s}`` by ``self.file.name``\n
-        Replaces ``{frames:d}`` by ``self.clip.num_frames``\n
-        Replaces ``{fps_num:d}`` by ``self.clip.fps.numerator``\n
-        Replaces ``{fps_den:d}`` by ``self.clip.fps.denominator``\n
-        Replaces ``{bits:d}`` by ``Properties.get_depth(self.clip)``\n
-        Replaces ``{min_keyint:d}`` by ``round(self.clip.fps)``\n
-        Replaces ``{keyint:d}`` by ``round(self.clip.fps) * 10``\n
+        Replaces ``{clip_output:s}`` with ``self.file.name_clip_output``\n
+        Replaces ``{filename:s}`` with ``self.file.name``\n
+        Replaces ``{frames:d}`` with ``self.clip.num_frames``\n
+        Replaces ``{fps_num:d}`` with ``self.clip.fps.numerator``\n
+        Replaces ``{fps_den:d}`` with ``self.clip.fps.denominator``\n
+        Replaces ``{bits:d}`` with ``Properties.get_depth(self.clip)``\n
+        Replaces ``{min_keyint:d}`` with ``round(self.clip.fps)``\n
+        Replaces ``{keyint:d}`` with ``round(self.clip.fps) * 10``\n
         """
         try:
             bits = Properties.get_depth(self.clip)
@@ -580,11 +580,24 @@ class X265(VideoLanEncoder):
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{min_luma:d}`` and ``{max_luma:d}`` by ``Properties.get_colour_range(self.params, self.clip)``\n
+        Replaces ``{min_luma:d}`` and ``{max_luma:d}`` with ``Properties.get_colour_range(self.params, self.clip)``\n
+        Replaces ``{matrix:d}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Matrix', int)``\n
+        Replaces ``{primaries:d}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Primaries', int)``\n
+        Replaces ``{transfer:d}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Transfer', int)``\n
         """
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
+
+        frame = self.clip.get_frame(0)
+        matrix = Properties.get_prop(frame, '_Matrix', int)
+        primaries = Properties.get_prop(frame, '_Primaries', int)
+        transfer = Properties.get_prop(frame, '_Transfer', int)
+
         logger.debug('min_luma, max_luma: ' + str((min_luma, max_luma)))
-        return super().set_variable() | dict(min_luma=min_luma, max_luma=max_luma)
+        logger.debug('matrix, primaries, transfer: ' + str((matrix, primaries, transfer)))
+        return super().set_variable() | dict(
+            min_luma=min_luma, max_luma=max_luma,
+            matrix=matrix, primaries=primaries, transfer=transfer
+        )
 
 
 class X264(VideoLanEncoder):
@@ -598,6 +611,20 @@ class X264(VideoLanEncoder):
     @copy_docstring_from(VideoLanEncoder.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
         """
-        Replaces ``{csp:s}`` by ``Properties.get_csp(self.clip)``\n
+        Replaces ``{csp:s}`` with ``Properties.get_csp(self.clip)``\n
+        Replaces ``{matrix:s}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Matrix', int)``\n
+        Replaces ``{primaries:s}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Primaries', int)``\n
+        Replaces ``{transfer:s}`` with ``Properties.get_prop(self.clip.get_frame(0), '_Transfer', int)``\n
         """
-        return super().set_variable() | dict(csp=Properties.get_csp(self.clip))
+        csp = Properties.get_csp(self.clip)
+
+        frame = self.clip.get_frame(0)
+        matrix = Properties.get_matrix_names(frame, '_Matrix', int)
+        primaries = Properties.get_matrix_names(frame, '_Primaries', int)
+        transfer = Properties.get_matrix_names(frame, '_Transfer', int)
+
+        logger.debug('csp: ' + str(csp))
+        logger.debug('matrix, primaries, transfer: ' + str((matrix, primaries, transfer)))
+        return super().set_variable() | dict(
+            csp=csp, matrix=matrix, primaries=primaries, transfer=transfer
+        )
