@@ -109,7 +109,7 @@ class Properties:
             return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
 
     @staticmethod
-    def get_matrix_names(frame: vs.VideoFrame, key: str, t: Type[T]) -> str:
+    def get_matrix_name(frame: vs.VideoFrame, key: str, t: Type[T]) -> str:
         """
         Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
         and then returns a corresponding string.

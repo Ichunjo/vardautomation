@@ -592,6 +592,10 @@ class X265(VideoLanEncoder):
         primaries = Properties.get_prop(frame, '_Primaries', int)
         transfer = Properties.get_prop(frame, '_Transfer', int)
 
+        if not all([matrix, primaries, transfer]):
+            logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
+                           f'({matrix}/{primaries}/{transfer})! Make sure this is what you want!')
+
         logger.debug('min_luma, max_luma: ' + str((min_luma, max_luma)))
         logger.debug('matrix, primaries, transfer: ' + str((matrix, primaries, transfer)))
         return super().set_variable() | dict(
@@ -619,9 +623,13 @@ class X264(VideoLanEncoder):
         csp = Properties.get_csp(self.clip)
 
         frame = self.clip.get_frame(0)
-        matrix = Properties.get_matrix_names(frame, '_Matrix', int)
-        primaries = Properties.get_matrix_names(frame, '_Primaries', int)
-        transfer = Properties.get_matrix_names(frame, '_Transfer', int)
+        matrix = Properties.get_matrix_name(frame, '_Matrix', int)
+        primaries = Properties.get_matrix_name(frame, '_Primaries', int)
+        transfer = Properties.get_matrix_name(frame, '_Transfer', int)
+
+        if not all([matrix, primaries, transfer]):
+            logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
+                           f'({matrix}/{primaries}/{transfer})! Make sure this is what you want!')
 
         logger.debug('csp: ' + str(csp))
         logger.debug('matrix, primaries, transfer: ' + str((matrix, primaries, transfer)))
