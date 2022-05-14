@@ -587,10 +587,10 @@ class X265(VideoLanEncoder):
         """
         min_luma, max_luma = Properties.get_colour_range(self.params, self.clip)
 
-        frame = self.clip.get_frame(0)
-        matrix = Properties.get_prop(frame, '_Matrix', int)
-        primaries = Properties.get_prop(frame, '_Primaries', int)
-        transfer = Properties.get_prop(frame, '_Transfer', int)
+        with self.clip.get_frame(0) as frame:
+            matrix = Properties.get_prop(frame, '_Matrix', int)
+            primaries = Properties.get_prop(frame, '_Primaries', int)
+            transfer = Properties.get_prop(frame, '_Transfer', int)
 
         if not all([matrix, primaries, transfer]):
             logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
@@ -622,10 +622,10 @@ class X264(VideoLanEncoder):
         """
         csp = Properties.get_csp(self.clip)
 
-        frame = self.clip.get_frame(0)
-        matrix = Properties.get_matrix_name(frame, '_Matrix', int)
-        primaries = Properties.get_matrix_name(frame, '_Primaries', int)
-        transfer = Properties.get_matrix_name(frame, '_Transfer', int)
+        with self.clip.get_frame(0) as frame:
+            matrix = Properties.get_matrix_name(frame, '_Matrix')
+            primaries = Properties.get_matrix_name(frame, '_Primaries')
+            transfer = Properties.get_matrix_name(frame, '_Transfer')
 
         if not all([matrix, primaries, transfer]):
             logger.warning(f'{self.__class__.__name__}: Matrix/Primaries/Transfer mismatch '
