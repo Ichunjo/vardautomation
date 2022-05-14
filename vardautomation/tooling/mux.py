@@ -392,7 +392,7 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param path:        Timecode path
         :param id_: [description], defaults to 0
         """
-        self.global_opts = (f'{id_}:' + str(path), '--timestamps') + self.global_opts
+        self.global_opts = ('--timestamps', f'{id_}:' + str(path)) + self.global_opts
 
     def add_attachments(self) -> NoReturn:
         raise NotImplementedError
