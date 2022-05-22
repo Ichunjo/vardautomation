@@ -241,6 +241,12 @@ class MatroskaFile(_AbstractMatroskaFile):
 
     @classmethod
     def autotrack(cls, file: FileInfo) -> MatroskaFile:
+        """
+        Automatically get the tracks from a FileInfo object
+
+        :param file:            FileInfo object
+        :return:                MatroskaFile object
+        """
         streams: List[AnyPath | Track] = [file.name_clip_output]
         i = 1
         while True:
@@ -261,6 +267,11 @@ class MatroskaFile(_AbstractMatroskaFile):
 
     @staticmethod
     def automux(file: FileInfo) -> None:
+        """
+        Call ``MatroskaFile.autotrack`` and mux it.
+
+        :param file:            FileInfo object
+        """
         MatroskaFile.autotrack(file).mux(return_workfiles=False)
 
     @overload
