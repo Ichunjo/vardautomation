@@ -104,6 +104,14 @@ class SelfRunner:
         runner.work_files.discard(self.file.chapter)
     """
 
+    plp_function: Callable[[VPath], vs.VideoNode] | None
+    """
+    Post Lossless Processing function.
+    Set this function if you need some adjustements on the lossless clip
+    before running the encode.
+    If set, it will be called with the lossless path as argument and must return a VideoNode.
+    """
+
     _qpfile_params: _QpFileParams
 
     def __init__(self, clip: vs.VideoNode | Sequence[vs.VideoNode], file: FileInfo, /, config: RunnerConfig) -> None:
@@ -116,6 +124,7 @@ class SelfRunner:
         self.file = file
         self.config = config
         self.work_files = CleanupSet()
+        self.plp_function = None
         self._qpfile_params = _QpFileParams()
 
     def run(self, *, show_logo: bool = True) -> None:
@@ -184,7 +193,11 @@ class SelfRunner:
                 := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
             ).exists():
                 self.config.v_lossless_encoder.run_enc(self.clip, self.file)
-            self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
+            # pylint: disable=not-callable
+            if self.plp_function is not None:
+                self.clip = self.plp_function(path_lossless)
+            else:
+                self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
 
         if not self.file.name_clip_output.exists():
             if isinstance(self.clip, vs.VideoNode):
