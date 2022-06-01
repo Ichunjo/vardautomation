@@ -1,6 +1,6 @@
 sphinx-autodoc-typehints~=1.18.1
 loguru~=0.6.0
-lxml~=4.8.0
+lxml~=4.9.0
 pymediainfo~=5.1.0
 requests~=2.27.1
 langcodes~=3.3.0
