@@ -14,4 +14,4 @@ requests_toolbelt~=0.9.1
 rich~=12.4.4
 typing-extensions~=4.2.0
 vardefunc~=0.6.2
-VapourSynth==58
+VapourSynth==59
