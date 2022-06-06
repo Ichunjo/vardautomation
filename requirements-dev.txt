@@ -8,4 +8,4 @@ pylint~=2.13.9
 pyflakes~=2.4.0
 PyQt5-stubs~=5.15.6.0
 types-Pillow~=9.0.19
-types-psutil~=5.8.22
+types-psutil~=5.8.23
