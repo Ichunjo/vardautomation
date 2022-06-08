@@ -10,7 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypedDict, cast
+from typing import Callable, List, Optional, Protocol, Sequence, Set, Tuple, TypedDict, cast
 
 import vapoursynth as vs
 from typing_extensions import NotRequired
@@ -68,6 +68,16 @@ class _QpFileParams(TypedDict):
     qpfile_func: NotRequired[Callable[[vs.VideoNode, AnyPath], Qpfile]]
 
 
+# Workaround to https://github.com/python/mypy/issues/708
+class _PLPFunction(Protocol):
+    def __call__(self, path: VPath) -> vs.VideoNode:
+        ...
+
+
+def _lossless_index(path: VPath) -> vs.VideoNode:
+    return core.lsmas.LWLibavSource(path.to_str())
+
+
 class SelfRunner:
     """Self runner interface"""
 
@@ -104,7 +114,7 @@ class SelfRunner:
         runner.work_files.discard(self.file.chapter)
     """
 
-    plp_function: Callable[[VPath], vs.VideoNode] | None
+    plp_function: _PLPFunction | Callable[[VPath], vs.VideoNode]
     """
     Post Lossless Processing function.
     Set this function if you need some adjustements on the lossless clip
@@ -124,7 +134,7 @@ class SelfRunner:
         self.file = file
         self.config = config
         self.work_files = CleanupSet()
-        self.plp_function = None
+        self.plp_function = _lossless_index
         self._qpfile_params = _QpFileParams()
 
     def run(self, *, show_logo: bool = True) -> None:
@@ -193,11 +203,7 @@ class SelfRunner:
                 := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
             ).exists():
                 self.config.v_lossless_encoder.run_enc(self.clip, self.file)
-            # pylint: disable=not-callable
-            if self.plp_function is not None:
-                self.clip = self.plp_function(path_lossless)
-            else:
-                self.clip = core.lsmas.LWLibavSource(path_lossless.to_str())
+            self.clip = self.plp_function(path_lossless)
 
         if not self.file.name_clip_output.exists():
             if isinstance(self.clip, vs.VideoNode):
