@@ -297,7 +297,6 @@ class FileInfo:
 
         self.__post_init__()
 
-    # pylint: disable=no-self-use
     def __post_init__(self) -> None:
         ...
 
