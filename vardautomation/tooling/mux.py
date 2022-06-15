@@ -73,7 +73,16 @@ class Track(_AbstractTrack):
         super().__init__()
 
 
-class MediaTrack(Track):
+class _LanguageTrack(Track):
+    lang: Lang
+    """Language of the track"""
+
+    def __init__(self, path: AnyPath, lang: Lang | str = UNDEFINED, *opts: str) -> None:
+        self.lang = Lang.make(lang) if isinstance(lang, str) else lang
+        super().__init__(path, *opts)
+
+
+class MediaTrack(_LanguageTrack):
     """Interface for medias track based to be passed to mkvmerge"""
 
     name: Optional[str]
@@ -82,7 +91,7 @@ class MediaTrack(Track):
     lang: Lang
     """Language of the track"""
 
-    def __init__(self, path: AnyPath, name: Optional[str] = None, lang: Lang = UNDEFINED, tid: int = 0, /, *opts: str) -> None:
+    def __init__(self, path: AnyPath, name: Optional[str] = None, lang: Lang | str = UNDEFINED, tid: int = 0, /, *opts: str) -> None:
         """
         Register a new track
 
@@ -92,9 +101,8 @@ class MediaTrack(Track):
         :param tid:         Track ID
         :param opts:        Additional options
         """
-        super().__init__(path, *opts)
+        super().__init__(path, lang, *opts)
         self.name = name
-        self.lang = lang
         if self.name:
             self._cmd.extend([f'{tid}:' + self.name, '--track-name'])
         self._cmd.extend([f'{tid}:' + self.lang.iso639, '--language'])
@@ -112,16 +120,13 @@ class SubtitleTrack(MediaTrack):
     ...
 
 
-class ChaptersTrack(Track):
+class ChaptersTrack(_LanguageTrack):
     """Interface for chapters track based to be passed to mkvmerge"""
-
-    lang: Lang
-    """Language of the track"""
 
     charset: Optional[str]
     """Character set that is used for the conversion to UTF-8 for simple chapter files."""
 
-    def __init__(self, path: AnyPath, lang: Lang = UNDEFINED, charset: Optional[str] = None, /, *opts: str) -> None:
+    def __init__(self, path: AnyPath, lang: Lang | str = UNDEFINED, charset: Optional[str] = None, /, *opts: str) -> None:
         """
         Register a new chapters track
 
@@ -129,8 +134,7 @@ class ChaptersTrack(Track):
         :param lang:        Language of the track
         :param charset:     Character set that is used for the conversion to UTF-8 for simple chapter files
         """
-        super().__init__(path, *opts)
-        self.lang = lang
+        super().__init__(path, lang, *opts)
         self.charset = charset
         self._cmd.insert(1, '--chapters')
         if self.charset:
@@ -240,9 +244,9 @@ class MatroskaFile(_AbstractMatroskaFile):
         return cmd
 
     @classmethod
-    def autotrack(cls, file: FileInfo) -> MatroskaFile:
+    def autotrack(cls, file: FileInfo, lang: Lang | None = None) -> MatroskaFile:
         """
-        Automatically get the tracks from a FileInfo object
+        Automatically get the tracks from a FileInfo object and make a MatroskaFile from it
 
         :param file:            FileInfo object
         :return:                MatroskaFile object
@@ -263,7 +267,10 @@ class MatroskaFile(_AbstractMatroskaFile):
         if file.chapter and file.chapter.exists():
             streams.append(ChaptersTrack(file.chapter))
 
-        return cls(file.name_file_final, streams)
+        mkv = cls(file.name_file_final, streams)
+        mkv.track_lang = lang
+
+        return mkv
 
     @staticmethod
     def automux(file: FileInfo) -> None:
@@ -273,6 +280,34 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param file:            FileInfo object
         """
         MatroskaFile.autotrack(file).mux(return_workfiles=False)
+
+    @property
+    def track_lang(self) -> List[Lang | None] | Lang | None:
+        """
+        Lang(s) of the tracks of the current MatroskaFile object
+
+        :setter:                Change the Lang of the tracks
+        """
+        if len(self._tracks) > 1:
+            return [track.lang if isinstance(track, MediaTrack) else None for track in self._tracks]
+        return track.lang if isinstance(track := self._tracks[0], MediaTrack) else None
+
+    @track_lang.setter
+    def track_lang(self, langs: List[Lang | None] | Lang | None) -> None:
+        if langs is None:
+            return None
+
+        if isinstance(langs, Lang):
+            for track in self._tracks:
+                if isinstance(track, MediaTrack):
+                    track.lang = langs
+            return None
+
+        nlangs = langs[:len(self._tracks)]
+        nlangs += [langs[-1]] * (len(self._tracks) - len(langs))
+        for track, nlang in zip(self._tracks, nlangs):
+            if isinstance(track, MediaTrack) and nlang:
+                track.lang = nlang
 
     @overload
     def mux(self, return_workfiles: Literal[True] = ...) -> CleanupSet:
