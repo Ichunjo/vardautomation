@@ -107,7 +107,7 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
                             The value is in megabytes, defaults to None.
     :return:                Vapoursynth Core.
     """
-    core = vs.core
+    core = vs.core.core
 
     if threads is not None:
         threads = list(threads)
