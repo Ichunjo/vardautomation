@@ -18,16 +18,17 @@ class BasicTool(Tool):
     """FileInfo object."""
 
     def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], /,
-                 file: Optional[FileInfo] = None) -> None:
+                 file: Optional[FileInfo] = None, check_binary: bool = True) -> None:
         """
         Helper allowing the use of CLI programs for basic tasks like video or audio track extraction.
 
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
         :param file:            Not used in BasicTool implementation, defaults to None
+        :param check_binary:        Check binary's availability.
         """
         self.file = file
-        super().__init__(binary, settings)
+        super().__init__(binary, settings, check_binary=check_binary)
 
     def run(self) -> None:
         self._update_settings()

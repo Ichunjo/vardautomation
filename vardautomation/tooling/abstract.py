@@ -24,7 +24,7 @@ class Tool(ABC):
     params: List[str]
     """Settings normalised and parsed"""
 
-    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any]) -> None:
+    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], *, check_binary: bool = True) -> None:
         """
         ::
 
@@ -48,6 +48,7 @@ class Tool(ABC):
         :param settings:            Path to your settings file or list of string or a dict containing your settings
                                     Special variable names can be specified and are replaced at runtime.
                                     Supported variable names are defined in :py:func:`set_variable` docstring.
+        :param check_binary:        Check binary's availability.
         """
         self.binary = VPath(binary)
 
@@ -64,7 +65,8 @@ class Tool(ABC):
                 logger.critical(f'{self.__class__.__name__}: settings file not found', file_err)
             self.params = [p for p in params_re if isinstance(p, str)]
 
-        self._check_binary()
+        if check_binary:
+            self._check_binary()
         self.params.insert(0, self.binary.to_str())
 
         super().__init__()

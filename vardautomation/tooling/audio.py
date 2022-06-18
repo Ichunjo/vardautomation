@@ -205,7 +205,7 @@ class AudioEncoder(BasicTool):
 
     @logger.catch
     def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], /,
-                 file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None) -> None:
+                 file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None, check_binary: bool = True) -> None:
         """
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
@@ -213,8 +213,9 @@ class AudioEncoder(BasicTool):
         :param track:           Track number
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None\n
                                 If specified, will write a file containing the encoder info to be passed to the muxer.
+        :param check_binary:    Check binary's availability.
         """
-        super().__init__(binary, settings, file=file)
+        super().__init__(binary, settings, file=file, check_binary=check_binary)
 
         if self.file.a_src_cut is None:
             raise ValueError(f'{self.__class__.__name__}: `file.a_src_cut` is needed!')
@@ -268,7 +269,7 @@ class PassthroughAudioEncoder(AudioEncoder):
         :param track:       Track number
         :param xml_tag:     See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         """
-        super().__init__('', [''], file, track=track)
+        super().__init__('', [''], file, track=track, check_binary=False)
 
     def run(self) -> None:
         assert self.file.a_src_cut
