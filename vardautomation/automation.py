@@ -3,12 +3,13 @@
 __all__ = [
     'RunnerConfig', 'SelfRunner',
 
-    'Patch'
+    'patch', 'Patch'
 ]
 
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
+from functools import partial
 from itertools import chain
 from typing import Callable, List, Optional, Protocol, Sequence, Set, Tuple, TypedDict, cast
 
@@ -25,7 +26,7 @@ from .tooling import (
     AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, MatroskaFile, Qpfile,
     Track, VideoEncoder, get_keyframes, make_qpfile
 )
-from .tooling.video import SupportManualVFR, SupportQpfile
+from .tooling.video import SupportManualVFR, SupportQpfile, SupportResume
 from .types import AnyPath, T
 from .vpathlib import CleanupSet, VPath
 
@@ -255,6 +256,118 @@ def _toseq(seq: T | Sequence[T]) -> Sequence[T]:
     return cast(Sequence[T], seq) if isinstance(seq, Sequence) else cast(Sequence[T], [seq])
 
 
+@logger.catch
+def patch(
+    encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo, ranges: Range | List[Range],
+    output_filename: AnyPath | None = None, cleanup: bool = False
+) -> None:
+    """Easy video patching function
+
+    :param encoder:             VideoEncoder to be used
+    :param clip:                Clip where the patch will pick the fixed ranges
+    :param file:                FileInfo object. The file that will be fixed is the file defined
+                                in :py:attr:`vardautomation.config.FileInfo.name_file_final`
+    :param ranges:              Ranges of frames that need to be fixed
+    :param output_filename:     Optional filename. If not specified a suffix ``_new`` wil be added, defaults to None
+    """
+    if isinstance(encoder, SupportResume):
+        encoder.resumable = False
+
+    nranges = normalise_ranges(clip, ranges)
+
+    _file_to_fix = file.name_file_final
+    final = _file_to_fix.parent
+
+    workdir = final / (file.name + '_temp')
+    if output_filename is not None:
+        output_fn = VPath(output_filename)
+    else:
+        output_fn = final / f'{_file_to_fix.stem}_new.mkv'
+
+    if workdir.exists():
+        raise FileExistsError(f'patch: {workdir.resolve().to_str()} already exists!')
+
+    # Patching...
+    workdir.mkdir()
+
+    # _resolve_range
+    kf = get_keyframes(_file_to_fix)
+    kfsint = kf.frames + [clip.num_frames]
+
+    nbranges = _bound_to_keyframes(nranges, kfsint)
+    logger.debug(f'Ranges: {str(nranges)}')
+    nranges = normalise_ranges(clip, nbranges, norm_dups=True)
+    logger.debug(f'Ranges: {str(nranges)}')
+
+    if len(nranges) == 1 and nranges[0][0] == 0 and nranges[0][1] == clip.num_frames:
+        raise ValueError('patch: Don\'t use patch, just redo your encode')
+
+    # _encode
+    params = deepcopy(encoder.params)
+    for i, (s, e) in enumerate(nranges, start=1):
+        logger.debug(str((s, e)))
+        fix = workdir / f'fix-{i:03.0f}'
+        file.name_clip_output = fix
+        encoder.run_enc(clip[s:e], file)
+        encoder.params = params.copy()
+        MatroskaFile(fix.with_suffix('.mkv'), fix).mux()
+
+    # _cut_and_merge
+    tmp = workdir / 'tmp.mkv'
+    tmpnoaudio = workdir / 'tmp_noaudio.mkv'
+
+    if (start := (rng := list(chain.from_iterable(nranges)))[0]) == 0:
+        rng.pop(0)
+    if rng[-1] == clip.num_frames:
+        rng.pop(-1)
+
+    MatroskaFile(tmp, _file_to_fix, '--no-audio', '--no-track-tags', '--no-chapters').split_frames(rng)
+
+    tmp_files = sorted(workdir.glob('tmp-???.mkv'))
+    fix_files = sorted(workdir.glob('fix-???.mkv'))
+
+    parts = [
+        fix_files[int(i / 2)] if i % 2 == (0 if start == 0 else 1) else tmp
+        for i, tmp in enumerate(tmp_files)
+    ]
+
+    MatroskaFile(tmpnoaudio, None, '--no-audio', '--no-track-tags', '--no-chapters').append_to(
+        parts, [(i + 1, 0, i, 0) for i in range(len(parts) - 1)]
+    )
+
+    MatroskaFile(output_fn, [Track(tmpnoaudio), Track(_file_to_fix, '--no-video')]).mux()
+
+    # do_cleanup
+    if cleanup:
+        workdir.rmtree(ignore_errors=True)
+
+
+def _bound_to_keyframes(ranges: List[Tuple[int, int]], kfs: List[int]) -> List[Range]:
+    rng_set: Set[Tuple[int, int]] = set()
+    for start, end in ranges:
+        s, e = (None, ) * 2
+        for i, kf in enumerate(kfs):
+            if kf > start:
+                s = kfs[i - 1]
+                break
+            if kf == start:
+                s = kf
+                break
+
+        for i, kf in enumerate(kfs):
+            if kf >= end:
+                e = kf
+                break
+
+        if s is None or e is None:
+            logger.debug(str((s, e)))
+            raise ValueError('_bound_to_keyframes: Something is wrong in `s` or `e`')
+
+        rng_set.add((s, e))
+
+    return sorted(rng_set)
+
+
 class Patch:
     """Easy video patching interface"""
 
@@ -297,110 +410,13 @@ class Patch:
         :param output_filename:     Optional filename. If not specified a suffix ``_new`` wil be added, defaults to None
         :param debug:               Debug argument, defaults to False
         """
-        self.encoder = encoder
-        self.clip = clip
-        self.file = file
-
-        self.ranges = normalise_ranges(self.clip, ranges)
         self.debug = debug
-
-        self._file_to_fix = self.file.name_file_final
-
-        final = self._file_to_fix.parent
-
-        self.workdir = final / (self.file.name + '_temp')
-        if output_filename is not None:
-            self.output_filename = VPath(output_filename)
-        else:
-            self.output_filename = final / f'{self._file_to_fix.stem}_new.mkv'
-
-        if self.workdir.exists():
-            raise FileExistsError(f'{self.__class__.__name__}: {self.workdir.resolve().to_str()} already exists!')
+        logger.warning('Using Patch is deprecated; please use "patch" instead')
+        self._patch = partial(patch, encoder, clip, file, ranges, output_filename)
 
     def run(self) -> None:
         """Launch patch"""
-        # Local folder
-        self.workdir.mkdir()
-        self._resolve_range()
-        self._encode()
-        self._cut_and_merge()
+        self._patch()
 
     def do_cleanup(self) -> None:
         """Delete working directory folder"""
-        self.workdir.rmtree(ignore_errors=True)
-
-    @logger.catch
-    def _resolve_range(self) -> None:
-        kf = get_keyframes(self._file_to_fix)
-        kfsint = kf.frames + [self.clip.num_frames]
-
-        ranges = self._bound_to_keyframes(kfsint)
-        logger.debug(f'Ranges: {str(ranges)}')
-        nranges = normalise_ranges(self.clip, ranges, norm_dups=True)
-        logger.debug(f'Ranges: {str(nranges)}')
-
-        if len(nranges) == 1 and nranges[0][0] == 0 and nranges[0][1] == self.clip.num_frames:
-            raise ValueError(f'{self.__class__.__name__}: Don\'t use Patch, just redo your encode')
-
-        self.ranges = nranges
-
-    def _encode(self) -> None:
-        params = deepcopy(self.encoder.params)
-        for i, (s, e) in enumerate(self.ranges, start=1):
-            logger.debug(str((s, e)))
-            fix = self.workdir / f'fix-{i:03.0f}'
-            self.file.name_clip_output = fix
-            self.encoder.run_enc(self.clip[s:e], self.file)
-            self.encoder.params = params
-            MatroskaFile(fix.with_suffix('.mkv'), fix).mux()
-
-    def _cut_and_merge(self) -> None:
-        tmp = self.workdir / 'tmp.mkv'
-        tmpnoaudio = self.workdir / 'tmp_noaudio.mkv'
-
-        if (start := (rng := list(chain.from_iterable(self.ranges)))[0]) == 0:
-            rng.pop(0)
-        if rng[-1] == self.clip.num_frames:
-            rng.pop(-1)
-
-        MatroskaFile(tmp, self._file_to_fix, '--no-audio', '--no-track-tags', '--no-chapters').split_frames(rng)
-
-        tmp_files = sorted(self.workdir.glob('tmp-???.mkv'))
-        fix_files = sorted(self.workdir.glob('fix-???.mkv'))
-
-        parts = [
-            fix_files[int(i / 2)] if i % 2 == (0 if start == 0 else 1) else tmp
-            for i, tmp in enumerate(tmp_files)
-        ]
-
-        MatroskaFile(tmpnoaudio, None, '--no-audio', '--no-track-tags', '--no-chapters').append_to(
-            parts, [(i + 1, 0, i, 0) for i in range(len(parts) - 1)]
-        )
-
-        MatroskaFile(self.output_filename, [Track(tmpnoaudio), Track(self._file_to_fix, '--no-video')]).mux()
-
-    @logger.catch
-    def _bound_to_keyframes(self, kfs: List[int]) -> List[Range]:
-        rng_set: Set[Tuple[int, int]] = set()
-        for start, end in self.ranges:
-            s, e = (None, ) * 2
-            for i, kf in enumerate(kfs):
-                if kf > start:
-                    s = kfs[i - 1]
-                    break
-                if kf == start:
-                    s = kf
-                    break
-
-            for i, kf in enumerate(kfs):
-                if kf >= end:
-                    e = kf
-                    break
-
-            if s is None or e is None:
-                logger.debug(str((s, e)))
-                raise ValueError(f'{self.__class__.__name__} Something is wrong in `s` or `e`')
-
-            rng_set.add((s, e))
-
-        return sorted(rng_set)
