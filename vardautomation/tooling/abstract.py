@@ -67,6 +67,8 @@ class Tool(ABC):
 
         if check_binary:
             self._check_binary()
+
+        self.params = [x for x in self.params if x]
         self.params.insert(0, self.binary.to_str())
 
         super().__init__()
