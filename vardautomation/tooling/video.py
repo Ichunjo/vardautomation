@@ -69,6 +69,33 @@ class VideoEncoder(Tool):
     This argument is there to limit the memory this function uses storing frames.
     """
 
+    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any]) -> None:
+        """
+        ::
+
+            # This
+            >>> cat settings
+            -o {clip_output:s} - --y4m --preset slower --crf 51
+
+            # is equivalent to this:
+            settings: List[str] = ['-o', '{clip_output:s}', '-', '--y4m', '--preset', 'slower', '--crf', '51']
+
+            # and is equivalent to this:
+            settings: Dict[str, Any] = {
+                '-o': '{clip_output:s}',
+                '-': None,
+                '--y4m': None,
+                '--preset': 'slower',
+                '--crf': 51
+            }
+
+        :param binary:              Path to your binary file.
+        :param settings:            Path to your settings file or list of string or a dict containing your settings
+                                    Special variable names can be specified and are replaced at runtime.
+                                    Supported variable names are defined in :py:func:`set_variable` docstring.
+        """
+        super().__init__(binary, settings)
+
     @overload
     def run_enc(self, clip: vs.VideoNode, file: FileInfo) -> None:
         ...
@@ -439,49 +466,24 @@ class SupportManualVFR(SupportResume, ABC):
         return None
 
 
-class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, VideoEncoder, ABC):
-    """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
-
-    resumable: bool
-    """Enable resumable encodes"""
-
-    _vl_binary: ClassVar[AnyPath]
-    _bits: int
-
-    @copy_docstring_from(Tool.__init__, 'o+t')
-    def __init__(self, settings: AnyPath | List[str] | Dict[str, Any], /,
-                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
-                 override_params: Optional[Dict[str, Any]] = None,
-                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
+class HasOverrideParams(VideoEncoder, ABC):
+    @copy_docstring_from(VideoEncoder.__init__, 'o+t')
+    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any],
+                 override_params: Optional[Dict[str, Any]] = None) -> None:
         """
-        :param zones:               Custom zone ranges, defaults to None
-        :param override_params:     Parameters to be overrided in ``settings``
-
         ::
 
-            zones: Dict[Tuple[int, int], Dict[str, Any]] = {
-                        (3500, 3600): dict(b=3, subme=11),
-                        (4800, 4900): {'psy-rd': '0.40:0.05', 'merange': 48}
-                    }
+            override_params: Dict[str, Any] = {'--crf': 10, '--preset': 'ultrafast'}
+
+        :param override_params:     Parameters to be overrided in ``settings``
         """
-        super().__init__(self._vl_binary, settings)
-        if zones:
-            zones_settings: str = ''
-            for i, ((start, end), opt) in enumerate(zones.items()):
-                zones_settings += f'{start},{end}'
-                for opt_name, opt_val in opt.items():
-                    zones_settings += f',{opt_name}={opt_val}'
-                if i != len(zones) - 1:
-                    zones_settings += '/'
-            self.params.extend(['--zones', zones_settings])
+        super().__init__(binary, settings)
 
         if override_params:
             nparams = self.params_asdict | override_params
             self.params.clear()
             for k, v in nparams.items():
                 self.params.extend([k] + ([str(v)] if v else []))
-
-        self.progress_update = progress_update
 
     @property
     def params_asdict(self) -> Dict[str, Any]:  # noqa C901
@@ -524,6 +526,9 @@ class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, VideoEncod
                 else:
                     dparams[p] = pp
                     i += 2
+            else:
+                dparams[p] = None
+                i += 1
 
         for k, v in dparams.items():
             try:
@@ -539,6 +544,57 @@ class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, VideoEncod
                 dparams[k] = v_int
 
         return dparams
+
+
+class HasZone(HasOverrideParams, ABC):
+    @copy_docstring_from(HasOverrideParams.__init__, 'o+t')
+    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any],
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
+                 override_params: Optional[Dict[str, Any]] = None) -> None:
+        """
+        :param zones:               Custom zone ranges, defaults to None
+
+        ::
+
+            zones: Dict[Tuple[int, int], Dict[str, Any]] = {
+                        (3500, 3600): dict(b=3, subme=11),
+                        (4800, 4900): {'psy-rd': '0.40:0.05', 'merange': 48}
+                    }
+        """
+        if not zones:
+            return super().__init__(binary, settings, override_params)
+
+        zones_settings: str = ''
+        for i, ((start, end), opt) in enumerate(zones.items()):
+            zones_settings += f'{start},{end}'
+            for opt_name, opt_val in opt.items():
+                zones_settings += f',{opt_name}={opt_val}'
+            if i != len(zones) - 1:
+                zones_settings += '/'
+        zones_d = {'--zones': zones_settings}
+
+        super().__init__(
+            binary, settings,
+            (override_params | zones_d if override_params else zones_d)
+        )
+
+
+class VideoLanEncoder(SupportManualVFR, SupportResume, SupportQpfile, HasZone, HasOverrideParams, VideoEncoder, ABC):
+    """Abstract VideoEncoder interface for VideoLan based encoders such as x265 and x264."""
+
+    resumable: bool
+    """Enable resumable encodes"""
+
+    _vl_binary: ClassVar[AnyPath]
+    _bits: int
+
+    @copy_docstring_from(HasOverrideParams.__init__)
+    def __init__(self, settings: AnyPath | List[str] | Dict[str, Any], /,
+                 zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
+                 override_params: Optional[Dict[str, Any]] = None,
+                 progress_update: Optional[UpdateFunc] = progress_update_func) -> None:
+        super().__init__(self._vl_binary, settings, zones, override_params)
+        self.progress_update = progress_update
 
     @copy_docstring_from(Tool.set_variable, 'o+t')
     def set_variable(self) -> Dict[str, Any]:
