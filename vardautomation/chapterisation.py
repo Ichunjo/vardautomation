@@ -555,7 +555,6 @@ class MplsReader:
         mpls_chaps: List[MplsChapters] = []
 
         for i, playitem in enumerate(playlist.play_items):
-
             # Create a MplsChapters and add its linked mpls
             mpls_chap = MplsChapters(mpls_file)
 
@@ -567,21 +566,21 @@ class MplsReader:
             # Sort the chapters/marks linked to the current item
             linked_marks = [mark for mark in marks if mark.ref_to_play_item_id == i]
 
-            # linked_marks could be empty
-            if linked_marks:
-                # Extract the offset
+            try:
                 assert playitem.intime
+                # Extract the offset
+                # linked_marks could be empty
                 offset = min(playitem.intime, linked_marks[0].mark_timestamp)
+            except IndexError:
+                continue
 
-                # Extract the fps and store it
-                if playitem.stn_table and playitem.stn_table.prim_video_stream_entries \
-                        and (fps_n := playitem.stn_table.prim_video_stream_entries[0][1].framerate):
-                    try:
-                        mpls_chap.fps = mpls.FRAMERATE[fps_n]
-                    except AttributeError as attr_err:
-                        raise ValueError(f'{self.__class__.__name__}: Unknown framerate!') from attr_err
-                else:
-                    raise AttributeError(f'{self.__class__.__name__}: No STNTable in playitem!')
+            # Extract the fps and store it
+            if playitem.stn_table and playitem.stn_table.length != 0 and playitem.stn_table.prim_video_stream_entries \
+                    and (fps_n := playitem.stn_table.prim_video_stream_entries[0][1].framerate):
+                try:
+                    mpls_chap.fps = mpls.FRAMERATE[fps_n]
+                except AttributeError as attr_err:
+                    raise ValueError(f'{self.__class__.__name__}: Unknown framerate!') from attr_err
 
                 # Finally extract the chapters
                 mpls_chap.chapters = [
