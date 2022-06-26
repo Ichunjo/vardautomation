@@ -237,7 +237,7 @@ class SupportQpfile(VideoEncoder, ABC):
     @logger.catch
     @copy_docstring_from(VideoEncoder.run_enc, 'o+t')
     def run_enc(self, clip: vs.VideoNode, file: FileInfo | None, *,
-                qpfile_clip: vs.VideoNode | None = None,
+                qpfile_clip: 'vs.VideoNode | None' = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         """
         :param qpfile_clip:         Clip to be used to generate the Qpfile
@@ -290,7 +290,7 @@ class SupportResume(SupportQpfile, ABC):
 
     @logger.catch
     def run_enc(self, clip: vs.VideoNode, file: FileInfo | None, *,  # noqa C901
-                qpfile_clip: vs.VideoNode | None = None,
+                qpfile_clip: 'vs.VideoNode | None' = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         if not self.resumable:
             return super().run_enc(clip, file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
@@ -439,7 +439,7 @@ class SupportManualVFR(SupportResume, ABC):
 
     @logger.catch
     def run_enc(self, clip: vs.VideoNode | Sequence[vs.VideoNode], file: FileInfo | None, *,
-                qpfile_clip: vs.VideoNode | None = None,
+                qpfile_clip: 'vs.VideoNode | None' = None,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
         if isinstance(clip, vs.VideoNode):
             return super().run_enc(clip, file, **dict(qpfile_clip=qpfile_clip, qpfile_func=qpfile_func))
