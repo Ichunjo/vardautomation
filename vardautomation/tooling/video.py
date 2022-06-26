@@ -547,6 +547,8 @@ class HasOverrideParams(VideoEncoder, ABC):
 
 
 class HasZone(HasOverrideParams, ABC):
+    # pylint: disable=return-in-init
+    # pylint: disable=inconsistent-return-statements
     @copy_docstring_from(HasOverrideParams.__init__, 'o+t')
     def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any],
                  zones: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None,
