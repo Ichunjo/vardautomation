@@ -12,6 +12,6 @@ pytimeconv~=0.0.2
 requests~=2.28.1
 requests_toolbelt~=0.9.1
 rich~=12.5.1
-typing-extensions~=4.2.0
+typing-extensions~=4.3.0
 vardefunc~=0.7.0
 VapourSynth==59
