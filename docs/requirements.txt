@@ -12,4 +12,4 @@ pytimeconv~=0.0.2
 requests_toolbelt~=0.9.1
 rich~=12.5.1
 typing-extensions~=4.3.0
-numpy~=1.23.1
+numpy~=1.23.2
