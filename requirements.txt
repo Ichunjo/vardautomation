@@ -1,7 +1,7 @@
 langcodes~=3.3.0
 language-data~=1.1
 loguru~=0.6.0
-lvsfunc~=0.4.3
+lvsfunc~=0.4.4
 lxml~=4.9.1
 numpy~=1.23.2
 psutil~=5.9.1
