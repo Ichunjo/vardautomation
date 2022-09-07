@@ -401,7 +401,8 @@ class FileInfo:
         self._num_prop = x
         if x:
             def _add_frame_num(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
-                (fout := f.copy()).props['FileInfoFrameNumber'] = n
+                fout = f.copy()
+                fout.props['FileInfoFrameNumber'] = n
                 return fout
 
             self.clip = core.std.ModifyFrame(self.clip, self.clip, _add_frame_num)
