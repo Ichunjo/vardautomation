@@ -69,4 +69,4 @@ jobs:
         run: flake8 vardautomation
 
       - name: Running mypy
-        run: mypy --install-types --non-interactive -p vardautomation
+        run: mypy -p vardautomation
