@@ -26,16 +26,15 @@ jobs:
           tag: ${{ env.VDA_VER }}
 
       - name: Make tag
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         if: steps.tagcheck.outputs.exists == 'false'
         with:
           github-token: ${{ secrets.WORKFLOW_TOKEN }}
           script: |
-            const { VDA_VER } = process.env
-            github.git.createRef({
+            github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: `refs/tags/${VDA_VER}`,
+              ref: `refs/tags/${process.env.VDA_VER}`,
               sha: context.sha
             })
       - name: Fallback
