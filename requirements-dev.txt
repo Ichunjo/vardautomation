@@ -9,7 +9,7 @@ pyflakes==2.5.0
 PyQt5-stubs==5.15.6.0
 types-attrs==19.1.0
 types-commonmark==0.9.2
-types-Pillow==9.3.0
+types-Pillow==9.3.0.1
 types-psutil==5.9.5
 types-Pygments==2.13.1.1
 types-setuptools==65.5.0.3
