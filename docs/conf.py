@@ -67,7 +67,7 @@ autodoc_typehints = 'description'                       # https://www.sphinx-doc
 autoclass_content = 'both'                              # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autoclass_content
 autosummary_generate = True                             # https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html?highlight=autosummary_generate#confval-autosummary_generate  # noqa: E501
 autodoc_mock_imports = [
-    'vapoursynth', 'vsutil', 'lvsfunc',
+    'vapoursynth', 'vsutil',
     'vardefunc', 'acsuite'                              # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports
 ]
 smartquotes = True                                      # https://www.sphinx-doc.org/en/master/usage/configuration.html?highlight=smartquotes#confval-smartquotes

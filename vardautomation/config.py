@@ -8,7 +8,6 @@ __all__ = [
     'FileInfo', 'FileInfo2',
     'PresetType',
     'Preset', 'NoPreset',
-    'PresetGeneric',
     'PresetBD', 'PresetBDWAV64', 'PresetWEB',
     'PresetAAC', 'PresetOpus', 'PresetEAC3', 'PresetFLAC',
     'PresetChapOGM', 'PresetChapXML',
@@ -23,7 +22,6 @@ from pprint import pformat
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Type, TypeVar, Union
 
 import vapoursynth as vs
-from lvsfunc.misc import source
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
@@ -84,18 +82,6 @@ NoPreset = Preset(
 )
 """
 Special Preset that won't do anything
-"""
-
-PresetGeneric = Preset(
-    idx=source,
-    a_src=None,
-    a_src_cut=None,
-    a_enc_cut=None,
-    chapter=None,
-    preset_type=PresetType.VIDEO
-)
-"""
-Generic preset which index the video using :py:func:`lvsfunc.misc.source`
 """
 
 PresetBD = Preset(
@@ -257,7 +243,7 @@ class FileInfo:
         self, path: AnyPath, /,
         trims_or_dfs: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
         idx: Optional[VPSIdx] = None,
-        preset: Preset | Sequence[Preset] = PresetGeneric,
+        preset: Preset | Sequence[Preset] = [PresetBD, PresetBDWAV64],
         workdir: AnyPath = VPath().cwd()
     ) -> None:
         """
@@ -530,7 +516,7 @@ class BlurayShow:
     _file_nceds: List[_File]
 
     def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
-                 idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = PresetGeneric,
+                 idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = [PresetBD, PresetBDWAV64],
                  lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
         """
         :param episodes:            A dictionnary of episodes.
