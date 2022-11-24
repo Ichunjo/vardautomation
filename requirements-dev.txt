@@ -1,4 +1,4 @@
-flake8==5.0.4
+flake8==6.0.0
 loguru-mypy==0.0.4
 lxml-stubs==0.4.0
 mypy==0.982
