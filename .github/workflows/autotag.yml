@@ -16,7 +16,7 @@ jobs:
 
       - name: Get version number
         run: |
-          echo "VDA_VER=v$(cat .version)" >> $GITHUB_ENV
+          echo "VDA_VER=v$(cat vardautomation/_metadata.py | sed -nr "s/__version__ = '(.*)'/\1/p")" >> $GITHUB_ENV
       - name: Check if version exists
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
