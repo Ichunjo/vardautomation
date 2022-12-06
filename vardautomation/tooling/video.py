@@ -483,7 +483,7 @@ class HasOverrideParams(VideoEncoder, ABC):
             nparams = self.params_asdict | override_params
             self.params.clear()
             for k, v in nparams.items():
-                self.params.extend([k] + ([str(v)] if v else []))
+                self.params.extend([k] + ([str(v)] if v is not None else []))
 
     @property
     def params_asdict(self) -> Dict[str, Any]:  # noqa C901
