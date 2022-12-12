@@ -8,11 +8,13 @@ __all__ = [
 # pylint: disable=no-member
 
 import struct
+
 from enum import IntEnum
 from typing import BinaryIO, Callable, Dict, List, Optional, TextIO, Tuple, overload
 
 import numpy as np
 import vapoursynth as vs
+
 from rich.progress import BarColumn, Progress, ProgressColumn, Task, TextColumn, TimeRemainingColumn
 from rich.text import Text
 

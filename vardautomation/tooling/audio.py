@@ -14,6 +14,7 @@ from typing import Any, ClassVar, Dict, Final, List, Literal, NoReturn, Optional
 
 import numpy as np
 import vapoursynth as vs
+
 from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
@@ -23,9 +24,9 @@ from vardefunc.util import normalise_ranges
 from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo, FileInfo2
-from ..types import AnyPath, DuplicateFrame, Trim
 from ..utils import Properties
 from ..vpathlib import VPath
+from ..vtypes import AnyPath, DuplicateFrame, Trim
 from .base import BasicTool
 
 

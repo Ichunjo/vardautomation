@@ -13,7 +13,7 @@ from typing import Any, Callable, ContextManager, Dict, List, NamedTuple, NoRetu
 import loguru
 import pkg_resources as pkgr
 
-from ..types import F
+from ..vtypes import F
 from .abstract import Singleton
 from .helpers import add_log_attribute, loguru_format, sys_exit
 

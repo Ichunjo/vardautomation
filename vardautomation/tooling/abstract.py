@@ -4,12 +4,13 @@ __all__ = ['Tool']
 
 import re
 import subprocess
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, NoReturn
 
 from .._logging import logger
-from ..types import AnyPath
 from ..vpathlib import VPath
+from ..vtypes import AnyPath
 
 
 class Tool(ABC):

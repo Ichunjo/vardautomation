@@ -10,13 +10,13 @@ from .config import *
 from .language import *
 from .render import *
 from .tooling import *
-from .types import *
 from .vpathlib import *
+from .vtypes import *
 
 # for wildcard imports
 _mods = [
     'automation', 'binary_path', 'chapterisation', 'comp', 'config', 'language',
-    'render', 'tooling', 'types', 'vpathlib'
+    'render', 'tooling', 'vtypes', 'vpathlib'
 ]
 
 __all__ = []

@@ -2,12 +2,13 @@
 __all__ = ['BasicTool']
 
 import subprocess
+
 from typing import Any, Dict, List, Optional
 
 from .._logging import logger
 from ..config import FileInfo
-from ..types import AnyPath
 from ..utils import copy_docstring_from
+from ..vtypes import AnyPath
 from .abstract import Tool
 
 

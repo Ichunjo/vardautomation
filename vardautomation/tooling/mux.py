@@ -15,13 +15,12 @@ from os import PathLike
 from pprint import pformat
 from typing import Iterable, List, Literal, MutableSequence, NoReturn, Optional, Sequence, Tuple, overload
 
-# from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
 from ..language import UNDEFINED, Lang
-from ..types import AnyPath
 from ..utils import recursive_dict
 from ..vpathlib import CleanupSet, VPath
+from ..vtypes import AnyPath
 from .base import BasicTool
 
 

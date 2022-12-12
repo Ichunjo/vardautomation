@@ -15,12 +15,14 @@ import inspect
 import os
 import random
 import subprocess
+
 from enum import Enum, auto
 from functools import partial
 from typing import Any, Callable, Dict, Final, Iterable, List, NamedTuple, Optional, Set
 
 import numpy as np
 import vapoursynth as vs
+
 from numpy.typing import NDArray
 from requests import Session
 from requests_toolbelt import MultipartEncoder
@@ -30,9 +32,9 @@ from vardefunc.util import select_frames
 from ._logging import logger
 from .binary_path import BinaryPath
 from .tooling import SubProcessAsync, VideoEncoder
-from .types import AnyPath
 from .utils import Properties
 from .vpathlib import VPath
+from .vtypes import AnyPath
 
 _MAX_ATTEMPTS_PER_PICTURE_TYPE: Final[int] = 50
 

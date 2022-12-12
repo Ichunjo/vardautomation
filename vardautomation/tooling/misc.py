@@ -8,20 +8,22 @@ __all__ = [
 import asyncio
 import inspect
 import os
+
 from fractions import Fraction
 from itertools import accumulate
 from typing import Iterable, List, NamedTuple, Optional, Union
 
 import psutil
 import vapoursynth as vs
+
 from pytimeconv import Convert
 
 from .._logging import logger
 from ..binary_path import BinaryPath
 from ..render import SceneChangeMode as SCM
 from ..render import find_scene_changes
-from ..types import AnyPath
 from ..vpathlib import VPath
+from ..vtypes import AnyPath
 from .base import BasicTool
 
 

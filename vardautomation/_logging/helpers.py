@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable, Concatenate, Generic, List, NoReturn
 
 import loguru
 
-from ..types import P, T
+from ..vtypes import P, T
 
 if TYPE_CHECKING:
     from .core import Logger, LogLevel

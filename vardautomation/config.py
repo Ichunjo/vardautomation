@@ -15,6 +15,7 @@ __all__ = [
 ]
 
 import sys
+
 from dataclasses import dataclass
 from enum import IntEnum
 from fractions import Fraction
@@ -22,6 +23,7 @@ from pprint import pformat
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Type, TypeVar, Union
 
 import vapoursynth as vs
+
 from pymediainfo import MediaInfo
 from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
@@ -29,10 +31,8 @@ from ._logging import logger
 from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
 from .render import audio_async_render
-from .types import AnyPath
-from .types import DuplicateFrame
-from .types import Trim, VPSIdx
 from .vpathlib import VPath
+from .vtypes import AnyPath, DuplicateFrame, Trim, VPSIdx
 
 core = vs.core
 

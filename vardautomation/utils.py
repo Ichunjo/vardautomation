@@ -1,5 +1,6 @@
 """Properties and helpers functions"""
 import subprocess
+
 from functools import wraps
 from types import FunctionType
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, TypeVar, cast
@@ -8,7 +9,7 @@ import vapoursynth as vs
 
 from ._logging import logger
 from .exception import VSColourRangeError, VSSubsamplingError
-from .types import AnyPath, T
+from .vtypes import AnyPath, T
 
 core = vs.core
 

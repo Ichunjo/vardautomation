@@ -14,6 +14,7 @@ from itertools import chain
 from typing import Callable, List, Optional, Protocol, Sequence, Set, Tuple, TypedDict, cast
 
 import vapoursynth as vs
+
 from typing_extensions import NotRequired
 from vardefunc.misc import DebugOutput
 from vardefunc.types import Range
@@ -27,8 +28,8 @@ from .tooling import (
     Track, VideoEncoder, get_keyframes, make_qpfile
 )
 from .tooling.video import SupportManualVFR, SupportQpfile, SupportResume
-from .types import AnyPath, T
 from .vpathlib import CleanupSet, VPath
+from .vtypes import AnyPath, T
 
 core = vs.core
 

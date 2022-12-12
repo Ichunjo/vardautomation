@@ -6,12 +6,13 @@ __all__ = ['VPath']
 
 import os
 import shutil
+
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
 
 from ._logging import logger
-from .types import AnyPath, AbstractMutableSet
+from .vtypes import AbstractMutableSet, AnyPath
 
 
 class _Flavour(Protocol):

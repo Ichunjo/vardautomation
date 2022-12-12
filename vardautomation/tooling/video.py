@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import subprocess
+
 from abc import ABC
 from typing import (
     Any, BinaryIO, Callable, ClassVar, Dict, List, NoReturn, Optional, Sequence, Set, Tuple, cast,
@@ -17,9 +18,9 @@ import vapoursynth as vs
 from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
-from ..types import AnyPath, UpdateFunc
 from ..utils import Properties, copy_docstring_from
 from ..vpathlib import VPath
+from ..vtypes import AnyPath, UpdateFunc
 from .abstract import Tool
 from .base import BasicTool
 from .misc import Qpfile, get_keyframes, make_qpfile, make_tcfile

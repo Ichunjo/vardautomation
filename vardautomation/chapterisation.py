@@ -8,6 +8,7 @@ __all__ = [
 
 import os
 import random
+
 from abc import ABC, abstractmethod
 from fractions import Fraction
 from pprint import pformat
@@ -20,9 +21,9 @@ from pytimeconv import Convert
 
 from ._logging import logger
 from .language import UNDEFINED, Lang
-from .types import AnyPath, Element, ElementTree
 from .utils import modify_docstring_for, recursive_dict
 from .vpathlib import VPath
+from .vtypes import AnyPath, Element, ElementTree
 
 
 class Chapter(NamedTuple):
