@@ -88,10 +88,11 @@ class Tool(ABC):
 
     @logger.catch
     def _update_settings(self) -> None:
+        set_vars = self.set_variable()
         for i, p in enumerate(self.params):
             if not re.findall(r'(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))', p):
                 continue
-            p = p.format(**self.set_variable())
+            p = p.format(**set_vars)
             self.params[i] = p
 
     def _check_binary(self) -> None:
