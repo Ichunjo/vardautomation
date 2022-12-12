@@ -157,7 +157,7 @@ class _AbstractMatroskaFile(MutableSequence[Track]):
     def __getitem__(self, index: slice) -> MutableSequence[Track]:
         ...
 
-    def __getitem__(self, index: int | slice) -> Track | MutableSequence[Track]:  # type: ignore[pylance]
+    def __getitem__(self, index: int | slice) -> Track | MutableSequence[Track]:
         return self._tracks.__getitem__(index)
 
     @overload

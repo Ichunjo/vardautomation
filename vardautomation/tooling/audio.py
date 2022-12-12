@@ -728,7 +728,7 @@ class ScipyCutter(AudioCutter):
                 df = trim
                 _, channels = array.shape
                 arrays.append(
-                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)  # type: ignore[pylance-strict]
+                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)
                 )
 
         if combine:
@@ -750,7 +750,7 @@ class ScipyCutter(AudioCutter):
         except ImportError as imp_err:
             logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
 
-        silence_arr = np.array(  # type: ignore[pylance-strict]
+        silence_arr = np.array(
             [(0, ) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth]
         )
         wavfile.write(output, sample_rate, silence_arr)
