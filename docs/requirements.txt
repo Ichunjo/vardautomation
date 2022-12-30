@@ -10,6 +10,6 @@ pyparsebluray~=0.1.4
 pyparsedvd~=0.0.3
 pytimeconv~=0.0.2
 requests_toolbelt~=0.10.1
-rich~=12.6.0
+rich~=13.0.0
 typing-extensions~=4.4.0
 numpy~=1.23.5
