@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from os import PathLike
 from pprint import pformat
-from typing import Iterable, List, Literal, MutableSequence, NoReturn, Optional, Sequence, Tuple, overload
+from typing import Iterable, List, Literal, MutableSequence, NoReturn, Optional, Sequence, Tuple, overload, cast
 
 from ..binary_path import BinaryPath
 from ..config import FileInfo
@@ -32,15 +32,15 @@ class _AbstractTrack(Sequence[str], ABC):
         ...
 
     @overload
-    def __getitem__(self, __x: int) -> str:
+    def __getitem__(self, index: int) -> str:
         ...
 
     @overload
-    def __getitem__(self, __x: slice) -> Tuple[str, ...]:
+    def __getitem__(self, index: slice) -> Sequence[str]:
         ...
 
-    def __getitem__(self, __x: int | slice) -> str | Tuple[str, ...]:
-        return self._cmd.__getitem__(__x)  # type: ignore
+    def __getitem__(self, index: int | slice) -> str | Sequence[str]:
+        return cast(Sequence[str], self._cmd.__getitem__(index))
 
     def __len__(self) -> int:
         return self._cmd.__len__()
@@ -69,7 +69,6 @@ class Track(_AbstractTrack):
         self.opts = opts
         self._cmd = [self.path.to_str()]
         self._cmd.extend(reversed(self.opts))
-        super().__init__()
 
 
 class _LanguageTrack(Track):
@@ -229,7 +228,6 @@ class MatroskaFile(_AbstractMatroskaFile):
         else:
             self._tracks = [track if isinstance(track, Track) else Track(track) for track in tracks]
         self.global_opts = global_opts
-        super().__init__()
 
     @property
     def command(self) -> List[str]:

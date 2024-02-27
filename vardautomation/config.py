@@ -515,7 +515,7 @@ class BlurayShow:
     _file_ncops: List[_File]
     _file_nceds: List[_File]
 
-    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
+    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Trim | DuplicateFrame] | Trim | None = None, *,
                  idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = [PresetBD, PresetBDWAV64],
                  lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
         """

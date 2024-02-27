@@ -33,9 +33,6 @@ from .base import BasicTool
 class AudioExtracter(BasicTool):
     """Audio base extracter interface for audio extration"""
 
-    file: FileInfo
-    """FileInfo object"""
-
     track_in: Sequence[int]
     """Track number(s) of the input file"""
 
@@ -82,6 +79,7 @@ class _AutoSetTrack(AudioExtracter, ABC):
         """Internal function for setting the track(s) number"""
 
     def set_variable(self) -> Dict[str, Any]:
+        assert self.file
         return dict(path=self.file.path.to_str())
 
 
@@ -96,6 +94,7 @@ class _FFmpegSetTrack(_AutoSetTrack, ABC):
         # indexing was different between mediainfo and ffmpeg
         acodecs = {24: 'pcm_s24le', 16: 'pcm_s16le'}
 
+        assert self.file
         assert self.file.a_src
 
         media_info = self.file.media_info.to_data()
@@ -140,6 +139,7 @@ class MKVAudioExtracter(_AutoSetTrack):
         super().__init__(BinaryPath.mkvextract, settings, file, track_in=track_in, track_out=track_out)
 
     def _set_tracks_number(self) -> None:
+        assert self.file
         assert self.file.a_src
         for t_in, t_out in zip(self.track_in, self.track_out):
             self.params.append(f'{t_in}:{self.file.a_src.set_track(t_out).to_str():s}')
@@ -164,6 +164,7 @@ class Eac3toAudioExtracter(_AutoSetTrack):
         self._eac3to_args = eac3to_args if eac3to_args else []
 
     def _set_tracks_number(self) -> None:
+        assert self.file
         assert self.file.a_src
         for t_in, t_out in zip(self.track_in, self.track_out):
             self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
@@ -188,9 +189,6 @@ class FFmpegAudioExtracter(_FFmpegSetTrack):
 
 class AudioEncoder(BasicTool):
     """BasicTool interface helper for audio encoding"""
-
-    file: FileInfo
-    """FileInfo object"""
 
     track: int
     """Track number"""
@@ -217,6 +215,7 @@ class AudioEncoder(BasicTool):
         :param check_binary:    Check binary's availability.
         """
         super().__init__(binary, settings, file=file, check_binary=check_binary)
+        assert self.file
 
         if self.file.a_src_cut is None:
             raise ValueError(f'{self.__class__.__name__}: `file.a_src_cut` is needed!')
@@ -237,6 +236,7 @@ class AudioEncoder(BasicTool):
             self._write_encoder_name_file()
 
     def set_variable(self) -> Dict[str, Any]:
+        assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
         return dict(
@@ -245,6 +245,7 @@ class AudioEncoder(BasicTool):
         )
 
     def _write_encoder_name_file(self) -> None:
+        assert self.file
         assert (a_enc_cut := self.file.a_enc_cut)
 
         tags = etree.Element('Tags')
@@ -273,6 +274,7 @@ class PassthroughAudioEncoder(AudioEncoder):
         super().__init__('', [''], file, track=track, check_binary=False)
 
     def run(self) -> None:
+        assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
 

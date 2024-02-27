@@ -3,7 +3,7 @@ __all__ = ['BasicTool']
 
 import subprocess
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .._logging import logger
 from ..config import FileInfo
@@ -15,11 +15,11 @@ from .abstract import Tool
 class BasicTool(Tool):
     """BasicTool interface."""
 
-    file: Optional[FileInfo]
+    file: FileInfo | None
     """FileInfo object."""
 
     def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], /,
-                 file: Optional[FileInfo] = None, check_binary: bool = True) -> None:
+                 file: FileInfo | None = None, check_binary: bool = True) -> None:
         """
         Helper allowing the use of CLI programs for basic tasks like video or audio track extraction.
 
