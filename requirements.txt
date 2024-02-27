@@ -1,5 +1,5 @@
 langcodes~=3.3.0
-language-data~=1.1
+# language-data~=1.1
 loguru~=0.7.2
 lxml~=5.1.0
 numpy~=1.26.4
@@ -12,5 +12,5 @@ requests~=2.31.0
 requests_toolbelt~=1.0.0
 rich~=13.7.0
 typing-extensions~=4.10.0
-vardefunc~=0.7.0
-VapourSynth==65
+vardefunc~=0.8.1
+VapourSynth==66
