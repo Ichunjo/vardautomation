@@ -1,11 +1,10 @@
-from distutils.util import convert_path
+from pathlib import Path
 from typing import Any, Dict
 
 from setuptools import setup
 
 meta: Dict[str, Any] = {}
-with open(convert_path('vardautomation/_metadata.py'), encoding='utf-8') as f:
-    exec(f.read(), meta)
+exec(Path('vardautomation/_metadata.py').read_text(), meta := dict[str, str]())
 
 with open('README.md', encoding='utf-8') as fh:
     long_description = fh.read()
@@ -34,6 +33,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.10',
+    python_requires='>=3.12',
     install_requires=install_requires,
 )
