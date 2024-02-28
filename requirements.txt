@@ -10,6 +10,6 @@ pyparsedvd~=0.0.3
 pytimeconv~=0.0.2
 requests~=2.31.0
 requests_toolbelt~=1.0.0
-rich~=13.7.0
+rich~=13.7.1
 typing-extensions~=4.10.0
 VapourSynth>=65
