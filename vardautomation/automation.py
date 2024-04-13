@@ -6,15 +6,17 @@ __all__ = [
     'patch', 'Patch'
 ]
 
+from bisect import bisect_left
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import partial
 from itertools import chain
-from typing import Callable, List, Optional, Protocol, Sequence, Set, Tuple, TypedDict, cast
+from typing import Callable, List, Optional, Protocol, Sequence, Tuple, TypedDict, cast
 
 import vapoursynth as vs
 
+from stgpytools import StrictRange
 from typing_extensions import NotRequired
 from vstools import FrameRangeN, FrameRangesN
 
@@ -270,7 +272,7 @@ def patch(
 
     from vardefunc.util import normalise_ranges
 
-    nranges = normalise_ranges(clip, ranges)  # type: ignore
+    nranges = normalise_ranges(clip, ranges)
 
     _file_to_fix = file.name_file_final
     final = _file_to_fix.parent
@@ -339,26 +341,12 @@ def patch(
         workdir.rmtree(ignore_errors=True)
 
 
-def _bound_to_keyframes(ranges: List[Tuple[int, int]], kfs: List[int]) -> Sequence[Tuple[int, int]]:
-    rng_set: Set[Tuple[int, int]] = set()
+def _bound_to_keyframes(ranges: list[tuple[int, int]], kfs: list[int]) -> list[StrictRange]:
+    rng_set = set[tuple[int, int]]()
     for start, end in ranges:
-        s, e = (None, ) * 2
-        for i, kf in enumerate(kfs):
-            if kf > start:
-                s = kfs[i - 1]
-                break
-            if kf == start:
-                s = kf
-                break
-
-        for i, kf in enumerate(kfs):
-            if kf >= end:
-                e = kf
-                break
-
-        if s is None or e is None:
-            logger.debug(str((s, e)))
-            raise ValueError('_bound_to_keyframes: Something is wrong in `s` or `e`')
+        s_i = bisect_left(kfs, start)
+        s = kfs[s_i - 1] if kfs[s_i] > start else kfs[s_i]
+        e = kfs[bisect_left(kfs, end)]
 
         rng_set.add((s, e))
 
