@@ -51,7 +51,7 @@ class _log_func_wrapper(Generic[P, T]):
     colour: str
     colour_close: str
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: # type: ignore[empty-body]
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:  # type: ignore[empty-body]
         ...
 
 

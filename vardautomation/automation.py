@@ -396,7 +396,7 @@ class Patch:
 
     @logger.catch
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
-                 ranges: FrameRangeN |FrameRangesN,
+                 ranges: FrameRangeN | FrameRangesN,
                  output_filename: Optional[str] = None, *, debug: bool = False) -> None:
         """
         :param encoder:             VideoEncoder to be used

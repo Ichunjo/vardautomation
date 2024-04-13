@@ -989,7 +989,7 @@ class SoxCutter(AudioCutter):
         tmp_files: Set[VPath] = set()
         fps = ref_clip.fps
         f2s = Convert.f2seconds
-        
+
         from vardefunc import normalise_ranges
 
         for i, trim in enumerate(trims):
