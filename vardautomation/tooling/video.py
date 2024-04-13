@@ -417,10 +417,6 @@ class SupportManualVFR(SupportResume, ABC):
         ...
 
     @overload
-    def run_enc(self, clip: Sequence[vs.VideoNode], file: FileInfo) -> None:
-        ...
-
-    @overload
     def run_enc(self, clip: vs.VideoNode, file: FileInfo, *,
                 qpfile_clip: vs.VideoNode,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
@@ -430,6 +426,10 @@ class SupportManualVFR(SupportResume, ABC):
     def run_enc(self, clip: vs.VideoNode, file: None, *,
                 qpfile_clip: None = ...,
                 qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...) -> None:
+        ...
+
+    @overload
+    def run_enc(self, clip: Sequence[vs.VideoNode], file: FileInfo) -> None:
         ...
 
     @overload

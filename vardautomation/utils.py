@@ -3,7 +3,7 @@ import subprocess
 
 from functools import wraps
 from types import FunctionType
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Tuple, Type, TypeVar, cast
 
 import vapoursynth as vs
 
@@ -17,8 +17,8 @@ core = vs.core
 class Properties:
     """Collection of methods to get some properties from the parameters and/or the clip"""
 
-    @classmethod
     @logger.catch
+    @classmethod
     def get_colour_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
         """
         Get the luma colour range specified in the params.
@@ -30,7 +30,7 @@ class Properties:
         """
         bits = cls.get_depth(clip)
 
-        def _get_props(clip: vs.VideoNode) -> Dict[str, Any]:
+        def _get_props(clip: vs.VideoNode) -> MutableMapping[str, Any]:
             with clip.get_frame(0) as frame:
                 return frame.props.copy()
 
@@ -89,7 +89,7 @@ class Properties:
 
         assert clip.format
 
-        csp_avc = {
+        csp_avc: dict[vs.ColorFamily, str] = {
             vs.GRAY: 'i400',
             vs.YUV: _get_csp_subsampled(clip.format),
             vs.RGB: 'rgb'

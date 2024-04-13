@@ -19,7 +19,6 @@ from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
 from pytimeconv import Convert
-from vardefunc.util import normalise_ranges
 
 from .._logging import logger
 from ..binary_path import BinaryPath
@@ -697,6 +696,7 @@ class ScipyCutter(AudioCutter):
         """
         try:
             from scipy.io import wavfile
+            from vardefunc import normalise_ranges
         except ImportError as imp_err:
             logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
 
@@ -846,6 +846,7 @@ class EztrimCutter(AudioCutter):
         fps = ref_clip.fps
         f2ts = Convert.f2ts
 
+        from vardefunc.util import normalise_ranges
         for i, trim in enumerate(trims):
             if isinstance(trim, tuple):
                 start, end = normalise_ranges(ref_clip, trim).pop()
@@ -988,6 +989,8 @@ class SoxCutter(AudioCutter):
         tmp_files: Set[VPath] = set()
         fps = ref_clip.fps
         f2s = Convert.f2seconds
+        
+        from vardefunc import normalise_ranges
 
         for i, trim in enumerate(trims):
             if isinstance(trim, tuple):

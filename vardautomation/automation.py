@@ -16,9 +16,7 @@ from typing import Callable, List, Optional, Protocol, Sequence, Set, Tuple, Typ
 import vapoursynth as vs
 
 from typing_extensions import NotRequired
-from vardefunc.misc import DebugOutput
-from vardefunc.types import Range
-from vardefunc.util import normalise_ranges
+from vstools import FrameRangeN, FrameRangesN
 
 from ._logging import logger
 from .binary_path import BinaryPath
@@ -191,10 +189,6 @@ class SelfRunner:
     @logger.catch
     def _encode(self) -> None:  # noqa C901
         if self.config.clear_outputs:
-            for k in globals().keys():
-                # pylint: disable=eval-used
-                if isinstance((debug := eval(k)), DebugOutput):
-                    debug.clear()
             vs.clear_outputs()
 
         if self.config.v_lossless_encoder:
@@ -259,7 +253,7 @@ def _toseq(seq: T | Sequence[T]) -> Sequence[T]:
 
 @logger.catch
 def patch(
-    encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo, ranges: Range | List[Range],
+    encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo, ranges: FrameRangeN | FrameRangesN,
     output_filename: AnyPath | None = None, cleanup: bool = False
 ) -> None:
     """Easy video patching function
@@ -274,7 +268,9 @@ def patch(
     if isinstance(encoder, SupportResume):
         encoder.resumable = False
 
-    nranges = normalise_ranges(clip, ranges)
+    from vardefunc.util import normalise_ranges
+
+    nranges = normalise_ranges(clip, ranges)  # type: ignore
 
     _file_to_fix = file.name_file_final
     final = _file_to_fix.parent
@@ -343,7 +339,7 @@ def patch(
         workdir.rmtree(ignore_errors=True)
 
 
-def _bound_to_keyframes(ranges: List[Tuple[int, int]], kfs: List[int]) -> List[Range]:
+def _bound_to_keyframes(ranges: List[Tuple[int, int]], kfs: List[int]) -> Sequence[Tuple[int, int]]:
     rng_set: Set[Tuple[int, int]] = set()
     for start, end in ranges:
         s, e = (None, ) * 2
@@ -400,7 +396,7 @@ class Patch:
 
     @logger.catch
     def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
-                 ranges: Range | List[Range],
+                 ranges: FrameRangeN |FrameRangesN,
                  output_filename: Optional[str] = None, *, debug: bool = False) -> None:
         """
         :param encoder:             VideoEncoder to be used

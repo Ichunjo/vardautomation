@@ -25,7 +25,6 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Ty
 import vapoursynth as vs
 
 from pymediainfo import MediaInfo
-from vardefunc.util import adjust_audio_frames, adjust_clip_frames
 
 from ._logging import logger
 from .chapterisation import MatroskaXMLChapters, MplsReader
@@ -362,6 +361,7 @@ class FileInfo:
 
     @trims_or_dfs.setter
     def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
+        from vardefunc.util import adjust_clip_frames
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -410,6 +410,7 @@ class FileInfo2(FileInfo):
 
     @logger.catch
     def __post_init__(self) -> None:
+        from vardefunc.util import adjust_audio_frames
         self.audios = []
         self.audios_cut = []
 
@@ -444,6 +445,7 @@ class FileInfo2(FileInfo):
 
     @trims_or_dfs.setter
     def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
+        from vardefunc.util import adjust_clip_frames
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)

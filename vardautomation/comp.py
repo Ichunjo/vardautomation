@@ -26,8 +26,7 @@ import vapoursynth as vs
 from numpy.typing import NDArray
 from requests import Session
 from requests_toolbelt import MultipartEncoder
-from vardefunc.types import Zimg
-from vardefunc.util import select_frames
+from vstools import DitherType
 
 from ._logging import logger
 from .binary_path import BinaryPath
@@ -160,7 +159,7 @@ class Comparison:
 
             clip = clip.resize.Bicubic(
                 format=vs.RGB24, matrix_in=vs.MATRIX_BT709 if force_bt709 else None,
-                dither_type=Zimg.DitherType.ERROR_DIFFUSION
+                dither_type=DitherType.ERROR_DIFFUSION
             )
 
             path_images = [
@@ -169,6 +168,7 @@ class Comparison:
             ]
             # Extracts the requested frames using ffmpeg
             if writer == Writer.FFMPEG:
+                from vardefunc.util import select_frames
                 clip = select_frames(clip, self.frames)
 
                 # -> RGB -> GBR. Needed for ffmpeg
@@ -196,6 +196,7 @@ class Comparison:
                 encoder.run_enc(clip, None)
             # imwri lib is slower even asynchronously requested
             elif writer == Writer.IMWRI:
+                from vardefunc.util import select_frames
                 reqs = clip.imwri.Write(
                     'PNG', (path_name / (f'{name}_%' + f'{len("%i" % self.max_num)}'.zfill(2) + 'd.jpg')).to_str(),
                     quality=compression if compression >= 0 else None
@@ -206,6 +207,7 @@ class Comparison:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
                 logger.logger.opt(raw=True).info('\n')
             else:
+                from vardefunc.util import select_frames
                 clip = select_frames(clip, self.frames)
                 clip = clip.std.ModifyFrame(clip, lambda n, f: _saver(writer, compression)(n, f, path_images))
                 with open(os.devnull, 'wb') as devnull:
@@ -289,6 +291,7 @@ class Comparison:
 
     @logger.catch
     def _select_samples_ptypes(self, num_frames: int, k: int, picture_types: PictureType | List[PictureType]) -> Set[int]:
+        from vardefunc.util import select_frames
         samples: Set[int] = set()
         _max_attempts = 0
         _rnum_checked: Set[int] = set()
