@@ -1,7 +1,7 @@
 langcodes~=3.3.0
 language-data~=1.2
 loguru~=0.7.2
-lxml~=5.2.1
+lxml~=5.2.2
 numpy~=1.26.4
 psutil~=5.9.8
 pymediainfo~=6.1.0
