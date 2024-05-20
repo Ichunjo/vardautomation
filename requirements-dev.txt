@@ -3,7 +3,7 @@ loguru-mypy==0.0.4
 lxml-stubs==0.5.1
 mypy==1.9.0
 mypy-extensions==1.0.0
-pylint==3.1.0
+pylint==3.2.2
 PyQt5-stubs==5.15.6.0
 types-attrs==19.1.0
 types-commonmark==0.9.2.20240106
