@@ -1,4 +1,4 @@
-sphinx-autodoc-typehints~=2.2.2
+sphinx-autodoc-typehints~=3.5.2
 loguru~=0.7.2
 lxml~=5.2.2
 pymediainfo~=6.1.0
