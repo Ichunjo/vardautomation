@@ -2,7 +2,7 @@ flake8==7.3.0
 loguru-mypy==0.0.4
 lxml-stubs==0.5.1
 mypy==1.10.1
-mypy-extensions==1.0.0
+mypy-extensions==1.1.0
 pylint==4.0.2
 PyQt5-stubs==5.15.6.0
 types-attrs==19.1.0
