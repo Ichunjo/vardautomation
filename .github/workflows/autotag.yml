@@ -3,9 +3,7 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+    paths: [vardautomation/_metadata.py]
 
 jobs:
   new_version:
