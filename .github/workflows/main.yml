@@ -1,6 +1,6 @@
 name: lint
 
-on: [push, pull_request]
+on: workflow_dispatch
 
 jobs:
   windows:
@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.11"
+          - "3.13"
 
     steps:
       - uses: actions/checkout@v4
