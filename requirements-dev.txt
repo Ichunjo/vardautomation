@@ -6,7 +6,7 @@ mypy-extensions==1.1.0
 pylint==4.0.2
 PyQt5-stubs==5.15.6.0
 types-attrs==19.1.0
-types-commonmark==0.9.2.20240106
+types-commonmark==0.9.2.20250330
 types-Pillow==10.2.0.20240822
 types-psutil==7.0.0.20251001
 types-Pygments==2.19.0.20250809
