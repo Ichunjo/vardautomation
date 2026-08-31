@@ -36,7 +36,7 @@ from pymediainfo import MediaInfo
 from ._logging import logger
 from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
-from .render import audio_async_render
+from .render import get_render_progress
 from .vpathlib import VPath
 from .vtypes import AnyPath, DuplicateFrame, Trim, VPSIdx
 
@@ -491,11 +491,16 @@ class FileInfo2(FileInfo):
         """
         if not self.a_src:
             raise ValueError(f"{self.__class__.__name__}: no a_src VPath found!")
-        with self.a_src.set_track(index).open("wb") as binary:
-            audio_async_render(
-                self.audios[index + offset],
+
+        audio = self.audios[index + offset]
+
+        with get_render_progress() as progress, self.a_src.set_track(index).open("wb") as binary:
+            task = progress.add_task(f"Writing a_src to {self.a_src.set_track(index).resolve().to_str()}")
+
+            audio.output(
                 binary,
-                progress=f"Writing a_src to {self.a_src.set_track(index).resolve().to_str()}",
+                wav=True,
+                progress_update=lambda curr, total: progress.update(task, completed=curr, total=total),
             )
 
     @logger.catch
@@ -506,11 +511,16 @@ class FileInfo2(FileInfo):
         """
         if not self.a_src_cut:
             raise ValueError(f"{self.__class__.__name__}: no a_src_cut VPath found!")
-        with self.a_src_cut.set_track(index).open("wb") as binary:
-            audio_async_render(
-                self.audios_cut[index + offset],
+
+        audio = self.audios[index + offset]
+
+        with get_render_progress() as progress, self.a_src_cut.set_track(index).open("wb") as binary:
+            task = progress.add_task(f"Writing a_src to {self.a_src_cut.set_track(index).resolve().to_str()}")
+
+            audio.output(
                 binary,
-                progress=f"Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}",
+                wav=True,
+                progress_update=lambda curr, total: progress.update(task, completed=curr, total=total),
             )
 
 
