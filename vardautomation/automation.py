@@ -1,13 +1,12 @@
 """Automation module"""
 
-__all__ = ["Patch", "RunnerConfig", "SelfRunner", "patch"]
+__all__ = ["RunnerConfig", "SelfRunner", "patch"]
 
 from bisect import bisect_left
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
-from functools import partial
 from itertools import chain
 from logging import getLogger
 from typing import NotRequired, Protocol, TypedDict
@@ -358,63 +357,3 @@ def _bound_to_keyframes(ranges: list[tuple[int, int]], kfs: list[int]) -> list[S
         rng_set.add((s, e))
 
     return sorted(rng_set)
-
-
-class Patch:
-    """Easy video patching interface"""
-
-    encoder: VideoEncoder
-    """VideoEncoder to be used"""
-
-    clip: vs.VideoNode
-    """Clip where the patch will pick the fixed ranges"""
-
-    file: FileInfo
-    """
-    FileInfo object\n
-    The file that will be fixed is the file defined in
-     :py:attr:`vardautomation.config.FileInfo.name_file_final`
-    """
-
-    ranges: list[tuple[int, int]]
-    """Normalised ranges"""
-
-    debug: bool
-    """Debug boolean"""
-
-    workdir: VPath
-    """Work directory path"""
-    output_filename: VPath
-    """Output filename path"""
-
-    _file_to_fix: VPath
-
-    def __init__(
-        self,
-        encoder: VideoEncoder,
-        clip: vs.VideoNode,
-        file: FileInfo,
-        ranges: FrameRangeN | FrameRangesN,
-        output_filename: str | None = None,
-        *,
-        debug: bool = False,
-    ) -> None:
-        """
-        :param encoder:             VideoEncoder to be used
-        :param clip:                Clip where the patch will pick the fixed ranges
-        :param file:                FileInfo object. The file that will be fixed is the file defined
-                                    in :py:attr:`vardautomation.config.FileInfo.name_file_final`
-        :param ranges:              Ranges of frames that need to be fixed
-        :param output_filename:     Optional filename. If not specified a suffix ``_new`` wil be added, defaults to None
-        :param debug:               Debug argument, defaults to False
-        """
-        self.debug = debug
-        logger.warning('Using Patch is deprecated; please use "patch" instead')
-        self._patch = partial(patch, encoder, clip, file, ranges, output_filename)
-
-    def run(self) -> None:
-        """Launch patch"""
-        self._patch()
-
-    def do_cleanup(self) -> None:
-        """Delete working directory folder"""
