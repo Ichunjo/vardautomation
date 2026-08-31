@@ -2,41 +2,41 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import TYPE_CHECKING, Callable, Concatenate, Generic, List, NoReturn, cast, final
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Concatenate, NoReturn, cast, final
 
 import loguru
-
-from ..vtypes import P, T
 
 if TYPE_CHECKING:
     from .core import Logger, LogLevel
 
 
-__all__: List[str] = []
-
-# pylint: disable=no-member
+__all__: list[str] = []
 
 
 # Helpers stuff
 def close_and_reverse_tags(colour_tags: str) -> str:
-    return ''.join(f'</{tag}>' for tag in reversed(re.split(r'<(.*?)>', colour_tags)) if tag)
+    return "".join(f"</{tag}>" for tag in reversed(re.split(r"<(.*?)>", colour_tags)) if tag)
 
 
 def loguru_format(record: loguru.Record) -> str:
-    global_lvl = record['extra']['global_level']
+    global_lvl = record["extra"]["global_level"]
     if global_lvl >= 20:
-        return '<level>{message}</level>\n{exception}'
+        return "<level>{message}</level>\n{exception}"
 
-    if 'colour' in record['extra']:
-        lvl_c = str(record['extra']['colour']), close_and_reverse_tags(record['extra']['colour'])
+    if "colour" in record["extra"]:
+        lvl_c = str(record["extra"]["colour"]), close_and_reverse_tags(record["extra"]["colour"])
     else:
-        lvl_c = '<level>', '</level>'
+        lvl_c = "<level>", "</level>"
 
     return (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         + "<level>{level.name: <8}</level> | "
         + "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        + lvl_c[0] + "{message}" + lvl_c[1] + '\n{exception}'
+        + lvl_c[0]
+        + "{message}"
+        + lvl_c[1]
+        + "\n{exception}"
     )
 
 
@@ -45,7 +45,7 @@ def sys_exit(_: BaseException) -> NoReturn:
 
 
 @final
-class _log_func_wrapper(Generic[P, T]):
+class _log_func_wrapper[**P, T]:  # noqa: N801
     name: str
     no: int
     colour: str
@@ -55,7 +55,9 @@ class _log_func_wrapper(Generic[P, T]):
         ...
 
 
-def add_log_attribute(log_level: LogLevel) -> Callable[[Callable[Concatenate[Logger, P], T]], _log_func_wrapper[P, T]]:
+def add_log_attribute[**P, T](
+    log_level: LogLevel,
+) -> Callable[[Callable[Concatenate[Logger, P], T]], _log_func_wrapper[P, T]]:
 
     def _wrapper(func: Callable[Concatenate[Logger, P], T]) -> _log_func_wrapper[P, T]:
         funcw = cast(_log_func_wrapper[P, T], func)

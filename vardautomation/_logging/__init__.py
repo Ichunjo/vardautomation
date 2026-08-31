@@ -1,4 +1,4 @@
 # flake8: noqa
 from .core import *
 
-__all__ = ['logger']
+__all__ = ["logger"]

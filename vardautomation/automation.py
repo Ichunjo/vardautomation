@@ -1,35 +1,39 @@
 """Automation module"""
 
-__all__ = [
-    'RunnerConfig', 'SelfRunner',
-
-    'patch', 'Patch'
-]
+__all__ = ["Patch", "RunnerConfig", "SelfRunner", "patch"]
 
 from bisect import bisect_left
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import partial
 from itertools import chain
-from typing import Callable, List, Optional, Protocol, Sequence, Tuple, TypedDict, cast
+from typing import NotRequired, Protocol, TypedDict
 
 import vapoursynth as vs
-
-from stgpytools import StrictRange
-from typing_extensions import NotRequired
+from jetpytools import StrictRange
 from vstools import FrameRangeN, FrameRangesN
 
 from ._logging import logger
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .tooling import (
-    AudioCutter, AudioEncoder, AudioExtracter, BasicTool, LosslessEncoder, MatroskaFile, Qpfile,
-    Track, VideoEncoder, get_keyframes, make_qpfile
+    AudioCutter,
+    AudioEncoder,
+    AudioExtracter,
+    BasicTool,
+    LosslessEncoder,
+    MatroskaFile,
+    Qpfile,
+    Track,
+    VideoEncoder,
+    get_keyframes,
+    make_qpfile,
 )
 from .tooling.video import SupportManualVFR, SupportQpfile, SupportResume
 from .vpathlib import CleanupSet, VPath
-from .vtypes import AnyPath, T
+from .vtypes import AnyPath
 
 core = vs.core
 
@@ -42,12 +46,13 @@ class RunnerConfig:
 
     class Order(Enum):
         """Simple enum for priority order"""
+
         VIDEO = auto()
         AUDIO = auto()
 
     v_encoder: VideoEncoder
     """Video encoder"""
-    v_lossless_encoder: Optional[LosslessEncoder] = None
+    v_lossless_encoder: LosslessEncoder | None = None
     """Lossless video encoder"""
     a_extracters: AudioExtracter | Sequence[AudioExtracter] | None = None
     """Audio extracter(s)"""
@@ -72,8 +77,7 @@ class _QpFileParams(TypedDict):
 
 # Workaround to https://github.com/python/mypy/issues/708
 class _PLPFunction(Protocol):
-    def __call__(self, path: VPath) -> vs.VideoNode:
-        ...
+    def __call__(self, path: VPath) -> vs.VideoNode: ...
 
 
 def _lossless_index(path: VPath) -> vs.VideoNode:
@@ -147,7 +151,7 @@ class SelfRunner:
         """
         if show_logo:
             logger.logo()
-        logger.info('SelfRunning...')
+        logger.info("SelfRunning...")
 
         funcs = [self._encode, self._audio_getter]
         if self.config.order == RunnerConfig.Order.AUDIO:
@@ -157,13 +161,15 @@ class SelfRunner:
         for f in funcs:
             f()
 
-    def inject_qpfile_params(self, qpfile_clip: vs.VideoNode, qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile) -> None:
+    def inject_qpfile_params(
+        self, qpfile_clip: vs.VideoNode, qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = make_qpfile
+    ) -> None:
         """
         :param qpfile_clip:         Clip to be used to generate the Qpfile
         :param qpfile_func:         Function to be used to generate the Qpfile
         """
-        self._qpfile_params['qpfile_clip'] = qpfile_clip
-        self._qpfile_params['qpfile_func'] = qpfile_func
+        self._qpfile_params["qpfile_clip"] = qpfile_clip
+        self._qpfile_params["qpfile_func"] = qpfile_func
         logger.debug(self._qpfile_params)
 
     def rename_final_file(self, name: AnyPath) -> None:
@@ -172,10 +178,10 @@ class SelfRunner:
 
         :param name:            New filename
         """
-        logger.debug('Renaming')
+        logger.debug("Renaming")
         self.file.name_file_final = self.file.name_file_final.replace(VPath(name))
 
-    def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: Optional[List[str]] = None) -> None:
+    def upload_ftp(self, ftp_name: str, destination: AnyPath, rclone_args: list[str] | None = None) -> None:
         """
         Upload the ``name_file_final`` to a given FTP using rclone
 
@@ -184,21 +190,24 @@ class SelfRunner:
         :param rclone_args:     Additionnal options, defaults to None
         """
         BasicTool(
-            BinaryPath.rclone, ['copy', '--progress'] + (rclone_args if rclone_args else [])
-            + [self.file.name_file_final.absolute().as_posix(), f'{ftp_name}:{VPath(destination).to_str()}']
+            BinaryPath.rclone,
+            ["copy", "--progress"]
+            + (rclone_args if rclone_args else [])
+            + [self.file.name_file_final.absolute().as_posix(), f"{ftp_name}:{VPath(destination).to_str()}"],
         ).run()
 
     @logger.catch
-    def _encode(self) -> None:  # noqa C901
+    def _encode(self) -> None:
         if self.config.clear_outputs:
             vs.clear_outputs()
 
         if self.config.v_lossless_encoder:
             if isinstance(self.clip, Sequence):
-                raise NotImplementedError(f'{self.__class__.__name__}: Multiple clips for lossless encode isn\'t implemented')
+                raise NotImplementedError(
+                    f"{self.__class__.__name__}: Multiple clips for lossless encode isn't implemented"
+                )
             if not (
-                path_lossless
-                := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
+                path_lossless := self.file.name_clip_output.append_stem(self.config.v_lossless_encoder.suffix_name)
             ).exists():
                 self.config.v_lossless_encoder.run_enc(self.clip, self.file)
             self.clip = self.plp_function(path_lossless)
@@ -213,10 +222,10 @@ class SelfRunner:
                 self.config.v_encoder.run_enc(self.clip, self.file, **self._qpfile_params)
                 self.work_files.add(self.config.v_encoder.tcfile)
             else:
-                raise TypeError(f'{self.__class__.__name__}: Wrong video encoder and/or type of clip')
+                raise TypeError(f"{self.__class__.__name__}: Wrong video encoder and/or type of clip")
         self.work_files.add(self.file.name_clip_output)
 
-    def _audio_getter(self) -> None:  # noqa C901
+    def _audio_getter(self) -> None:
         if not isinstance(self.file, FileInfo2):
             if self.config.a_extracters and self.file.a_src:
                 for a_extracter in _toseq(self.config.a_extracters):
@@ -249,14 +258,18 @@ class SelfRunner:
             self.work_files.update(wf)
 
 
-def _toseq(seq: T | Sequence[T]) -> Sequence[T]:
-    return cast(Sequence[T], seq) if isinstance(seq, Sequence) else cast(Sequence[T], [seq])
+def _toseq[T](seq: T | Sequence[T]) -> Sequence[T]:
+    return seq if isinstance(seq, Sequence) else [seq]
 
 
 @logger.catch
 def patch(
-    encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo, ranges: FrameRangeN | FrameRangesN,
-    output_filename: AnyPath | None = None, cleanup: bool = False
+    encoder: VideoEncoder,
+    clip: vs.VideoNode,
+    file: FileInfo,
+    ranges: FrameRangeN | FrameRangesN,
+    output_filename: AnyPath | None = None,
+    cleanup: bool = False,
 ) -> None:
     """Easy video patching function
 
@@ -277,64 +290,58 @@ def patch(
     _file_to_fix = file.name_file_final
     final = _file_to_fix.parent
 
-    workdir = final / (file.name + '_temp')
-    if output_filename is not None:
-        output_fn = VPath(output_filename)
-    else:
-        output_fn = final / f'{_file_to_fix.stem}_new.mkv'
+    workdir = final / (file.name + "_temp")
+    output_fn = VPath(output_filename) if output_filename is not None else final / f"{_file_to_fix.stem}_new.mkv"
 
     if workdir.exists():
-        raise FileExistsError(f'patch: {workdir.resolve().to_str()} already exists!')
+        raise FileExistsError(f"patch: {workdir.resolve().to_str()} already exists!")
 
     # Patching...
     workdir.mkdir()
 
     # _resolve_range
     kf = get_keyframes(_file_to_fix)
-    kfsint = kf.frames + [clip.num_frames]
+    kfsint = [*kf.frames, clip.num_frames]
 
     nbranges = _bound_to_keyframes(nranges, kfsint)
-    logger.debug(f'Ranges: {str(nranges)}')
+    logger.debug(f"Ranges: {nranges!s}")
     nranges = normalise_ranges(clip, nbranges, norm_dups=True)
-    logger.debug(f'Ranges: {str(nranges)}')
+    logger.debug(f"Ranges: {nranges!s}")
 
     if len(nranges) == 1 and nranges[0][0] == 0 and nranges[0][1] == clip.num_frames:
-        raise ValueError('patch: Don\'t use patch, just redo your encode')
+        raise ValueError("patch: Don't use patch, just redo your encode")
 
     # _encode
     params = deepcopy(encoder.params)
     for i, (s, e) in enumerate(nranges, start=1):
         logger.debug(str((s, e)))
-        fix = workdir / f'fix-{i:03.0f}'
+        fix = workdir / f"fix-{i:03.0f}"
         file.name_clip_output = fix
         encoder.run_enc(clip[s:e], file)
         encoder.params = params.copy()
-        MatroskaFile(fix.with_suffix('.mkv'), fix).mux()
+        MatroskaFile(fix.with_suffix(".mkv"), fix).mux()
 
     # _cut_and_merge
-    tmp = workdir / 'tmp.mkv'
-    tmpnoaudio = workdir / 'tmp_noaudio.mkv'
+    tmp = workdir / "tmp.mkv"
+    tmpnoaudio = workdir / "tmp_noaudio.mkv"
 
     if (start := (rng := list(chain.from_iterable(nranges)))[0]) == 0:
         rng.pop(0)
     if rng[-1] == clip.num_frames:
         rng.pop(-1)
 
-    MatroskaFile(tmp, _file_to_fix, '--no-audio', '--no-track-tags', '--no-chapters').split_frames(rng)
+    MatroskaFile(tmp, _file_to_fix, "--no-audio", "--no-track-tags", "--no-chapters").split_frames(rng)
 
-    tmp_files = sorted(workdir.glob('tmp-???.mkv'))
-    fix_files = sorted(workdir.glob('fix-???.mkv'))
+    tmp_files = sorted(workdir.glob("tmp-???.mkv"))
+    fix_files = sorted(workdir.glob("fix-???.mkv"))
 
-    parts = [
-        fix_files[int(i / 2)] if i % 2 == (0 if start == 0 else 1) else tmp
-        for i, tmp in enumerate(tmp_files)
-    ]
+    parts = [fix_files[int(i / 2)] if i % 2 == (0 if start == 0 else 1) else tmp for i, tmp in enumerate(tmp_files)]
 
-    MatroskaFile(tmpnoaudio, None, '--no-audio', '--no-track-tags', '--no-chapters').append_to(
+    MatroskaFile(tmpnoaudio, None, "--no-audio", "--no-track-tags", "--no-chapters").append_to(
         parts, [(i + 1, 0, i, 0) for i in range(len(parts) - 1)]
     )
 
-    MatroskaFile(output_fn, [Track(tmpnoaudio), Track(_file_to_fix, '--no-video')]).mux()
+    MatroskaFile(output_fn, [Track(tmpnoaudio), Track(_file_to_fix, "--no-video")]).mux()
 
     # do_cleanup
     if cleanup:
@@ -369,7 +376,7 @@ class Patch:
      :py:attr:`vardautomation.config.FileInfo.name_file_final`
     """
 
-    ranges: List[Tuple[int, int]]
+    ranges: list[tuple[int, int]]
     """Normalised ranges"""
 
     debug: bool
@@ -383,9 +390,16 @@ class Patch:
     _file_to_fix: VPath
 
     @logger.catch
-    def __init__(self, encoder: VideoEncoder, clip: vs.VideoNode, file: FileInfo,
-                 ranges: FrameRangeN | FrameRangesN,
-                 output_filename: Optional[str] = None, *, debug: bool = False) -> None:
+    def __init__(
+        self,
+        encoder: VideoEncoder,
+        clip: vs.VideoNode,
+        file: FileInfo,
+        ranges: FrameRangeN | FrameRangesN,
+        output_filename: str | None = None,
+        *,
+        debug: bool = False,
+    ) -> None:
         """
         :param encoder:             VideoEncoder to be used
         :param clip:                Clip where the patch will pick the fixed ranges

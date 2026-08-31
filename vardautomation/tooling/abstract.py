@@ -1,12 +1,9 @@
-
-
-__all__ = ['Tool']
+__all__ = ["Tool"]
 
 import re
 import subprocess
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, NoReturn
+from typing import Any
 
 from .._logging import logger
 from ..vpathlib import VPath
@@ -22,10 +19,16 @@ class Tool(ABC):
     binary: VPath
     """Binary path"""
 
-    params: List[str]
+    params: list[str]
     """Settings normalised and parsed"""
 
-    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], *, check_binary: bool = True) -> None:
+    def __init__(
+        self,
+        binary: AnyPath,
+        settings: AnyPath | list[str] | dict[str, Any],
+        *,
+        check_binary: bool = True,
+    ) -> None:
         """
         ::
 
@@ -60,10 +63,10 @@ class Tool(ABC):
             self.params = settings.copy()
         else:
             try:
-                with open(settings, 'r', encoding='utf-8') as sttgs:
-                    params_re = re.split(r'[\n\s]\s*', sttgs.read())
+                with open(settings, "r", encoding="utf-8") as sttgs:
+                    params_re = re.split(r"[\n\s]\s*", sttgs.read())
             except FileNotFoundError as file_err:
-                logger.critical(f'{self.__class__.__name__}: settings file not found', file_err)
+                logger.critical(f"{self.__class__.__name__}: settings file not found", file_err)
             self.params = [p for p in params_re if isinstance(p, str)]
 
         if check_binary:
@@ -73,11 +76,11 @@ class Tool(ABC):
         super().__init__()
 
     @abstractmethod
-    def run(self) -> None | NoReturn:
+    def run(self) -> None:
         """Tooling chain"""
 
     @abstractmethod
-    def set_variable(self) -> Dict[str, Any]:
+    def set_variable(self) -> dict[str, Any]:
         """
         Set variables in the settings\n
         """
@@ -90,7 +93,7 @@ class Tool(ABC):
     def _update_settings(self) -> None:
         set_vars = self.set_variable()
         for i, p in enumerate(self.params):
-            if not re.findall(r'(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))', p):
+            if not re.findall(r"(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))", p):
                 continue
             p = p.format(**set_vars)
             self.params[i] = p

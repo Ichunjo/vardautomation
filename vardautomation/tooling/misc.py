@@ -1,27 +1,20 @@
-
-__all__ = [
-    'Qpfile', 'make_qpfile',
-    'KeyframesFile', 'get_keyframes',
-    'get_vs_core', 'SubProcessAsync'
-]
+__all__ = ["KeyframesFile", "Qpfile", "SubProcessAsync", "get_keyframes", "get_vs_core", "make_qpfile"]
 
 import asyncio
 import inspect
 import os
-
+from collections.abc import Iterable
 from fractions import Fraction
 from itertools import accumulate
-from typing import Iterable, List, NamedTuple, Optional, Union
+from typing import NamedTuple
 
 import psutil
 import vapoursynth as vs
-
 from pytimeconv import Convert
 
 from .._logging import logger
 from ..binary_path import BinaryPath
-from ..render import SceneChangeMode as SCM
-from ..render import find_scene_changes
+from ..render import SceneChangeMode, find_scene_changes
 from ..vpathlib import VPath
 from ..vtypes import AnyPath
 from .base import BasicTool
@@ -33,12 +26,17 @@ class Qpfile(NamedTuple):
     path: VPath
     """Qpfile path"""
 
-    frames: Optional[List[int]] = None
+    frames: list[int] | None = None
     """List of keyframes"""
 
 
-def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
-                overwrite: bool = True, mode: Union[int, SCM] = SCM.WWXD | SCM.SCXVID) -> Qpfile:
+def make_qpfile(
+    clip: vs.VideoNode,
+    path: AnyPath | None = None,
+    /,
+    overwrite: bool = True,
+    mode: int | SceneChangeMode = SceneChangeMode.WWXD | SceneChangeMode.SCXVID,
+) -> Qpfile:
     """
     Convenience function for making a qpfile
 
@@ -49,7 +47,7 @@ def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
     :param mode:            Scene change mode, defaults to SCM.WWXD_SCXVID_UNION
     :return:                A Qpfile
     """
-    path = VPath(inspect.stack()[-1].filename).with_suffix('.log') if not path else VPath(path)
+    path = VPath(inspect.stack()[-1].filename).with_suffix(".log") if not path else VPath(path)
 
     if not overwrite and path.exists():
         logger.critical(f'make_qpfile: a qpfile already exists at "{path.resolve().to_str()}"')
@@ -60,8 +58,8 @@ def make_qpfile(clip: vs.VideoNode, path: Optional[AnyPath] = None, /,
     scenes = find_scene_changes(clip, mode)
     vs.core.num_threads = num_threads
 
-    with path.open('w', encoding='utf-8') as file:
-        file.writelines(f'{s} K\n' for s in scenes)
+    with path.open("w", encoding="utf-8") as file:
+        file.writelines(f"{s} K\n" for s in scenes)
     return Qpfile(path, scenes)
 
 
@@ -71,7 +69,7 @@ class KeyframesFile(NamedTuple):
     path: VPath
     """Keyframe file path"""
 
-    frames: List[int]
+    frames: list[int]
     """List of keyframes"""
 
 
@@ -85,21 +83,18 @@ def get_keyframes(path: AnyPath) -> KeyframesFile:
     logger.debug(path)
     path = VPath(path)
 
-    idx_file = path.parent / 'index.ffindex'
-    kf_file = idx_file.with_suffix(idx_file.suffix + '_track00.kf.txt')
+    idx_file = path.parent / "index.ffindex"
+    kf_file = idx_file.with_suffix(idx_file.suffix + "_track00.kf.txt")
 
-    BasicTool(BinaryPath.ffmsindex, ['-p', '-k', '-f', path.to_str(), idx_file.to_str()]).run()
+    BasicTool(BinaryPath.ffmsindex, ["-p", "-k", "-f", path.to_str(), idx_file.to_str()]).run()
     idx_file.rm()
 
-    with kf_file.open('r', encoding='utf-8') as kfio:
-        file = KeyframesFile(
-            kf_file,
-            [int(kf) for kf in kfio.read().splitlines()[2:]]
-        )
+    with kf_file.open("r", encoding="utf-8") as kfio:
+        file = KeyframesFile(kf_file, [int(kf) for kf in kfio.read().splitlines()[2:]])
     return file
 
 
-def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optional[int] = None) -> vs.Core:
+def get_vs_core(threads: Iterable[int] | None = None, max_cache_size: int | None = None) -> vs.Core:
     """
     Get the VapourSynth singleton core. Optionaly, set the number of threads used
     and the maximum cache size
@@ -123,7 +118,7 @@ def get_vs_core(threads: Optional[Iterable[int]] = None, max_cache_size: Optiona
     return core
 
 
-def make_tcfile(clips: Iterable[vs.VideoNode], path: Optional[AnyPath] = None, precision: int = 6) -> VPath:
+def make_tcfile(clips: Iterable[vs.VideoNode], path: AnyPath | None = None, precision: int = 6) -> VPath:
     """
     Convenience function for making a tcfile
 
@@ -142,30 +137,29 @@ def make_tcfile(clips: Iterable[vs.VideoNode], path: Optional[AnyPath] = None, p
     start_frames = accumulate(num_frames[:-1], lambda x, y: x + y, initial=0)
     end_frames = accumulate(num_frames[1:], lambda x, y: x + y, initial=num_frames[0] - 1)
 
-    path = VPath(inspect.stack()[-1].filename).with_suffix('.tcfile') if not path else VPath(path)
+    path = VPath(inspect.stack()[-1].filename).with_suffix(".tcfile") if not path else VPath(path)
 
-    with path.open('w', encoding='utf-8') as file:
-        file.write('# timestamp format v1\n')
-        file.write(f'assume {round(sum(num_frames) / sum(times), precision)}\n')  # type: ignore[arg-type]
+    with path.open("w", encoding="utf-8") as file:
+        file.write("# timestamp format v1\n")
+        file.write(f"assume {round(sum(num_frames) / sum(times), precision)}\n")
         file.writelines(
-            f'{s},{e},{round(float(fps), precision)}\n'
-            for s, e, fps in zip(start_frames, end_frames, fpss)
+            f"{s},{e},{round(float(fps), precision)}\n" for s, e, fps in zip(start_frames, end_frames, fpss)
         )
 
     return path
 
 
 class SubProcessAsync:
-    __slots__ = ('sem', )
+    __slots__ = ("sem",)
 
     sem: asyncio.Semaphore
 
     @logger.catch
-    def __init__(self, cmds: List[str], /, *, nb_cpus: Optional[int] = os.cpu_count()) -> None:
+    def __init__(self, cmds: list[str], /, *, nb_cpus: int | None = os.cpu_count()) -> None:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)
         else:
-            raise ValueError(f'{self.__class__.__name__}: no CPU found!')
+            raise ValueError(f"{self.__class__.__name__}: no CPU found!")
 
         loop = asyncio.get_event_loop()
         try:
@@ -174,10 +168,8 @@ class SubProcessAsync:
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()
 
-    async def _processing(self, all_cmds: List[str]) -> None:
-        await asyncio.gather(
-            *(asyncio.ensure_future(self._safe_processing(cmd)) for cmd in all_cmds)
-        )
+    async def _processing(self, all_cmds: list[str]) -> None:
+        await asyncio.gather(*(asyncio.ensure_future(self._safe_processing(cmd)) for cmd in all_cmds))
 
     async def _safe_processing(self, cmd: str) -> None:
         logger.debug(cmd)

@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-__all__ = [
-    'Lang',
-    'FRENCH', 'ENGLISH', 'JAPANESE', 'UNDEFINED'
-]
+__all__ = ["ENGLISH", "FRENCH", "JAPANESE", "UNDEFINED", "Lang"]
 
 
 from pprint import pformat
-from typing import Optional
 
 from langcodes import Language
 
@@ -26,7 +22,7 @@ class Lang:
     iso639: str
     """ISO-639 language code"""
 
-    def __init__(self, language: Language, *, iso639_variant: str = 'B') -> None:
+    def __init__(self, language: Language, *, iso639_variant: str = "B") -> None:
         """
         :param language:        Language class of the package langcodes
         :param iso639_variant:  Optional variant to get the 'bibliographic' code instead, defaults to 'B'
@@ -39,7 +35,7 @@ class Lang:
         return pformat(recursive_dict(self), indent=4, width=200, sort_dicts=False)
 
     @classmethod
-    def make(cls, ietf: Optional[str]) -> Lang:
+    def make(cls, ietf: str | None) -> Lang:
         """
         Make a new Lang based on IETF
 
@@ -49,13 +45,13 @@ class Lang:
         return cls(Language.make(ietf))
 
 
-FRENCH = Lang.make('fr')
+FRENCH = Lang.make("fr")
 """French Lang object"""
 
-ENGLISH = Lang.make('en')
+ENGLISH = Lang.make("en")
 """English Lang object"""
 
-JAPANESE = Lang.make('ja')
+JAPANESE = Lang.make("ja")
 """Japanese Lang object"""
 
 UNDEFINED = Lang.make(None)

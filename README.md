@@ -1,19 +1,13 @@
-# Vardautomation
+# vardautomation
+
+[![PyPI Version](https://img.shields.io/pypi/v/vardautomation)](https://pypi.org/project/vardautomation/) [![Lint](https://github.com/Ichunjo/vardautomation/actions/workflows/lint.yml/badge.svg)](https://github.com/Ichunjo/vardautomation/actions/workflows/lint.yml) [![License](https://img.shields.io/pypi/l/vardautomation)](https://github.com/Ichunjo/vardautomation/blob/master/LICENSE)
+
 Package I'm using for my encoding stuff
 
-# How to install vardautomation
-This command will install vardautomation and the python dependencies
+## How to install
 
-```
-pip install vardautomation -U
-```
+`vardautomation` is distributed via **PyPI**, and the latest stable release can be installed using:
 
-Or from source
+```sh
+pip install vardautomation
 ```
-python -m pip install git+https://github.com/Ichunjo/vardautomation.git -U
-```
-
-# Requirements
-* Python 3.11 or newer
-* **ONLY** VapourSynth r65 & the following plugins `bas`, `ffms2`, `imwri`, `lsmas`, `scxvid`, `wwxd`
-* Other modules in `requirements.txt`

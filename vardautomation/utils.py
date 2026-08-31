@@ -1,15 +1,16 @@
 """Properties and helpers functions"""
-import subprocess
 
+import subprocess
+from collections.abc import Callable, Iterable, MutableMapping
 from functools import wraps
 from types import FunctionType
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Tuple, Type, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 import vapoursynth as vs
 
 from ._logging import logger
 from .exception import VSColourRangeError, VSSubsamplingError
-from .vtypes import AnyPath, T
+from .vtypes import AnyPath
 
 core = vs.core
 
@@ -19,7 +20,7 @@ class Properties:
 
     @logger.catch
     @classmethod
-    def get_colour_range(cls, params: List[str], clip: vs.VideoNode) -> Tuple[int, int]:
+    def get_colour_range(cls, params: list[str], clip: vs.VideoNode) -> tuple[int, int]:
         """
         Get the luma colour range specified in the params.
         Fallback to the clip properties.
@@ -34,18 +35,18 @@ class Properties:
             with clip.get_frame(0) as frame:
                 return frame.props.copy()
 
-        if '--range' in params:
-            rng_param = params[params.index('--range') + 1]
-            if rng_param == 'limited':
+        if "--range" in params:
+            rng_param = params[params.index("--range") + 1]
+            if rng_param == "limited":
                 min_luma = 16 << (bits - 8)
                 max_luma = 235 << (bits - 8)
-            elif rng_param == 'full':
+            elif rng_param == "full":
                 min_luma = 0
                 max_luma = (1 << bits) - 1
             else:
-                raise VSColourRangeError(f'{cls.__name__}: Wrong range in parameters!')
-        elif '_ColorRange' in (props := _get_props(clip)):
-            color_rng = props['_ColorRange']
+                raise VSColourRangeError(f"{cls.__name__}: Wrong range in parameters!")
+        elif "_ColorRange" in (props := _get_props(clip)):
+            color_rng = props["_ColorRange"]
             if color_rng == 1:
                 min_luma = 16 << (bits - 8)
                 max_luma = 235 << (bits - 8)
@@ -55,7 +56,7 @@ class Properties:
             else:
                 raise VSColourRangeError(f'{cls.__name__}: Wrong "_ColorRange" prop in the clip!')
         else:
-            raise VSColourRangeError(f'{cls.__name__}: Cannot guess the color range!')
+            raise VSColourRangeError(f"{cls.__name__}: Cannot guess the color range!")
 
         return min_luma, max_luma
 
@@ -79,9 +80,10 @@ class Properties:
         :param clip:            Source clip
         :return:                Colourspace suitable for x264
         """
+
         def _get_csp_subsampled(format_clip: vs.VideoFormat) -> str:
             sub_w, sub_h = format_clip.subsampling_w, format_clip.subsampling_h
-            csp_yuv_subs: Dict[Tuple[int, int], str] = {(0, 0): 'i444', (1, 0): 'i422', (1, 1): 'i420'}
+            csp_yuv_subs: dict[tuple[int, int], str] = {(0, 0): "i444", (1, 0): "i422", (1, 1): "i420"}
             try:
                 return csp_yuv_subs[(sub_w, sub_h)]
             except KeyError as k_err:
@@ -89,11 +91,7 @@ class Properties:
 
         assert clip.format
 
-        csp_avc: dict[vs.ColorFamily, str] = {
-            vs.GRAY: 'i400',
-            vs.YUV: _get_csp_subsampled(clip.format),
-            vs.RGB: 'rgb'
-        }
+        csp_avc: dict[vs.ColorFamily, str] = {vs.GRAY: "i400", vs.YUV: _get_csp_subsampled(clip.format), vs.RGB: "rgb"}
         return csp_avc[clip.format.color_family]
 
     @staticmethod
@@ -104,10 +102,18 @@ class Properties:
         :param path:            File path
         :return:                Encoder name
         """
-        ffprobe_args = ['ffprobe', '-loglevel', 'quiet', '-show_entries', 'format_tags=encoder',
-                        '-print_format', 'default=nokey=1:noprint_wrappers=1', str(path)]
+        ffprobe_args = [
+            "ffprobe",
+            "-loglevel",
+            "quiet",
+            "-show_entries",
+            "format_tags=encoder",
+            "-print_format",
+            "default=nokey=1:noprint_wrappers=1",
+            str(path),
+        ]
         with logger.catch_ctx():
-            return subprocess.check_output(ffprobe_args, shell=True, encoding='utf-8')
+            return subprocess.check_output(ffprobe_args, shell=True, encoding="utf-8")
 
     @staticmethod
     def get_matrix_name(frame: vs.VideoFrame, key: str) -> str:
@@ -125,7 +131,7 @@ class Properties:
 
         :return:                string signalling the clip's matrix
         """
-        if key.lower() in ('matrix', 'transfer', 'primaries'):
+        if key.lower() in ("matrix", "transfer", "primaries"):
             key = "_" + key.capitalize()
 
         try:
@@ -135,21 +141,30 @@ class Properties:
 
         if not isinstance(prop, int):
             with logger.catch_ctx():
-                raise ValueError(f"get_matrix_names: 'Key {key} did not contain expected type: "
-                                 f"Expected int got {type(prop)}'")
+                raise ValueError(
+                    f"get_matrix_names: 'Key {key} did not contain expected type: Expected int got {type(prop)}'"
+                )
 
         match prop:
-            case 0: return 'GBR'
-            case 1: return 'bt709'
-            case 2: return 'undef'
-            case 5: return 'bt470m'
-            case 6: return 'smpte170m'
-            case 7: return 'smpte240m'
-            case 9: raise ValueError("get_matrix_names: 'x264 does not support BT2020 yet!'")
-            case _: raise ValueError("get_matrix_names: 'Invalid matrix passed!'")
+            case 0:
+                return "GBR"
+            case 1:
+                return "bt709"
+            case 2:
+                return "undef"
+            case 5:
+                return "bt470m"
+            case 6:
+                return "smpte170m"
+            case 7:
+                return "smpte240m"
+            case 9:
+                raise ValueError("get_matrix_names: 'x264 does not support BT2020 yet!'")
+            case _:
+                raise ValueError("get_matrix_names: 'Invalid matrix passed!'")
 
     @staticmethod
-    def get_prop(frame: vs.VideoFrame, key: str, t: Type[T]) -> T:
+    def get_prop[T](frame: vs.VideoFrame, key: str, t: type[T]) -> T:
         """
         Gets FrameProp ``prop`` from frame ``frame`` with expected type ``t``
         to satisfy the type checker.
@@ -173,9 +188,9 @@ class Properties:
         return prop
 
 
-def recursive_dict(obj: object) -> Dict[str, Any] | str:
+def recursive_dict(obj: object) -> dict[str, Any] | str:
     # pylint: disable=no-else-return
-    if hasattr(obj, '__dict__') and obj.__dict__:
+    if hasattr(obj, "__dict__") and obj.__dict__:
         return {k: recursive_dict(v) for k, v in obj.__dict__.items()}
     else:
         if isinstance(obj, vs.VideoNode):
@@ -184,30 +199,30 @@ def recursive_dict(obj: object) -> Dict[str, Any] | str:
             return str(obj)
 
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
-def copy_docstring_from(original: Callable[..., Any], mode: str = 'o') -> Callable[[F], F]:
+def copy_docstring_from(original: Callable[..., Any], mode: str = "o") -> Callable[[F], F]:
     """
     :param original:        Original function
     :param mode:            Copy mode. Can be 'o+t', 't+o', 'o', defaults to 'o'
     """
-    @wraps(original)
+
     def wrapper(target: F) -> F:
         if target.__doc__ is None:
-            target.__doc__ = ''
+            target.__doc__ = ""
         if original.__doc__ is None:
-            original.__doc__ = ''
+            original.__doc__ = ""
 
-        if mode == 'o':
+        if mode == "o":
             target.__doc__ = original.__doc__
-        elif mode == 'o+t':
+        elif mode == "o+t":
             target.__doc__ = original.__doc__ + target.__doc__
-        elif mode == 't+o':
+        elif mode == "t+o":
             target.__doc__ += original.__doc__
         else:
             with logger.catch_ctx():
-                raise ValueError('copy_docstring_from: Wrong mode!')
+                raise ValueError("copy_docstring_from: Wrong mode!")
         return target
 
     return wrapper
@@ -217,30 +232,9 @@ def modify_docstring(edit_func: Callable[[str], str], /) -> Callable[[F], F]:
 
     def _wrapper(target: F) -> F:
         if not target.__doc__:
-            logger.debug(f'modify_docstring: missing docstring in {target}')
-            target.__doc__ = ''
+            logger.debug(f"modify_docstring: missing docstring in {target}")
+            target.__doc__ = ""
         target.__doc__ = edit_func(target.__doc__)
-        return target
-
-    return _wrapper
-
-
-# pylint: disable=unused-argument
-def modify_docstring_for(fn_name: str | Iterable[str], edit_func: Callable[[str], str], /) -> Callable[[Type[T]], Type[T]]:
-
-    def _wrapper(target: Type[T]) -> Type[T]:
-        nonlocal fn_name
-        with logger.catch_ctx():
-            if isinstance(fn_name, str):
-                fn_name = [fn_name]
-
-            for fnn in fn_name:
-                func = cast(FunctionType, getattr(target, fnn))
-                func_c = FunctionType(func.__code__, func.__globals__, fnn, func.__defaults__, func.__closure__)
-                func_c = modify_docstring(edit_func)(func_c)
-                func_c = wraps(target)(func_c)
-                setattr(target, fnn, func_c)
-
         return target
 
     return _wrapper

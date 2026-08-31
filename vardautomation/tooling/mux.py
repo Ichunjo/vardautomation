@@ -4,16 +4,22 @@ from __future__ import annotations
 # pylint: disable=keyword-arg-before-vararg
 
 __all__ = [
-    'Track', 'MediaTrack', 'VideoTrack', 'AudioTrack', 'SubtitleTrack', 'ChaptersTrack',
-    'SplitMode',
-    'MatroskaFile'
+    "AudioTrack",
+    "ChaptersTrack",
+    "MatroskaFile",
+    "MediaTrack",
+    "SplitMode",
+    "SubtitleTrack",
+    "Track",
+    "VideoTrack",
 ]
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, MutableSequence, Sequence
 from enum import Enum
 from os import PathLike
 from pprint import pformat
-from typing import Iterable, List, Literal, MutableSequence, NoReturn, Optional, Sequence, Tuple, overload, cast
+from typing import Literal, NoReturn, cast, overload
 
 from ..binary_path import BinaryPath
 from ..config import FileInfo
@@ -25,19 +31,16 @@ from .base import BasicTool
 
 
 class _AbstractTrack(Sequence[str], ABC):
-    _cmd: List[str]
+    _cmd: list[str]
 
     @abstractmethod
-    def __init__(self) -> None:
-        ...
+    def __init__(self) -> None: ...
 
     @overload
-    def __getitem__(self, index: int) -> str:
-        ...
+    def __getitem__(self, index: int) -> str: ...
 
     @overload
-    def __getitem__(self, index: slice) -> Sequence[str]:
-        ...
+    def __getitem__(self, index: slice) -> Sequence[str]: ...
 
     def __getitem__(self, index: int | slice) -> str | Sequence[str]:
         return cast(Sequence[str], self._cmd.__getitem__(index))
@@ -55,7 +58,7 @@ class Track(_AbstractTrack):
     path: VPath
     """VPath to the file"""
 
-    opts: Tuple[str, ...]
+    opts: tuple[str, ...]
     """Additional options for this track"""
 
     def __init__(self, path: AnyPath, *opts: str) -> None:
@@ -83,13 +86,15 @@ class _LanguageTrack(Track):
 class MediaTrack(_LanguageTrack):
     """Interface for medias track based to be passed to mkvmerge"""
 
-    name: Optional[str]
+    name: str | None
     """Name of the track"""
 
     lang: Lang
     """Language of the track"""
 
-    def __init__(self, path: AnyPath, name: Optional[str] = None, lang: Lang | str = UNDEFINED, tid: int = 0, /, *opts: str) -> None:
+    def __init__(
+        self, path: AnyPath, name: str | None = None, lang: Lang | str = UNDEFINED, tid: int = 0, /, *opts: str
+    ) -> None:
         """
         Register a new track
 
@@ -102,29 +107,26 @@ class MediaTrack(_LanguageTrack):
         super().__init__(path, lang, *opts)
         self.name = name
         if self.name:
-            self._cmd.extend([f'{tid}:' + self.name, '--track-name'])
-        self._cmd.extend([f'{tid}:' + self.lang.iso639, '--language'])
+            self._cmd.extend([f"{tid}:" + self.name, "--track-name"])
+        self._cmd.extend([f"{tid}:" + self.lang.iso639, "--language"])
 
 
-class VideoTrack(MediaTrack):
-    ...
+class VideoTrack(MediaTrack): ...
 
 
-class AudioTrack(MediaTrack):
-    ...
+class AudioTrack(MediaTrack): ...
 
 
-class SubtitleTrack(MediaTrack):
-    ...
+class SubtitleTrack(MediaTrack): ...
 
 
 class ChaptersTrack(_LanguageTrack):
     """Interface for chapters track based to be passed to mkvmerge"""
 
-    charset: Optional[str]
+    charset: str | None
     """Character set that is used for the conversion to UTF-8 for simple chapter files."""
 
-    def __init__(self, path: AnyPath, lang: Lang | str = UNDEFINED, charset: Optional[str] = None, /, *opts: str) -> None:
+    def __init__(self, path: AnyPath, lang: Lang | str = UNDEFINED, charset: str | None = None, /, *opts: str) -> None:
         """
         Register a new chapters track
 
@@ -134,38 +136,33 @@ class ChaptersTrack(_LanguageTrack):
         """
         super().__init__(path, lang, *opts)
         self.charset = charset
-        self._cmd.insert(1, '--chapters')
+        self._cmd.insert(1, "--chapters")
         if self.charset:
-            self._cmd.extend([self.charset, '--chapter-charset'])
-        self._cmd.extend([self.lang.iso639, '--chapter-language'])
+            self._cmd.extend([self.charset, "--chapter-charset"])
+        self._cmd.extend([self.lang.iso639, "--chapter-language"])
 
 
 class _AbstractMatroskaFile(MutableSequence[Track]):
     _output: VPath
-    _tracks: List[Track]
+    _tracks: list[Track]
 
     @abstractmethod
-    def __init__(self) -> None:
-        ...
+    def __init__(self) -> None: ...
 
     @overload
-    def __getitem__(self, index: int) -> Track:
-        ...
+    def __getitem__(self, index: int) -> Track: ...
 
     @overload
-    def __getitem__(self, index: slice) -> MutableSequence[Track]:
-        ...
+    def __getitem__(self, index: slice) -> MutableSequence[Track]: ...
 
     def __getitem__(self, index: int | slice) -> Track | MutableSequence[Track]:
         return self._tracks.__getitem__(index)
 
     @overload
-    def __setitem__(self, index: int, value: Track) -> None:
-        ...
+    def __setitem__(self, index: int, value: Track) -> None: ...
 
     @overload
-    def __setitem__(self, index: slice, value: Iterable[Track]) -> None:
-        ...
+    def __setitem__(self, index: slice, value: Iterable[Track]) -> None: ...
 
     def __setitem__(self, index: int | slice, value: Track | Iterable[Track]) -> None:
         return self._tracks.__setitem__(index, value)  # type: ignore
@@ -182,35 +179,38 @@ class _AbstractMatroskaFile(MutableSequence[Track]):
 
 class SplitMode(str, Enum):
     """MKVMerge split modes"""
-    SIZE = 'size'
+
+    SIZE = "size"
     """Split by size"""
 
-    DURATION = 'duration'
+    DURATION = "duration"
     """Split by duration"""
 
-    TIMESTAMPS = 'timestamps'
+    TIMESTAMPS = "timestamps"
     """Split by timestamps"""
 
-    PARTS = 'parts'
+    PARTS = "parts"
     """Keep specific parts by specifying timestamp ranges while discarding others"""
 
-    PARTS_FRAMES = 'parts-frames'
+    PARTS_FRAMES = "parts-frames"
     """Keep specific parts by specifying frame/field number ranges while discarding others"""
 
-    FRAMES = 'frames'
+    FRAMES = "frames"
     """Split by frames"""
 
-    CHAPTERS = 'chapters'
+    CHAPTERS = "chapters"
     """Split by chapters"""
 
 
 class MatroskaFile(_AbstractMatroskaFile):
     """Matroska file interface"""
 
-    global_opts: Tuple[str, ...]
+    global_opts: tuple[str, ...]
     """Global options and other options that affect the whole process"""
 
-    def __init__(self, output: AnyPath, tracks: AnyPath | Track | Iterable[AnyPath | Track] | None = None, /, *global_opts: str) -> None:
+    def __init__(
+        self, output: AnyPath, tracks: AnyPath | Track | Iterable[AnyPath | Track] | None = None, /, *global_opts: str
+    ) -> None:
         """
         Register a new matroska file to be merged/splitted/appended
 
@@ -230,13 +230,13 @@ class MatroskaFile(_AbstractMatroskaFile):
         self.global_opts = global_opts
 
     @property
-    def command(self) -> List[str]:
+    def command(self) -> list[str]:
         """Get the mkvmerge command"""
         cmd = list[str]()
         for track in reversed(self._tracks):
             cmd.extend(track)
         cmd.extend(reversed(self.global_opts))
-        cmd.extend([self._output.to_str(), '-o'])
+        cmd.extend([self._output.to_str(), "-o"])
         cmd.reverse()
         return cmd
 
@@ -248,7 +248,7 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param file:            FileInfo object
         :return:                MatroskaFile object
         """
-        streams: List[AnyPath | Track] = [file.name_clip_output]
+        streams: list[AnyPath | Track] = [file.name_clip_output]
         i = 1
         while True:
             if file.a_enc_cut is not None and file.a_enc_cut.set_track(i).exists():
@@ -279,7 +279,7 @@ class MatroskaFile(_AbstractMatroskaFile):
         MatroskaFile.autotrack(file).mux(return_workfiles=False)
 
     @property
-    def track_lang(self) -> List[Lang | None] | Lang | None:
+    def track_lang(self) -> list[Lang | None] | Lang | None:
         """
         Lang(s) of the tracks of the current MatroskaFile object
 
@@ -290,29 +290,27 @@ class MatroskaFile(_AbstractMatroskaFile):
         return track.lang if isinstance(track := self._tracks[0], MediaTrack) else None
 
     @track_lang.setter
-    def track_lang(self, langs: List[Lang | None] | Lang | None) -> None:
+    def track_lang(self, langs: list[Lang | None] | Lang | None) -> None:
         if langs is None:
-            return None
+            return
 
         if isinstance(langs, Lang):
             for track in self._tracks:
                 if isinstance(track, MediaTrack):
                     track.lang = langs
-            return None
+            return
 
-        nlangs = langs[:len(self._tracks)]
+        nlangs = langs[: len(self._tracks)]
         nlangs += [langs[-1]] * (len(self._tracks) - len(langs))
         for track, nlang in zip(self._tracks, nlangs):
             if isinstance(track, MediaTrack) and nlang:
                 track.lang = nlang
 
     @overload
-    def mux(self, return_workfiles: Literal[True] = ...) -> CleanupSet:
-        ...
+    def mux(self, return_workfiles: Literal[True] = ...) -> CleanupSet: ...
 
     @overload
-    def mux(self, return_workfiles: Literal[False]) -> None:
-        ...
+    def mux(self, return_workfiles: Literal[False]) -> None: ...
 
     def mux(self, return_workfiles: bool = True) -> CleanupSet | None:
         """
@@ -334,7 +332,7 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param param:       Full command after the mode
         """
         cmd = self.command
-        cmd.extend(['--split', mode.value + ':' + param])
+        cmd.extend(["--split", mode.value + ":" + param])
         BasicTool(BinaryPath.mkvmerge, cmd).run()
 
     def split_size(self, size: str) -> None:
@@ -359,9 +357,9 @@ class MatroskaFile(_AbstractMatroskaFile):
 
         :param timestamps:  A[,B[,C...]]
         """
-        self.split(SplitMode.TIMESTAMPS, ','.join(timestamps))
+        self.split(SplitMode.TIMESTAMPS, ",".join(timestamps))
 
-    def split_parts(self, parts: List[Tuple[str | None, str | None]]) -> None:
+    def split_parts(self, parts: list[tuple[str | None, str | None]]) -> None:
         """
         Keep specific parts by specifying timestamp ranges while discarding others
 
@@ -371,14 +369,14 @@ class MatroskaFile(_AbstractMatroskaFile):
         for part in parts:
             s, e = part
             if not s:
-                s = ''
+                s = ""
             if not e:
-                e = ''
-            pr = s + '-' + e
+                e = ""
+            pr = s + "-" + e
             nparts.append(pr)
-        self.split(SplitMode.PARTS, ','.join(nparts))
+        self.split(SplitMode.PARTS, ",".join(nparts))
 
-    def split_parts_frames(self, parts: List[Tuple[int | None, int | None]]) -> None:
+    def split_parts_frames(self, parts: list[tuple[int | None, int | None]]) -> None:
         """
         Keep specific parts by specifying frame/field number ranges while discarding others
 
@@ -387,12 +385,12 @@ class MatroskaFile(_AbstractMatroskaFile):
         nparts = list[str]()
         for part in parts:
             s, e = part
-            ss = '' if not s else str(s)
-            ee = '' if not e else str(e)
-            pr = ss + '-' + ee
+            ss = "" if not s else str(s)
+            ee = "" if not e else str(e)
+            pr = ss + "-" + ee
             nparts.append(pr)
 
-        self.split(SplitMode.PARTS_FRAMES, ','.join(nparts))
+        self.split(SplitMode.PARTS_FRAMES, ",".join(nparts))
 
     def split_frames(self, frames: int | Iterable[int]) -> None:
         """
@@ -400,9 +398,9 @@ class MatroskaFile(_AbstractMatroskaFile):
 
         :param frames:      A[,B[,C...]]
         """
-        self.split(SplitMode.FRAMES, str(frames) if isinstance(frames, int) else ','.join(map(str, frames)))
+        self.split(SplitMode.FRAMES, str(frames) if isinstance(frames, int) else ",".join(map(str, frames)))
 
-    def split_chapters(self, indices: Literal['all'] | Iterable[int]) -> None:
+    def split_chapters(self, indices: Literal["all"] | Iterable[int]) -> None:
         """
         Split before specific chapters
 
@@ -410,9 +408,9 @@ class MatroskaFile(_AbstractMatroskaFile):
         """
         if isinstance(indices, str):
             return self.split(SplitMode.CHAPTERS, indices)
-        self.split(SplitMode.CHAPTERS, ','.join(map(str, indices)))
+        self.split(SplitMode.CHAPTERS, ",".join(map(str, indices)))
 
-    def append_to(self, files: Iterable[AnyPath], ids: Iterable[Tuple[int, int, int, int]] | None = None) -> None:
+    def append_to(self, files: Iterable[AnyPath], ids: Iterable[tuple[int, int, int, int]] | None = None) -> None:
         """
         Enable append mode
 
@@ -420,12 +418,12 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param ids:         Controls to which track another track is appended.
         """
         cmd = self.command
-        cmd.append('[')
+        cmd.append("[")
         cmd.extend(map(str, files))
-        cmd.append(']')
+        cmd.append("]")
         if ids:
-            cmd.append('--append-to')
-            cmd.append(','.join(':'.join(map(str, id_)) for id_ in ids))
+            cmd.append("--append-to")
+            cmd.append(",".join(":".join(map(str, id_)) for id_ in ids))
         BasicTool(BinaryPath.mkvmerge, cmd).run()
 
     def add_timestamps(self, path: AnyPath, id_: int = 0) -> None:
@@ -435,7 +433,7 @@ class MatroskaFile(_AbstractMatroskaFile):
         :param path:        Timecode path
         :param id_: [description], defaults to 0
         """
-        self.global_opts = ('--timestamps', f'{id_}:' + str(path)) + self.global_opts
+        self.global_opts = ("--timestamps", f"{id_}:" + str(path), *self.global_opts)
 
     def add_attachments(self) -> NoReturn:
         raise NotImplementedError

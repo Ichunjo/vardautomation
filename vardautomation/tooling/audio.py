@@ -1,20 +1,30 @@
-
 __all__ = [
-    'AudioExtracter', 'MKVAudioExtracter', 'Eac3toAudioExtracter', 'FFmpegAudioExtracter',
-
-    'AudioEncoder', 'BitrateMode', 'QAACEncoder', 'OpusEncoder', 'FDKAACEncoder', 'FlacCompressionLevel', 'FlacEncoder',
-    'PassthroughAudioEncoder',
-
-    'AudioCutter', 'ScipyCutter', 'EztrimCutter', 'SoxCutter', 'PassthroughCutter',
+    "AudioCutter",
+    "AudioEncoder",
+    "AudioExtracter",
+    "BitrateMode",
+    "Eac3toAudioExtracter",
+    "EztrimCutter",
+    "FDKAACEncoder",
+    "FFmpegAudioExtracter",
+    "FlacCompressionLevel",
+    "FlacEncoder",
+    "MKVAudioExtracter",
+    "OpusEncoder",
+    "PassthroughAudioEncoder",
+    "PassthroughCutter",
+    "QAACEncoder",
+    "ScipyCutter",
+    "SoxCutter",
 ]
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from enum import Enum, IntEnum, auto
-from typing import Any, ClassVar, Dict, Final, List, Literal, NoReturn, Optional, Sequence, Set, TypeGuard, Union
+from typing import Any, ClassVar, Final, Literal, NoReturn, TypeGuard
 
 import numpy as np
 import vapoursynth as vs
-
 from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
@@ -39,29 +49,36 @@ class AudioExtracter(BasicTool):
     """Track number(s) of the output file"""
 
     @logger.catch
-    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], /, file: FileInfo) -> None:
+    def __init__(self, binary: AnyPath, settings: AnyPath | list[str] | dict[str, Any], /, file: FileInfo) -> None:
         """
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
         :param file:            FileInfo object, needed
         """
         if file.a_src is None:
-            raise ValueError(f'{self.__class__.__name__}: `file.a_src` is needed!')
+            raise ValueError(f"{self.__class__.__name__}: `file.a_src` is needed!")
         super().__init__(binary, settings, file=file)
 
 
 class _AutoSetTrack(AudioExtracter, ABC):
     @logger.catch
-    def __init__(self, binary: AnyPath, settings: List[str], /, file: FileInfo,
-                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1) -> None:
+    def __init__(
+        self,
+        binary: AnyPath,
+        settings: list[str],
+        /,
+        file: FileInfo,
+        track_in: int | Sequence[int] = -1,
+        track_out: int | Sequence[int] = -1,
+    ) -> None:
 
         track_in = [track_in] if isinstance(track_in, int) else track_in
         track_out = [track_out] if isinstance(track_out, int) else track_out
 
         if len(track_in) != len(track_out):
-            raise ValueError(f'{self.__class__.__name__}: number of `track_in` and `track_out` must be the same!')
+            raise ValueError(f"{self.__class__.__name__}: number of `track_in` and `track_out` must be the same!")
         if any(t < 0 for t in track_in) or any(t < 0 for t in track_out):
-            raise ValueError(f'{self.__class__.__name__}: `track_in` and `track_out` must be > 0')
+            raise ValueError(f"{self.__class__.__name__}: `track_in` and `track_out` must be > 0")
 
         self.track_in = track_in
         self.track_out = track_out
@@ -77,9 +94,9 @@ class _AutoSetTrack(AudioExtracter, ABC):
     def _set_tracks_number(self) -> None:
         """Internal function for setting the track(s) number"""
 
-    def set_variable(self) -> Dict[str, Any]:
+    def set_variable(self) -> dict[str, Any]:
         assert self.file
-        return dict(path=self.file.path.to_str())
+        return {"path": self.file.path.to_str()}
 
 
 class _FFmpegSetTrack(_AutoSetTrack, ABC):
@@ -91,74 +108,83 @@ class _FFmpegSetTrack(_AutoSetTrack, ABC):
 
         # TODO: yes I should use FFprobe because of weird bugs Light reported where
         # indexing was different between mediainfo and ffmpeg
-        acodecs = {24: 'pcm_s24le', 16: 'pcm_s16le'}
+        acodecs = {24: "pcm_s24le", 16: "pcm_s16le"}
 
         assert self.file
         assert self.file.a_src
 
         media_info = self.file.media_info.to_data()
         try:
-            mi_tracks = media_info['tracks']
+            mi_tracks = media_info["tracks"]
         except AttributeError as attr_err:
-            logger.critical(
-                f'{self.__class__.__name__}: can\'t find any tracks in this file',
-                attr_err
-            )
+            logger.critical(f"{self.__class__.__name__}: can't find any tracks in this file", attr_err)
 
         for t_in, t_out in zip(self.track_in, self.track_out):
-            if not mi_tracks[1 + t_in]['track_type'] == 'Audio':
-                raise ValueError(f'{self.__class__.__name__}: specified track number "{t_in}" is not a audio type track!')
+            if not mi_tracks[1 + t_in]["track_type"] == "Audio":
+                raise ValueError(
+                    f'{self.__class__.__name__}: specified track number "{t_in}" is not a audio type track!'
+                )
             try:
-                t_format = mi_tracks[1 + t_in]['format']
+                t_format = mi_tracks[1 + t_in]["format"]
             except AttributeError as attr_err:
                 logger.critical(
-                    f'{self.__class__.__name__}: can\'t find the format of the track number "{t_in}"!',
-                    attr_err
+                    f'{self.__class__.__name__}: can\'t find the format of the track number "{t_in}"!', attr_err
                 )
-            if t_format in {'PCM', 'DTS'}:
-                ac = acodecs[int(mi_tracks[1 + t_in]['bit_depth'])]
-            else:
-                ac = 'copy'
-            self.params += ['-map', f'0:{t_in}', '-acodec', ac, self.file.a_src.set_track(t_out).to_str()]
+            ac = acodecs[int(mi_tracks[1 + t_in]["bit_depth"])] if t_format in {"PCM", "DTS"} else "copy"
+            self.params += ["-map", f"0:{t_in}", "-acodec", ac, self.file.a_src.set_track(t_out).to_str()]
 
 
 class MKVAudioExtracter(_AutoSetTrack):
     """AudioExtracter using MKVExtract"""
 
-    def __init__(self, file: FileInfo, /, *,
-                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1,
-                 mkvextract_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        file: FileInfo,
+        /,
+        *,
+        track_in: int | Sequence[int] = -1,
+        track_out: int | Sequence[int] = -1,
+        mkvextract_args: list[str] | None = None,
+    ) -> None:
         """
         :param file:                FileInfo object, needed
         :param track_in:            Input track(s) number
         :param track_out:           Output track(s) number
         :param mkvextract_args:     https://mkvtoolnix.download/doc/mkvextract.html, defaults to None
         """
-        settings = ['{path:s}', '--abort-on-warnings', 'tracks'] + (mkvextract_args if mkvextract_args is not None else [])
+        settings = ["{path:s}", "--abort-on-warnings", "tracks"] + (
+            mkvextract_args if mkvextract_args is not None else []
+        )
         super().__init__(BinaryPath.mkvextract, settings, file, track_in=track_in, track_out=track_out)
 
     def _set_tracks_number(self) -> None:
         assert self.file
         assert self.file.a_src
         for t_in, t_out in zip(self.track_in, self.track_out):
-            self.params.append(f'{t_in}:{self.file.a_src.set_track(t_out).to_str():s}')
+            self.params.append(f"{t_in}:{self.file.a_src.set_track(t_out).to_str():s}")
 
 
 class Eac3toAudioExtracter(_AutoSetTrack):
     """AudioExtracter using Eac3to"""
 
-    _eac3to_args: List[str]
+    _eac3to_args: list[str]
 
-    def __init__(self, file: FileInfo, /, *,
-                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1,
-                 eac3to_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        file: FileInfo,
+        /,
+        *,
+        track_in: int | Sequence[int] = -1,
+        track_out: int | Sequence[int] = -1,
+        eac3to_args: list[str] | None = None,
+    ) -> None:
         """
         :param file:                FileInfo object, needed
         :param track_in:            Input track(s) number
         :param track_out:           Output track(s) number
         :param eac3to_args:         https://en.wikibooks.org/wiki/Eac3to/How_to_Use, eg. ['-log=nul']
         """
-        settings = ['{path:s}']
+        settings = ["{path:s}"]
         super().__init__(BinaryPath.eac3to, settings, file, track_in=track_in, track_out=track_out)
         self._eac3to_args = eac3to_args if eac3to_args else []
 
@@ -166,23 +192,24 @@ class Eac3toAudioExtracter(_AutoSetTrack):
         assert self.file
         assert self.file.a_src
         for t_in, t_out in zip(self.track_in, self.track_out):
-            self.params.extend([f'{t_in}:', f'{self.file.a_src.set_track(t_out).to_str():s}'])
+            self.params.extend([f"{t_in}:", f"{self.file.a_src.set_track(t_out).to_str():s}"])
         self.params.extend(self._eac3to_args)
 
 
 class FFmpegAudioExtracter(_FFmpegSetTrack):
     """AudioExtracter using Ffmpeg"""
 
-    _ffmpeg_warning = ['-hide_banner', '-loglevel', 'info']
+    _ffmpeg_warning: ClassVar[list[str]] = ["-hide_banner", "-loglevel", "info"]
 
-    def __init__(self, file: FileInfo, /, *,
-                 track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1) -> None:
+    def __init__(
+        self, file: FileInfo, /, *, track_in: int | Sequence[int] = -1, track_out: int | Sequence[int] = -1
+    ) -> None:
         """
         :param file:                FileInfo object, needed
         :param track_in:            Input track(s) number
         :param track_out:           Output track(s) number
         """
-        settings = self._ffmpeg_warning + ['-i', '{path:s}', '-y']
+        settings = [*self._ffmpeg_warning, "-i", "{path:s}", "-y"]
         super().__init__(BinaryPath.ffmpeg, settings, file, track_in=track_in, track_out=track_out)
 
 
@@ -192,18 +219,27 @@ class AudioEncoder(BasicTool):
     track: int
     """Track number"""
 
-    xml_tag: Optional[AnyPath]
+    xml_tag: AnyPath | None
     """
     XML tags suitable for mkvmerge\n
     Curently only write the encoder name\n
     More info here: https://mkvtoolnix.download/doc/mkvmerge.html#mkvmerge.tags
     """
 
-    _ffmpeg_info = ['-hide_banner', '-loglevel', 'info']
+    _ffmpeg_info: ClassVar[list[str]] = ["-hide_banner", "-loglevel", "info"]
 
     @logger.catch
-    def __init__(self, binary: AnyPath, settings: AnyPath | List[str] | Dict[str, Any], /,
-                 file: FileInfo, *, track: int = -1, xml_tag: Optional[AnyPath] = None, check_binary: bool = True) -> None:
+    def __init__(
+        self,
+        binary: AnyPath,
+        settings: AnyPath | list[str] | dict[str, Any],
+        /,
+        file: FileInfo,
+        *,
+        track: int = -1,
+        xml_tag: AnyPath | None = None,
+        check_binary: bool = True,
+    ) -> None:
         """
         :param binary:          See :py:attr:`Tool.binary`
         :param settings:        See :py:attr:`Tool.settings`
@@ -217,12 +253,12 @@ class AudioEncoder(BasicTool):
         assert self.file
 
         if self.file.a_src_cut is None:
-            raise ValueError(f'{self.__class__.__name__}: `file.a_src_cut` is needed!')
+            raise ValueError(f"{self.__class__.__name__}: `file.a_src_cut` is needed!")
         if self.file.a_enc_cut is None:
-            raise ValueError(f'{self.__class__.__name__}: `file.a_enc_cut` is needed!')
+            raise ValueError(f"{self.__class__.__name__}: `file.a_enc_cut` is needed!")
 
         if track < 0:
-            raise ValueError(f'{self.__class__.__name__}: `track` must be > 0')
+            raise ValueError(f"{self.__class__.__name__}: `track` must be > 0")
         self.track = track
         self.xml_tag = xml_tag
 
@@ -234,31 +270,30 @@ class AudioEncoder(BasicTool):
         if self.xml_tag:
             self._write_encoder_name_file()
 
-    def set_variable(self) -> Dict[str, Any]:
+    def set_variable(self) -> dict[str, Any]:
         assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
-        return dict(
-            a_src_cut=self.file.a_src_cut.set_track(self.track).to_str(),
-            a_enc_cut=self.file.a_enc_cut.set_track(self.track).to_str()
-        )
+        return {
+            "a_src_cut": self.file.a_src_cut.set_track(self.track).to_str(),
+            "a_enc_cut": self.file.a_enc_cut.set_track(self.track).to_str(),
+        }
 
     def _write_encoder_name_file(self) -> None:
         assert self.file
-        assert (a_enc_cut := self.file.a_enc_cut)
+        a_enc_cut = self.file.a_enc_cut
+        assert a_enc_cut
 
-        tags = etree.Element('Tags')
-        tag = etree.SubElement(tags, 'Tag')
-        _ = etree.SubElement(tag, 'Targets')
-        simple = etree.SubElement(tag, 'Simple')
-        etree.SubElement(simple, 'Name').text = 'ENCODER'
-        etree.SubElement(simple, 'String').text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
+        tags = etree.Element("Tags")
+        tag = etree.SubElement(tags, "Tag")
+        _ = etree.SubElement(tag, "Targets")
+        simple = etree.SubElement(tag, "Simple")
+        etree.SubElement(simple, "Name").text = "ENCODER"
+        etree.SubElement(simple, "String").text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
 
         assert self.xml_tag
-        with open(self.xml_tag, 'wb') as f:
-            f.write(
-                etree.tostring(tags, encoding='utf-8', xml_declaration=True, pretty_print=True)
-            )
+        with open(self.xml_tag, "wb") as f:
+            f.write(etree.tostring(tags, encoding="utf-8", xml_declaration=True, pretty_print=True))
 
 
 class PassthroughAudioEncoder(AudioEncoder):
@@ -270,14 +305,14 @@ class PassthroughAudioEncoder(AudioEncoder):
         :param track:       Track number
         :param xml_tag:     See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         """
-        super().__init__('', [''], file, track=track, check_binary=False)
+        super().__init__("", [""], file, track=track, check_binary=False)
 
     def run(self) -> None:
         assert self.file
         assert self.file.a_src_cut
         assert self.file.a_enc_cut
 
-        logger.info(f'{self.__class__.__name__}: copying audio...')
+        logger.info(f"{self.__class__.__name__}: copying audio...")
         self.file.a_src_cut.set_track(self.track).resolve().copyfile(
             self.file.a_enc_cut.set_track(self.track).absolute()
         )
@@ -305,7 +340,7 @@ class BitrateMode(Enum):
     """Hard Constant BitRate"""
 
     def __repr__(self) -> str:
-        return f'<{self.__class__.__name__}.{self.name}>'
+        return f"<{self.__class__.__name__}.{self.name}>"
 
 
 QAAC_BITRATE_MODE = Literal[BitrateMode.ABR, BitrateMode.CBR, BitrateMode.CVBR, BitrateMode.TVBR]
@@ -316,17 +351,25 @@ FDK_BITRATE_MODE = Literal[BitrateMode.CBR, BitrateMode.VBR]
 class QAACEncoder(AudioEncoder):
     """AudioEncoder using QAAC, an open-source wrapper for Core Audio's AAC and ALAC encoder."""
 
-    _bitrate_mode_map: Dict[BitrateMode, str] = {
-        BitrateMode.ABR: '--abr',
-        BitrateMode.CBR: '--cbr',
-        BitrateMode.CVBR: '--cvbr',
-        BitrateMode.TVBR: '--tvbr'
+    _bitrate_mode_map: ClassVar[dict[BitrateMode, str]] = {
+        BitrateMode.ABR: "--abr",
+        BitrateMode.CBR: "--cbr",
+        BitrateMode.CVBR: "--cvbr",
+        BitrateMode.TVBR: "--tvbr",
     }
 
     @logger.catch
-    def __init__(self, /, file: FileInfo, *,
-                 track: int = -1, mode: QAAC_BITRATE_MODE = BitrateMode.TVBR, bitrate: int = 127,
-                 xml_tag: Optional[AnyPath] = None, qaac_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        /,
+        file: FileInfo,
+        *,
+        track: int = -1,
+        mode: QAAC_BITRATE_MODE = BitrateMode.TVBR,
+        bitrate: int = 127,
+        xml_tag: AnyPath | None = None,
+        qaac_args: list[str] | None = None,
+    ) -> None:
         """
         These following options are automatically added:
 
@@ -335,18 +378,18 @@ class QAACEncoder(AudioEncoder):
         :param file:            FileInfo object
         :param track:           Track number
         :param mode:            Bitrate mode. QAAC supports ABR, CBR, CVBR and TVBR, defaults to BitrateMode.TVBR
-        :param bitrate:         Matches the bitrate for ABR, CBR and CVBR in kbit/s and quality Q for TVBR, defaults to 127
+        :param bitrate:         Matches the bitrate for ABR, CBR and CVBR in kbit/s and quality Q for TVBR,
+                                defaults to 127
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
-        :param qaac_args:       Additional options, see https://github.com/nu774/qaac/wiki/Command-Line-Options, defaults to None
+        :param qaac_args:       Additional options, see https://github.com/nu774/qaac/wiki/Command-Line-Options,
+                                defaults to None
         """
-        settings = ['{a_src_cut:s}']
-        # There is a Literal type but just in case never underestimate people's stupidity
+        settings = ["{a_src_cut:s}"]
         try:
             settings += [self._bitrate_mode_map[mode]]
         except (AttributeError, KeyError) as err:
-            # pylint: disable=no-member
             raise TypeError(f'{self.__class__.__name__}: The mode "{mode._name_}" is not supported!') from err
-        settings += [str(bitrate), '--no-delay', '--no-optimize', '--threading', '-o', '{a_enc_cut:s}']
+        settings += [str(bitrate), "--no-delay", "--no-optimize", "--threading", "-o", "{a_enc_cut:s}"]
 
         if qaac_args is not None:
             settings += qaac_args
@@ -357,24 +400,34 @@ class QAACEncoder(AudioEncoder):
 class OpusEncoder(AudioEncoder):
     """AudioEncoder using Opus, open, royalty-free, highly versatile audio codec."""
 
-    _bitrate_mode_opusenc_map: Dict[BitrateMode, str] = {
-        BitrateMode.VBR: '--vbr',
-        BitrateMode.CVBR: '--cvbr',
-        BitrateMode.HARD_CBR: '--hard-cbr',
+    _bitrate_mode_opusenc_map: ClassVar[dict[BitrateMode, str]] = {
+        BitrateMode.VBR: "--vbr",
+        BitrateMode.CVBR: "--cvbr",
+        BitrateMode.HARD_CBR: "--hard-cbr",
     }
-    _bitrate_mode_ffmpeg_map: Dict[BitrateMode, str] = {
-        BitrateMode.VBR: 'on',
-        BitrateMode.CVBR: 'constrained',
-        BitrateMode.HARD_CBR: 'off',
+    _bitrate_mode_ffmpeg_map: ClassVar[dict[BitrateMode, str]] = {
+        BitrateMode.VBR: "on",
+        BitrateMode.CVBR: "constrained",
+        BitrateMode.HARD_CBR: "off",
     }
 
-    def __init__(self, /, file: FileInfo, *,
-                 track: int = -1, mode: OPUS_BITRATE_MODE = BitrateMode.VBR, bitrate: int = 160,
-                 xml_tag: Optional[AnyPath] = None, use_ffmpeg: bool = True, opus_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        /,
+        file: FileInfo,
+        *,
+        track: int = -1,
+        mode: OPUS_BITRATE_MODE = BitrateMode.VBR,
+        bitrate: int = 160,
+        xml_tag: AnyPath | None = None,
+        use_ffmpeg: bool = True,
+        opus_args: list[str] | None = None,
+    ) -> None:
         """
         :param file:            FileInfo object
         :param track:           Track number
-        :param mode:            Bitrate mode. libopus supports VBR, CVBR, and HARD_CBR (aka CBR), defaults to BitrateMode.VBR
+        :param mode:            Bitrate mode. libopus supports VBR, CVBR, and HARD_CBR (aka CBR),
+                                defaults to BitrateMode.VBR
         :param bitrate:         Target bitrate in kbit/s, defaults to 160
         :param xml_tag:         See :py:attr:`AudioEncoder.xml_tag`, defaults to None
         :param use_ffmpeg:      Use ``opusenc`` if False, defaults to True
@@ -382,19 +435,21 @@ class OpusEncoder(AudioEncoder):
         """
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
-            settings = self._ffmpeg_info + ['-i', '{a_src_cut:s}', '-c:a', 'libopus', '-b:a', f'{bitrate}k', '-vbr']
+            settings = [*self._ffmpeg_info, "-i", "{a_src_cut:s}", "-c:a", "libopus", "-b:a", f"{bitrate}k", "-vbr"]
             settings.extend(self._set_mode(self._bitrate_mode_ffmpeg_map, mode, opus_args))
-            settings.append('{a_enc_cut:s}')
+            settings.append("{a_enc_cut:s}")
         else:
             binary = BinaryPath.opusenc
-            settings = ['--bitrate', str(bitrate)]
+            settings = ["--bitrate", str(bitrate)]
             settings.extend(self._set_mode(self._bitrate_mode_opusenc_map, mode, opus_args))
-            settings.extend(['{a_src_cut:s}', '{a_enc_cut:s}'])
+            settings.extend(["{a_src_cut:s}", "{a_enc_cut:s}"])
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
     @logger.catch
-    def _set_mode(self, layout_map: Dict[BitrateMode, str], mode: OPUS_BITRATE_MODE, opus_args: Optional[List[str]]) -> List[str]:
-        settings: List[str] = []
+    def _set_mode(
+        self, layout_map: dict[BitrateMode, str], mode: OPUS_BITRATE_MODE, opus_args: list[str] | None
+    ) -> list[str]:
+        settings: list[str] = []
         # There is a Literal type but just in case never underestimate the people's stupidity
         try:
             settings += [layout_map[mode]]
@@ -411,9 +466,19 @@ class FDKAACEncoder(AudioEncoder):
     The libfdk-aac library is based on the Fraunhofer FDK AAC code from the Android project
     """
 
-    def __init__(self, /, file: FileInfo, *,
-                 track: int = -1, mode: FDK_BITRATE_MODE = BitrateMode.CBR, bitrate: int = 256, cutoff: int = 20000,
-                 xml_tag: Optional[AnyPath] = None, use_ffmpeg: bool = True, fdk_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        /,
+        file: FileInfo,
+        *,
+        track: int = -1,
+        mode: FDK_BITRATE_MODE = BitrateMode.CBR,
+        bitrate: int = 256,
+        cutoff: int = 20000,
+        xml_tag: AnyPath | None = None,
+        use_ffmpeg: bool = True,
+        fdk_args: list[str] | None = None,
+    ) -> None:
         # pylint: disable=line-too-long
         """
         :param file:            FileInfo object
@@ -431,33 +496,41 @@ class FDKAACEncoder(AudioEncoder):
         # pylint: enable=line-too-long
         if use_ffmpeg:
             binary = BinaryPath.ffmpeg
-            settings = self._ffmpeg_info + ['-i', '{a_src_cut:s}', '-c:a', 'libfdk_aac', '-cutoff', str(cutoff)]
-            settings += self._set_mode(mode, bitrate, fdk_args, ['-b:a', f'{bitrate}k'], ['-vbr', f'{bitrate}'])
-            settings += ['{a_enc_cut:s}']
+            settings = [*self._ffmpeg_info, "-i", "{a_src_cut:s}", "-c:a", "libfdk_aac", "-cutoff", str(cutoff)]
+            settings += self._set_mode(mode, bitrate, fdk_args, ["-b:a", f"{bitrate}k"], ["-vbr", f"{bitrate}"])
+            settings += ["{a_enc_cut:s}"]
         else:
             binary = BinaryPath.fdkaac
-            settings = ['{a_src_cut:s}', '--bandwidth', str(cutoff)]
-            settings += self._set_mode(mode, bitrate, fdk_args, ['--bitrate', str(bitrate)], ['--bitrate-mode', str(bitrate)])
-            settings += ['-o', '{a_enc_cut:s}']
+            settings = ["{a_src_cut:s}", "--bandwidth", str(cutoff)]
+            settings += self._set_mode(
+                mode, bitrate, fdk_args, ["--bitrate", str(bitrate)], ["--bitrate-mode", str(bitrate)]
+            )
+            settings += ["-o", "{a_enc_cut:s}"]
 
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
     @logger.catch
-    def _set_mode(self, mode: FDK_BITRATE_MODE, bitrate: int, fdk_args: Optional[List[str]],
-                  cbr_settings: List[str], vbr_settings: List[str]) -> List[str]:
-        settings: List[str] = []
+    def _set_mode(
+        self,
+        mode: FDK_BITRATE_MODE,
+        bitrate: int,
+        fdk_args: list[str] | None,
+        cbr_settings: list[str],
+        vbr_settings: list[str],
+    ) -> list[str]:
+        settings: list[str] = []
         # CBR Mode
         if mode == BitrateMode.CBR:
             settings += cbr_settings
         # VBR Mode
         elif mode == BitrateMode.VBR:
             if bitrate not in range(1, 6):
-                raise ValueError(f'{self.__class__.__name__}: when using vbr mode, quality should be > 0 and <= 5!')
+                raise ValueError(f"{self.__class__.__name__}: when using vbr mode, quality should be > 0 and <= 5!")
             settings += vbr_settings
 
         # Pretty sure this is useless
         else:
-            raise TypeError(f'{self.__class__.__name__}: mode not supported!')
+            raise TypeError(f"{self.__class__.__name__}: mode not supported!")
         # Additional argument
         if fdk_args is not None:
             settings += fdk_args
@@ -469,6 +542,7 @@ class FlacCompressionLevel(IntEnum):
     Flac compression level.\n
     Keep in mind that the max FLAC can handle is 8 and ffmpeg 12
     """
+
     ZERO = 0
     """
     ffmpeg: compression_level 0\n
@@ -556,10 +630,16 @@ class FlacEncoder(AudioEncoder):
     """AudioEncoder using FLAC, Free Lossless Audio Codec"""
 
     @logger.catch
-    def __init__(self, file: FileInfo, *,
-                 track: int = -1, xml_tag: Optional[AnyPath] = None,
-                 level: FlacCompressionLevel = FlacCompressionLevel.VARDOU,
-                 use_ffmpeg: bool = True, flac_args: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        file: FileInfo,
+        *,
+        track: int = -1,
+        xml_tag: AnyPath | None = None,
+        level: FlacCompressionLevel = FlacCompressionLevel.VARDOU,
+        use_ffmpeg: bool = True,
+        flac_args: list[str] | None = None,
+    ) -> None:
         """
         :param file:            FileInfo object
         :param track:           Track number
@@ -573,21 +653,27 @@ class FlacEncoder(AudioEncoder):
             binary = BinaryPath.ffmpeg
             if level == FlacCompressionLevel.VARDOU:
                 level_args = [
-                    '-compression_level', '12', '-lpc_type', 'cholesky',
-                    '-lpc_passes', '3', '-exact_rice_parameters', '1'
+                    "-compression_level",
+                    "12",
+                    "-lpc_type",
+                    "cholesky",
+                    "-lpc_passes",
+                    "3",
+                    "-exact_rice_parameters",
+                    "1",
                 ]
             else:
-                level_args = [f'-compression_level {level}']
-            settings = ['-i', '{a_src_cut:s}'] + level_args
+                level_args = [f"-compression_level {level}"]
+            settings = ["-i", "{a_src_cut:s}", *level_args]
             if flac_args is not None:
                 settings.extend(flac_args)
-            settings.append('{a_enc_cut:s}')
+            settings.append("{a_enc_cut:s}")
         else:
             binary = BinaryPath.flac
             if level > FlacCompressionLevel.EIGHT:
                 raise ValueError(f'{self.__class__.__name__}: "level" must be <= 8 if "use_ffmpeg" is false')
             settings = flac_args if flac_args is not None else []
-            settings.extend([f'-{level}', '-o', '{a_enc_cut:s}', '{a_src_cut:s}'])
+            settings.extend([f"-{level}", "-o", "{a_enc_cut:s}", "{a_src_cut:s}"])
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
 
@@ -598,7 +684,7 @@ class AudioCutter(ABC):
     """FileInfo object"""
     track: int
     """Track number"""
-    kwargs: Dict[str, Any]
+    kwargs: dict[str, Any]
     """Additionnal arguments"""
 
     @logger.catch
@@ -611,12 +697,12 @@ class AudioCutter(ABC):
         self.file = file
 
         if not self.file.a_src:
-            raise ValueError(f'{self.__class__.__name__}: `file.a_src` is not a valid path!')
+            raise ValueError(f"{self.__class__.__name__}: `file.a_src` is not a valid path!")
         if not self.file.a_src_cut:
-            raise ValueError(f'{self.__class__.__name__}: `file.a_src_cut` is not a valid path!')
+            raise ValueError(f"{self.__class__.__name__}: `file.a_src_cut` is not a valid path!")
 
         if track < 0:
-            raise ValueError(f'{self.__class__.__name__}: `track` must be > 0')
+            raise ValueError(f"{self.__class__.__name__}: `track` must be > 0")
         self.track = track
         self.kwargs = kwargs
 
@@ -625,15 +711,14 @@ class AudioCutter(ABC):
         """Trimming toolchain"""
 
     def _passthrough(self) -> None:
-        logger.warning(f'{self.__class__.__name__}: no trims detected; use PassthroughCutter...')
+        logger.warning(f"{self.__class__.__name__}: no trims detected; use PassthroughCutter...")
         PassthroughCutter(self.file, track=self.track).run()
 
     @classmethod
     @abstractmethod
     def generate_silence(
-        cls, s: float, output: AnyPath,
-        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
-    ) -> None | NoReturn:
+        cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+    ) -> None:
         """
         Generate silence if supported by the current interface
 
@@ -648,17 +733,13 @@ class AudioCutter(ABC):
 class ScipyCutter(AudioCutter):
     """Audio cutter using scipy.io.wavfile module"""
 
-    _BITDEPTH: ClassVar[Dict[int, Any]] = {
-        32: np.int32,
-        16: np.int16,
-        8: np.uint8
-    }
+    _BITDEPTH: ClassVar[dict[int, Any]] = {32: np.int32, 16: np.int16, 8: np.uint8}
 
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         try:
             import scipy as _  # noqa F401
         except ImportError as imp_err:
-            logger.critical(f'{self.__class__.__name__}: you need to install scipy to use this cutter!', imp_err)
+            logger.critical(f"{self.__class__.__name__}: you need to install scipy to use this cutter!", imp_err)
         super().__init__(file, track=track, **kwargs)
 
     def run(self) -> None:
@@ -668,20 +749,23 @@ class ScipyCutter(AudioCutter):
         trims = self.file.trims_or_dfs
 
         if trims:
-            logger.info(f'{self.__class__.__name__}: trimming audio...')
+            logger.info(f"{self.__class__.__name__}: trimming audio...")
             self.scipytrim(
-                self.file.a_src.set_track(self.track),
-                self.file.a_src_cut.set_track(self.track),
-                trims, self.file.clip
+                self.file.a_src.set_track(self.track), self.file.a_src_cut.set_track(self.track), trims, self.file.clip
             )
         else:
             self._passthrough()
 
     @classmethod
     def scipytrim(
-        cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
-        ref_clip: vs.VideoNode, *, combine: bool = True
+        cls,
+        src: AnyPath,
+        output: AnyPath,
+        /,
+        trims: Trim | DuplicateFrame | list[Trim] | list[Trim | DuplicateFrame],
+        ref_clip: vs.VideoNode,
+        *,
+        combine: bool = True,
     ) -> None:
         """
         Simple trimming function that follows VapourSynth/Python slicing syntax.
@@ -698,7 +782,7 @@ class ScipyCutter(AudioCutter):
             from scipy.io import wavfile
             from vardefunc import normalise_ranges
         except ImportError as imp_err:
-            logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
+            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", imp_err)
 
         src, output = map(VPath, (src, output))
 
@@ -708,33 +792,29 @@ class ScipyCutter(AudioCutter):
         try:
             sample_rate, array = wavfile.read(src, False)
         except ValueError as val_err:
-            logger.critical(f'{cls.__name__}: this file is not a wav!', val_err)
+            logger.critical(f"{cls.__name__}: this file is not a wav!", val_err)
 
         parent = output.parent
-        tmp_name = output.name + '_tmp_{track_number}' + src.suffix
+        tmp_name = output.name + "_tmp_{track_number}" + src.suffix
         tmp = parent / tmp_name
 
         fps = ref_clip.fps
         f2samples = Convert.f2samples
 
-        arrays: List[NDArray[Any]] = []
+        arrays: list[NDArray[Any]] = []
         for trim in trims:
             if isinstance(trim, tuple):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
-                arrays.append(
-                    array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)]
-                )
+                arrays.append(array[f2samples(start, fps, sample_rate), f2samples(end, fps, sample_rate)])
             else:
                 # Handle DuplicateFrame
                 df = trim
                 _, channels = array.shape
-                arrays.append(
-                    np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype)
-                )
+                arrays.append(np.zeros((f2samples(df.dup, fps, sample_rate), channels), array.dtype))
 
         if combine:
-            narray = arrays.pop() if len(arrays) == 1 else np.concatenate(arrays, axis=0)  # type: ignore[pylance-strict]
+            narray = arrays.pop() if len(arrays) == 1 else np.concatenate(arrays, axis=0)
             wavfile.write(output, sample_rate, narray)
             del narray
         else:
@@ -744,25 +824,18 @@ class ScipyCutter(AudioCutter):
 
     @classmethod
     def generate_silence(
-        cls, s: float, output: AnyPath,
-        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+        cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         try:
             from scipy.io import wavfile
         except ImportError as imp_err:
-            logger.critical(f'{cls.__name__}: you need to install scipy to use this cutter!', imp_err)
+            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", imp_err)
 
-        silence_arr = np.array(
-            [(0, ) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth]
-        )
+        silence_arr = np.array([(0,) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth])
         wavfile.write(output, sample_rate, silence_arr)
 
 
-FFMPEG_CHANNEL_LAYOUT_MAP: Final[Dict[int, str]] = {
-    1: 'mono',
-    2: 'stereo',
-    6: '5.1'
-}
+FFMPEG_CHANNEL_LAYOUT_MAP: Final[dict[int, str]] = {1: "mono", 2: "stereo", 6: "5.1"}
 """
 Dictionary containing the channel layout map of ffmpeg
 More information here: https://ffmpeg.org/doxygen/1.2/channel__layout_8c_source.html
@@ -777,7 +850,7 @@ class EztrimCutter(AudioCutter):
     in the FileInfo object specified.
     """
 
-    _ffmpeg_warning = ['-hide_banner', '-loglevel', 'warning']
+    _ffmpeg_warning: ClassVar[list[str]] = ["-hide_banner", "-loglevel", "warning"]
 
     def run(self) -> None:
         assert self.file.a_src
@@ -789,25 +862,28 @@ class EztrimCutter(AudioCutter):
             if isinstance(trims, tuple):
                 trims = [trims]
 
-            logger.info(f'{self.__class__.__name__}: trimming audio...')
+            logger.info(f"{self.__class__.__name__}: trimming audio...")
 
             if not self._are_trims_only(trims):
-                logger.warning(f'{self.__class__.__name__}: DuplicateFrame(s) detected...')
+                logger.warning(f"{self.__class__.__name__}: DuplicateFrame(s) detected...")
 
             self.ezpztrim(
-                self.file.a_src.set_track(self.track),
-                self.file.a_src_cut.set_track(self.track),
-                trims, self.file.clip
+                self.file.a_src.set_track(self.track), self.file.a_src_cut.set_track(self.track), trims, self.file.clip
             )
         else:
             self._passthrough()
 
     @classmethod
     def ezpztrim(
-        cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
-        ref_clip: vs.VideoNode, *,
-        combine: bool = True, cleanup: bool = True
+        cls,
+        src: AnyPath,
+        output: AnyPath,
+        /,
+        trims: Trim | DuplicateFrame | list[Trim] | list[Trim | DuplicateFrame],
+        ref_clip: vs.VideoNode,
+        *,
+        combine: bool = True,
+        cleanup: bool = True,
     ) -> None:
         """
         Simple trimming function that follows VapourSynth/Python slicing syntax.
@@ -828,59 +904,72 @@ class EztrimCutter(AudioCutter):
 
         media_info = MediaInfo.parse(src).to_data()
         try:
-            ext = media_info['tracks'][0]['file_extension']
-            srate = media_info['tracks'][1]['sampling_rate']
-            bitrate = media_info['tracks'][0]['overall_bit_rate']
-            nb_ch = media_info['tracks'][1]['channel_s']
+            ext = media_info["tracks"][0]["file_extension"]
+            srate = media_info["tracks"][1]["sampling_rate"]
+            bitrate = media_info["tracks"][0]["overall_bit_rate"]
+            nb_ch = media_info["tracks"][1]["channel_s"]
         except (AttributeError, KeyError) as err:
-            logger.critical(
-                f'{cls.__name__}: file extension, sampling rate, bitrate or num channels not found',
-                err
-            )
+            logger.critical(f"{cls.__name__}: file extension, sampling rate, bitrate or num channels not found", err)
 
         parent = output.parent
-        tmp_name = output.name + '_tmp_{track_number}' + src.suffix
+        tmp_name = output.name + "_tmp_{track_number}" + src.suffix
         tmp = parent / tmp_name
 
-        tmp_files: Set[VPath] = set()
+        tmp_files: set[VPath] = set()
         fps = ref_clip.fps
         f2ts = Convert.f2ts
 
         from vardefunc.util import normalise_ranges
+
         for i, trim in enumerate(trims):
             if isinstance(trim, tuple):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 # Just trim
                 BasicTool(
                     BinaryPath.ffmpeg,
-                    cls._ffmpeg_warning
-                    + ['-i', src.to_str(), '-vn', '-ss', f2ts(start, fps), '-to', f2ts(end, fps)]
-                    + ['-c:a', 'copy', '-rf64', 'auto']
-                    + [tmp.set_track(i).to_str()]
+                    [
+                        *cls._ffmpeg_warning,
+                        "-i",
+                        src.to_str(),
+                        "-vn",
+                        "-ss",
+                        f2ts(start, fps),
+                        "-to",
+                        f2ts(end, fps),
+                        "-c:a",
+                        "copy",
+                        "-rf64",
+                        "auto",
+                        tmp.set_track(i).to_str(),
+                    ],
                 ).run()
                 tmp_files.add(tmp.set_track(i))
             else:
                 # Handle DuplicateFrame
                 df = trim
-                tmp_silence = tmp.with_name(tmp.name + '_silence.wav')
+                tmp_silence = tmp.with_name(tmp.name + "_silence.wav")
                 # Generate silence
-                cls.generate_silence(
-                    Convert.f2seconds(df.dup, fps), tmp_silence.set_track(i),
-                    nb_ch, srate
-                )
+                cls.generate_silence(Convert.f2seconds(df.dup, fps), tmp_silence.set_track(i), nb_ch, srate)
                 tmp_files.add(tmp_silence.set_track(i))
                 # Encode in source format
                 BasicTool(
                     BinaryPath.ffmpeg,
-                    cls._ffmpeg_warning
-                    + ['-i', tmp_silence.set_track(i).to_str()]
-                    + ['-acodec', str(ext), '-ab', str(bitrate), tmp.set_track(i).to_str()]
+                    [
+                        *cls._ffmpeg_warning,
+                        "-i",
+                        tmp_silence.set_track(i).to_str(),
+                        "-acodec",
+                        str(ext),
+                        "-ab",
+                        str(bitrate),
+                        tmp.set_track(i).to_str(),
+                    ],
                 ).run()
                 tmp_files.add(tmp.set_track(i))
 
         if combine:
             # Get the trimmed files
-            concat_files = sorted(output.parent.glob(tmp_name.format(track_number='?')))
+            concat_files = sorted(output.parent.glob(tmp_name.format(track_number="?")))
             cls.combine(concat_files, output)
 
         if cleanup:
@@ -892,42 +981,47 @@ class EztrimCutter(AudioCutter):
     @classmethod
     @logger.catch
     def generate_silence(
-        cls, s: float, output: AnyPath,
-        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+        cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         try:
             channel_layout = FFMPEG_CHANNEL_LAYOUT_MAP[num_ch]
         except AttributeError as att_err:
-            raise ValueError(f'{cls.__name__}: channel layout unknown!') from att_err
+            raise ValueError(f"{cls.__name__}: channel layout unknown!") from att_err
 
         BasicTool(
             BinaryPath.ffmpeg,
-            cls._ffmpeg_warning
-            + ['-f', 'lavfi', '-i', f'anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}']
-            + ['-t', str(s), VPath(output).with_suffix('.wav').to_str()]
+            [
+                *cls._ffmpeg_warning,
+                "-f",
+                "lavfi",
+                "-i",
+                f"anullsrc=channel_layout={channel_layout}:sample_rate={sample_rate}",
+                "-t",
+                str(s),
+                VPath(output).with_suffix(".wav").to_str(),
+            ],
         ).run()
 
     @classmethod
-    def combine(cls, files: List[VPath], output: AnyPath) -> None:
+    def combine(cls, files: list[VPath], output: AnyPath) -> None:
         # Write a config concat file
         # paths should be in poxix format and space character escaped
         # this is so annoying
-        with (concat_conf := VPath('_conf_concat.txt')).open('w', encoding='utf-8') as conf:
+        with (concat_conf := VPath("_conf_concat.txt")).open("w", encoding="utf-8") as conf:
             conf.writelines(
                 # pylint: disable=consider-using-f-string
-                'file file:{}\n'.format(af.as_posix().replace(" ", "\\ "))
+                "file file:{}\n".format(af.as_posix().replace(" ", "\\ "))
                 for af in files
             )
         BasicTool(
             BinaryPath.ffmpeg,
-            cls._ffmpeg_warning
-            + ['-f', 'concat', '-safe', '0', '-i', concat_conf.to_str(), '-c', 'copy', str(output)]
+            [*cls._ffmpeg_warning, "-f", "concat", "-safe", "0", "-i", concat_conf.to_str(), "-c", "copy", str(output)],
         ).run()
 
         concat_conf.rm()
 
     @staticmethod
-    def _are_trims_only(trims_or_dfs: List[Trim] | List[Union[Trim, DuplicateFrame]]) -> TypeGuard[List[Trim]]:
+    def _are_trims_only(trims_or_dfs: list[Trim] | list[Trim | DuplicateFrame]) -> TypeGuard[list[Trim]]:
         return not any(isinstance(t, DuplicateFrame) for t in trims_or_dfs)
 
 
@@ -941,21 +1035,24 @@ class SoxCutter(AudioCutter):
         trims = self.file.trims_or_dfs
 
         if trims:
-            logger.info(f'{self.__class__.__name__}: trimming audio...')
+            logger.info(f"{self.__class__.__name__}: trimming audio...")
             self.soxtrim(
-                self.file.a_src.set_track(self.track),
-                self.file.a_src_cut.set_track(self.track),
-                trims, self.file.clip
+                self.file.a_src.set_track(self.track), self.file.a_src_cut.set_track(self.track), trims, self.file.clip
             )
         else:
             self._passthrough()
 
     @classmethod
     def soxtrim(
-        cls, src: AnyPath, output: AnyPath, /,
-        trims: Union[Trim, DuplicateFrame] | List[Trim] | List[Union[Trim, DuplicateFrame]],
-        ref_clip: vs.VideoNode, *,
-        combine: bool = True, cleanup: bool = True
+        cls,
+        src: AnyPath,
+        output: AnyPath,
+        /,
+        trims: Trim | DuplicateFrame | list[Trim] | list[Trim | DuplicateFrame],
+        ref_clip: vs.VideoNode,
+        *,
+        combine: bool = True,
+        cleanup: bool = True,
     ) -> None:
         """
         Simple trimming function that follows VapourSynth/Python slicing syntax.
@@ -976,17 +1073,17 @@ class SoxCutter(AudioCutter):
 
         media_info = MediaInfo.parse(src).to_data()
         try:
-            srate = media_info['tracks'][1]['sampling_rate']
-            bitdepth = media_info['tracks'][1]['bit_depth']
-            nb_ch = media_info['tracks'][1]['channel_s']
+            srate = media_info["tracks"][1]["sampling_rate"]
+            bitdepth = media_info["tracks"][1]["bit_depth"]
+            nb_ch = media_info["tracks"][1]["channel_s"]
         except (AttributeError, KeyError) as att_err:
-            logger.critical(f'{cls.__name__}: sampling rate, bit_depth or channel_s not found', att_err)
+            logger.critical(f"{cls.__name__}: sampling rate, bit_depth or channel_s not found", att_err)
 
         parent = output.parent
-        tmp_name = output.name + '_tmp_{track_number}.wav'
+        tmp_name = output.name + "_tmp_{track_number}.wav"
         tmp = parent / tmp_name
 
-        tmp_files: Set[VPath] = set()
+        tmp_files: set[VPath] = set()
         fps = ref_clip.fps
         f2s = Convert.f2seconds
 
@@ -997,25 +1094,18 @@ class SoxCutter(AudioCutter):
                 start, end = normalise_ranges(ref_clip, trim).pop()
                 BasicTool(
                     BinaryPath.sox,
-                    [src.to_str(), tmp.set_track(i).to_str(),
-                     'trim', str(f2s(start, fps)), str(f2s(end - start, fps))]
+                    [src.to_str(), tmp.set_track(i).to_str(), "trim", str(f2s(start, fps)), str(f2s(end - start, fps))],
                 ).run()
                 tmp_files.add(tmp.set_track(i))
             else:
                 df = trim
                 # Generate silence
-                cls.generate_silence(
-                    Convert.f2seconds(df.dup, fps), tmp.set_track(i).to_str(),
-                    nb_ch, srate, bitdepth
-                )
+                cls.generate_silence(Convert.f2seconds(df.dup, fps), tmp.set_track(i).to_str(), nb_ch, srate, bitdepth)
                 tmp_files.add(tmp.set_track(i))
 
         if combine:
-            tmps = sorted(output.parent.glob(tmp_name.format(track_number='?')))
-            BasicTool(
-                BinaryPath.sox,
-                ['--combine', 'concatenate', *[t.to_str() for t in tmps], output.to_str()]
-            ).run()
+            tmps = sorted(output.parent.glob(tmp_name.format(track_number="?")))
+            BasicTool(BinaryPath.sox, ["--combine", "concatenate", *[t.to_str() for t in tmps], output.to_str()]).run()
 
         if cleanup:
             for tmpf in tmp_files:
@@ -1024,13 +1114,23 @@ class SoxCutter(AudioCutter):
 
     @classmethod
     def generate_silence(
-        cls, s: float, output: AnyPath,
-        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+        cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
         BasicTool(
             BinaryPath.sox,
-            ['-n', '-r', str(sample_rate), '-c', str(num_ch), '-b', str(bitdepth),
-             VPath(output).with_suffix('.wav').to_str(), 'trim', '0.0', str(s)]
+            [
+                "-n",
+                "-r",
+                str(sample_rate),
+                "-c",
+                str(num_ch),
+                "-b",
+                str(bitdepth),
+                VPath(output).with_suffix(".wav").to_str(),
+                "trim",
+                "0.0",
+                str(s),
+            ],
         ).run()
 
 
@@ -1043,16 +1143,13 @@ class PassthroughCutter(AudioCutter):
     def run(self) -> None:
         assert self.file.a_src
         assert self.file.a_src_cut
-        logger.info(f'{self.__class__.__name__}: copying audio...')
-        self.file.a_src.set_track(self.track).resolve().copyfile(
-            self.file.a_src_cut.set_track(self.track).resolve()
-        )
+        logger.info(f"{self.__class__.__name__}: copying audio...")
+        self.file.a_src.set_track(self.track).resolve().copyfile(self.file.a_src_cut.set_track(self.track).resolve())
 
     @classmethod
     @logger.catch
     def generate_silence(
-        cls, s: float, output: AnyPath,
-        num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
+        cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> NoReturn:
         """You can't generate silence from this class"""
         raise NotImplementedError

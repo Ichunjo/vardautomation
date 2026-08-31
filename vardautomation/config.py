@@ -5,25 +5,32 @@ Contains FileInfo, BlurayShow and the different Presets to pass to them.
 """
 
 __all__ = [
-    'FileInfo', 'FileInfo2',
-    'PresetType',
-    'Preset', 'NoPreset',
-    'PresetBD', 'PresetBDWAV64', 'PresetWEB',
-    'PresetAAC', 'PresetOpus', 'PresetEAC3', 'PresetFLAC',
-    'PresetChapOGM', 'PresetChapXML',
-    'BlurayShow'
+    "BlurayShow",
+    "FileInfo",
+    "FileInfo2",
+    "NoPreset",
+    "Preset",
+    "PresetAAC",
+    "PresetBD",
+    "PresetBDWAV64",
+    "PresetChapOGM",
+    "PresetChapXML",
+    "PresetEAC3",
+    "PresetFLAC",
+    "PresetOpus",
+    "PresetType",
+    "PresetWEB",
 ]
 
 import sys
-
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 from fractions import Fraction
 from pprint import pformat
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, NamedTuple, TypeVar
 
 import vapoursynth as vs
-
 from pymediainfo import MediaInfo
 
 from ._logging import logger
@@ -38,6 +45,7 @@ core = vs.core
 
 class PresetType(IntEnum):
     """Type of preset"""
+
     NO_PRESET = 0
     """Special type"""
     VIDEO = 10
@@ -52,19 +60,19 @@ class PresetType(IntEnum):
 class Preset:
     """Preset class that fills some attributes of :py:class:`FileInfo`"""
 
-    idx: Optional[Callable[[str], vs.VideoNode]]
+    idx: Callable[[str], vs.VideoNode] | None
     """Vapoursynth indexer callable"""
 
-    a_src: Optional[VPath]
+    a_src: VPath | None
     """Audio source path"""
 
-    a_src_cut: Optional[VPath]
+    a_src_cut: VPath | None
     """Audio trimmed source path"""
 
-    a_enc_cut: Optional[VPath]
+    a_enc_cut: VPath | None
     """Audio trimmed encoded source path"""
 
-    chapter: Optional[VPath]
+    chapter: VPath | None
     """Chapter file path"""
 
     preset_type: PresetType
@@ -73,11 +81,11 @@ class Preset:
 
 NoPreset = Preset(
     idx=None,
-    a_src=VPath(''),
-    a_src_cut=VPath(''),
-    a_enc_cut=VPath(''),
-    chapter=VPath(''),
-    preset_type=PresetType.NO_PRESET
+    a_src=VPath(""),
+    a_src_cut=VPath(""),
+    a_enc_cut=VPath(""),
+    chapter=VPath(""),
+    preset_type=PresetType.NO_PRESET,
 )
 """
 Special Preset that won't do anything
@@ -85,11 +93,11 @@ Special Preset that won't do anything
 
 PresetBD = Preset(
     idx=core.lsmas.LWLibavSource,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.wav'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.wav'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.wav"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.wav"),
     a_enc_cut=None,
     chapter=None,
-    preset_type=PresetType.VIDEO
+    preset_type=PresetType.VIDEO,
 )
 """
 Preset for BD encode.
@@ -98,11 +106,11 @@ The indexer is core.lsmas.LWLibavSource and audio sources are .wav
 
 PresetBDWAV64 = Preset(
     idx=core.lsmas.LWLibavSource,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.w64'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.w64'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.w64"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.w64"),
     a_enc_cut=None,
     chapter=None,
-    preset_type=PresetType.VIDEO
+    preset_type=PresetType.VIDEO,
 )
 """
 Preset for BD encode.
@@ -110,12 +118,7 @@ The indexer is core.lsmas.LWLibavSource and audio sources are .w64
 """
 
 PresetWEB = Preset(
-    idx=core.ffms2.Source,
-    a_src=None,
-    a_src_cut=None,
-    a_enc_cut=VPath(''),
-    chapter=None,
-    preset_type=PresetType.VIDEO
+    idx=core.ffms2.Source, a_src=None, a_src_cut=None, a_enc_cut=VPath(""), chapter=None, preset_type=PresetType.VIDEO
 )
 """
 Preset for WEB encode.
@@ -124,11 +127,11 @@ The indexer is core.ffms2.Source and a_enc_cut is blocked.
 
 PresetAAC = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.aac'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.aac'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.m4a'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.aac"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.aac"),
+    a_enc_cut=VPath("{work_filename:s}_cut_enc_track_{track_number:s}.m4a"),
     chapter=None,
-    preset_type=PresetType.AUDIO
+    preset_type=PresetType.AUDIO,
 )
 """
 Preset for AAC encode.
@@ -136,11 +139,11 @@ Preset for AAC encode.
 
 PresetOpus = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.opus'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.opus'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.opus'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.opus"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.opus"),
+    a_enc_cut=VPath("{work_filename:s}_cut_enc_track_{track_number:s}.opus"),
     chapter=None,
-    preset_type=PresetType.AUDIO
+    preset_type=PresetType.AUDIO,
 )
 """
 Preset for Opus encode.
@@ -149,11 +152,11 @@ Preset for Opus encode.
 
 PresetEAC3 = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.eac3'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.eac3'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.eac3'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.eac3"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.eac3"),
+    a_enc_cut=VPath("{work_filename:s}_cut_enc_track_{track_number:s}.eac3"),
     chapter=None,
-    preset_type=PresetType.AUDIO
+    preset_type=PresetType.AUDIO,
 )
 """
 Preset for EAC3 encode.
@@ -161,11 +164,11 @@ Preset for EAC3 encode.
 
 PresetFLAC = Preset(
     idx=None,
-    a_src=VPath('{work_filename:s}_track_{track_number:s}.flac'),
-    a_src_cut=VPath('{work_filename:s}_cut_track_{track_number:s}.flac'),
-    a_enc_cut=VPath('{work_filename:s}_cut_enc_track_{track_number:s}.flac'),
+    a_src=VPath("{work_filename:s}_track_{track_number:s}.flac"),
+    a_src_cut=VPath("{work_filename:s}_cut_track_{track_number:s}.flac"),
+    a_enc_cut=VPath("{work_filename:s}_cut_enc_track_{track_number:s}.flac"),
     chapter=None,
-    preset_type=PresetType.AUDIO
+    preset_type=PresetType.AUDIO,
 )
 """
 Preset for FLAC encode.
@@ -176,8 +179,8 @@ PresetChapOGM = Preset(
     a_src=None,
     a_src_cut=None,
     a_enc_cut=None,
-    chapter=VPath('chapters/{name:s}.txt'),
-    preset_type=PresetType.CHAPTER
+    chapter=VPath("chapters/{name:s}.txt"),
+    preset_type=PresetType.CHAPTER,
 )
 """
 Preset for OGM based chapters.
@@ -188,8 +191,8 @@ PresetChapXML = Preset(
     a_src=None,
     a_src_cut=None,
     a_enc_cut=None,
-    chapter=VPath('chapters/{name:s}.xml'),
-    preset_type=PresetType.CHAPTER
+    chapter=VPath("chapters/{name:s}.xml"),
+    preset_type=PresetType.CHAPTER,
 )
 """
 Preset for XML based chapters.
@@ -198,6 +201,7 @@ Preset for XML based chapters.
 
 class FileInfo:
     """FileInfo object. This is the first thing you should initialise."""
+
     path: VPath
     """Path of the video file"""
     path_without_ext: VPath
@@ -205,9 +209,9 @@ class FileInfo:
     work_filename: str
     """Work directory filename"""
 
-    idx: Optional[VPSIdx]
+    idx: VPSIdx | None
     """Vapoursynth Indexer"""
-    preset: List[Preset]
+    preset: list[Preset]
     """Preset(s) used"""
 
     name: str
@@ -216,13 +220,13 @@ class FileInfo:
     workdir: VPath
     """Work directory"""
 
-    a_src: Optional[VPath]
+    a_src: VPath | None
     """Audio source path"""
-    a_src_cut: Optional[VPath]
+    a_src_cut: VPath | None
     """Audio source trimmed/cut path"""
-    a_enc_cut: Optional[VPath]
+    a_enc_cut: VPath | None
     """Audio source encoded (and trimmed) path"""
-    _chapter: Optional[VPath]
+    _chapter: VPath | None
 
     clip: vs.VideoNode
     """VideoNode object loaded by the indexer"""
@@ -235,37 +239,43 @@ class FileInfo:
     """Final file output path"""
 
     _num_prop: bool = False
-    _trims_or_dfs: List[Union[Trim, DuplicateFrame]] | Trim | None
+    _trims_or_dfs: list[Trim | DuplicateFrame] | Trim | None
 
     @logger.catch
     def __init__(
-        self, path: AnyPath, /,
-        trims_or_dfs: List[Union[Trim, DuplicateFrame]] | Trim | None = None, *,
-        idx: Optional[VPSIdx] = None,
-        preset: Preset | Sequence[Preset] = [PresetBD, PresetBDWAV64],
-        workdir: AnyPath = VPath().cwd()
+        self,
+        path: AnyPath,
+        /,
+        trims_or_dfs: list[Trim | DuplicateFrame] | Trim | None = None,
+        *,
+        idx: VPSIdx | None = None,
+        preset: Preset | Sequence[Preset] | None = None,
+        workdir: AnyPath = VPath().cwd(),
     ) -> None:
         """
         Helper which allows to store the data related to your file to be encoded
 
         :param path:            Path to your source file.
-        :param trims_or_dfs:    Adjust the clip length by trimming or duplicating frames. Python slicing. Defaults to None
+        :param trims_or_dfs:    Adjust the clip length by trimming or duplicating frames.
+                                Python slicing. Defaults to None
         :param idx:             Indexer used to index the video track, defaults to None
         :param preset:          Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes,
                                 defaults to :py:data:`.PresetGeneric`
         :param workdir:         Work directory. Default to the current directorie where the script is launched.
         """
+        if preset is None:
+            preset = [PresetBD, PresetBDWAV64]
         self.workdir = VPath(workdir).resolve()
 
         self.path = VPath(path)
-        self.path_without_ext = self.path.with_suffix('')
+        self.path_without_ext = self.path.with_suffix("")
         self.work_filename = self.path.stem
 
         self.idx = idx
 
         self.name = VPath(sys.argv[0]).stem
 
-        self.a_src, self.a_src_cut, self.a_enc_cut, self._chapter = (None, ) * 4
+        self.a_src, self.a_src_cut, self.a_enc_cut, self._chapter = (None,) * 4
         if isinstance(preset, Preset):
             self.preset = [preset]
         else:
@@ -278,22 +288,21 @@ class FileInfo:
             self.trims_or_dfs = trims_or_dfs
 
             self.name_clip_output = self.workdir / VPath(self.name)
-            self.name_file_final = VPath(self.name + '.mkv')
+            self.name_file_final = VPath(self.name + ".mkv")
 
         self.__post_init__()
 
-    def __post_init__(self) -> None:
-        ...
+    def __post_init__(self) -> None: ...
 
     def __str__(self) -> str:
         dico = dict(self.__dict__)
         for k in list(dico.keys()):
-            if k.startswith('_'):
+            if k.startswith("_"):
                 del dico[k]
-        dico['chapter'] = self.chapter
-        dico['trims_or_dfs'] = self.trims_or_dfs
-        dico['media_info'] = self.media_info
-        dico['num_prop'] = self.num_prop
+        dico["chapter"] = self.chapter
+        dico["trims_or_dfs"] = self.trims_or_dfs
+        dico["media_info"] = self.media_info
+        dico["num_prop"] = self.num_prop
         return pformat(dico, width=200, sort_dicts=False)
 
     def _fill_preset(self, p: Preset) -> None:
@@ -305,7 +314,7 @@ class FileInfo:
                 self.a_src = VPath()
             else:
                 self.a_src = self.workdir / p.a_src.format(
-                    work_filename=self.work_filename, track_number='{track_number}'
+                    work_filename=self.work_filename, track_number="{track_number}"
                 )
 
         if self.a_src_cut is None and p.a_src_cut is not None:
@@ -313,7 +322,7 @@ class FileInfo:
                 self.a_src_cut = VPath()
             else:
                 self.a_src_cut = self.workdir / p.a_src_cut.format(
-                    work_filename=self.work_filename, track_number='{track_number}'
+                    work_filename=self.work_filename, track_number="{track_number}"
                 )
 
         if self.a_enc_cut is None and p.a_enc_cut is not None:
@@ -321,7 +330,7 @@ class FileInfo:
                 self.a_enc_cut = VPath()
             else:
                 self.a_enc_cut = self.workdir / p.a_enc_cut.format(
-                    work_filename=self.work_filename, track_number='{track_number}'
+                    work_filename=self.work_filename, track_number="{track_number}"
                 )
 
         if self.chapter is None and p.chapter is not None:
@@ -336,7 +345,7 @@ class FileInfo:
         self.name_clip_output = self.name_clip_output.with_suffix(extension)
 
     @property
-    def chapter(self) -> Optional[VPath]:
+    def chapter(self) -> VPath | None:
         """
         Chapter file path
 
@@ -345,13 +354,13 @@ class FileInfo:
         return self._chapter
 
     @chapter.setter
-    def chapter(self, chap: Optional[VPath]) -> None:
-        if chap and chap.suffix not in {'.txt', '.xml'}:
+    def chapter(self, chap: VPath | None) -> None:
+        if chap and chap.suffix not in {".txt", ".xml"}:
             logger.warning(f'{self.__class__.__name__}: Chapter extension "{chap.suffix}" is not recognised!')
         self._chapter = chap
 
     @property
-    def trims_or_dfs(self) -> List[Union[Trim, DuplicateFrame]] | Trim | None:
+    def trims_or_dfs(self) -> list[Trim | DuplicateFrame] | Trim | None:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -360,8 +369,9 @@ class FileInfo:
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
+    def trims_or_dfs(self, x: list[Trim | DuplicateFrame] | Trim | None) -> None:
         from vardefunc.util import adjust_clip_frames
+
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -378,7 +388,8 @@ class FileInfo:
         """
         If the frame number is added to props
 
-        :setter:    Add a prop ``FileInfoFrameNumber`` to the frame properties of :attr:`FileInfo.clip` and :attr:`FileInfo.clip_cut`
+        :setter:    Add a prop ``FileInfoFrameNumber`` to the frame properties
+                    of :attr:`FileInfo.clip` and :attr:`FileInfo.clip_cut`
         """
         return self._num_prop
 
@@ -386,31 +397,33 @@ class FileInfo:
     def num_prop(self, x: bool) -> None:
         self._num_prop = x
         if x:
+
             def _add_frame_num(n: int, f: vs.VideoFrame) -> vs.VideoFrame:
                 fout = f.copy()
-                fout.props['FileInfoFrameNumber'] = n
+                fout.props["FileInfoFrameNumber"] = n
                 return fout
 
             self.clip = core.std.ModifyFrame(self.clip, self.clip, _add_frame_num)
             self.trims_or_dfs = self._trims_or_dfs
         else:
             self.clip, self.clip_cut = [
-                c.std.RemoveFrameProps('FileInfoFrameNumber') for c in [self.clip, self.clip_cut]
+                c.std.RemoveFrameProps("FileInfoFrameNumber") for c in [self.clip, self.clip_cut]
             ]
 
 
 class FileInfo2(FileInfo):
     """Second version of FileInfo adding audio support"""
 
-    audios: List[vs.AudioNode]
+    audios: list[vs.AudioNode]
     """List of AudioNode indexed by BestAudioSource in the file"""
 
-    audios_cut: List[vs.AudioNode]
+    audios_cut: list[vs.AudioNode]
     """List of AudioNode cut with the specified trims"""
 
     @logger.catch
     def __post_init__(self) -> None:
         from vardefunc.util import adjust_audio_frames
+
         self.audios = []
         self.audios_cut = []
 
@@ -428,14 +441,12 @@ class FileInfo2(FileInfo):
 
         if self.trims_or_dfs:
             for audio in self.audios:
-                self.audios_cut.append(
-                    adjust_audio_frames(audio, self.trims_or_dfs, ref_fps=self.clip.fps)
-                )
+                self.audios_cut.append(adjust_audio_frames(audio, self.trims_or_dfs, ref_fps=self.clip.fps))
         else:
             self.audios_cut = self.audios.copy()
 
     @property
-    def trims_or_dfs(self) -> List[Union[Trim, DuplicateFrame]] | Trim | None:
+    def trims_or_dfs(self) -> list[Trim | DuplicateFrame] | Trim | None:
         """
         Trims or DuplicateFrame objects of the current FileInfo
 
@@ -444,8 +455,9 @@ class FileInfo2(FileInfo):
         return self._trims_or_dfs
 
     @trims_or_dfs.setter
-    def trims_or_dfs(self, x: List[Union[Trim, DuplicateFrame]] | Trim | None) -> None:
+    def trims_or_dfs(self, x: list[Trim | DuplicateFrame] | Trim | None) -> None:
         from vardefunc.util import adjust_clip_frames
+
         self._trims_or_dfs = x
         if x:
             self.clip_cut = adjust_clip_frames(self.clip, x)
@@ -478,11 +490,12 @@ class FileInfo2(FileInfo):
         as a WAV file to `a_src` path
         """
         if not self.a_src:
-            raise ValueError(f'{self.__class__.__name__}: no a_src VPath found!')
-        with self.a_src.set_track(index).open('wb') as binary:
+            raise ValueError(f"{self.__class__.__name__}: no a_src VPath found!")
+        with self.a_src.set_track(index).open("wb") as binary:
             audio_async_render(
-                self.audios[index + offset], binary,
-                progress=f'Writing a_src to {self.a_src.set_track(index).resolve().to_str()}'
+                self.audios[index + offset],
+                binary,
+                progress=f"Writing a_src to {self.a_src.set_track(index).resolve().to_str()}",
             )
 
     @logger.catch
@@ -492,62 +505,73 @@ class FileInfo2(FileInfo):
         as a WAV file to `a_src_cut` path
         """
         if not self.a_src_cut:
-            raise ValueError(f'{self.__class__.__name__}: no a_src_cut VPath found!')
-        with self.a_src_cut.set_track(index).open('wb') as binary:
+            raise ValueError(f"{self.__class__.__name__}: no a_src_cut VPath found!")
+        with self.a_src_cut.set_track(index).open("wb") as binary:
             audio_async_render(
-                self.audios_cut[index + offset], binary,
-                progress=f'Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}'
+                self.audios_cut[index + offset],
+                binary,
+                progress=f"Writing a_src_cut to {self.a_src_cut.set_track(index).resolve().to_str()}",
             )
 
 
 class _File(NamedTuple):
     file: VPath
-    chapter: Optional[VPath]
+    chapter: VPath | None
 
 
-_FileInfoType = TypeVar('_FileInfoType', bound=FileInfo)
+_FileInfoType = TypeVar("_FileInfoType", bound=FileInfo)
 
 
 class BlurayShow:
     """Helper class for batching shows"""
 
-    _files: List[_File]
+    _files: list[_File]
 
-    _file_info_args: Dict[str, Any]
-    _file_ncops: List[_File]
-    _file_nceds: List[_File]
+    _file_info_args: dict[str, Any]
+    _file_ncops: list[_File]
+    _file_nceds: list[_File]
 
-    def __init__(self, episodes: Dict[VPath, List[VPath]], global_trims: List[Trim | DuplicateFrame] | Trim | None = None, *,
-                 idx: Optional[VPSIdx] = None, preset: Preset | Sequence[Preset] = [PresetBD, PresetBDWAV64],
-                 lang: Lang = UNDEFINED, fps: Fraction = Fraction(24000, 1001)) -> None:
+    def __init__(
+        self,
+        episodes: dict[VPath, list[VPath]],
+        global_trims: list[Trim | DuplicateFrame] | Trim | None = None,
+        *,
+        idx: VPSIdx | None = None,
+        preset: Preset | Sequence[Preset] | None = None,
+        lang: Lang = UNDEFINED,
+        fps: Fraction = Fraction(24000, 1001),
+    ) -> None:
         """
         :param episodes:            A dictionnary of episodes.
                                     Keys are the path of each bdmv folder.
                                     Values are the episodes inside the current bdmv folder key.
-        :param global_trims:        Adjust the clips length by trimming or duplicating frames. Python slicing. Defaults to None
+        :param global_trims:        Adjust the clips length by trimming or duplicating frames.
+                                    Python slicing. Defaults to None
         :param idx:                 Indexer used to index the video track, defaults to None
         :param preset:              Preset used to fill idx, a_src, a_src_cut, a_enc_cut and chapter attributes,
                                     defaults to :py:data:`.PresetGeneric`
         :param lang:                Chapters language, defaults to UNDEFINED
         """
-        self._file_info_args = dict(trims_or_dfs=global_trims, idx=idx, preset=preset)
+        if preset is None:
+            preset = [PresetBD, PresetBDWAV64]
+        self._file_info_args = {"trims_or_dfs": global_trims, "idx": idx, "preset": preset}
         self._files = []
 
         for path, eps in episodes.items():
-            chap_folder = path / 'chapters'
+            chap_folder = path / "chapters"
             chap_folder.mkdir(parents=True, exist_ok=True)
-            chaps = sorted(chap_folder.glob('*'))
+            chaps = sorted(chap_folder.glob("*"))
 
             MplsReader(path, lang).write_playlist(chap_folder)
-            chaps = sorted(chap_folder.glob('*'))
+            chaps = sorted(chap_folder.glob("*"))
 
             for ep in eps:
-                chap_sel: Optional[VPath] = None
+                chap_sel: VPath | None = None
                 for chap in chaps:
-                    if chap.stem.split('_')[1] == ep.stem:
+                    if chap.stem.split("_")[1] == ep.stem:
                         chap_sel = chap
                         if isinstance(global_trims, tuple) and (trim := global_trims[0]):
-                            MatroskaXMLChapters(chap).shift_times(- trim, fps)
+                            MatroskaXMLChapters(chap).shift_times(-trim, fps)
                         break
                 self._files.append(_File(path / ep, chap_sel))
 
@@ -566,18 +590,15 @@ class BlurayShow:
         """
         self._file_nceds.extend(_File(p, None) for p in path)
 
-    def ncops(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def ncops(self, /, file_info_t: type[_FileInfoType]) -> list[_FileInfoType]:
         """
         Get all the NCOPs
 
         :return:                    List of FileInfo
         """
-        return [
-            self.ncop(i, start_from=0, file_info_t=file_info_t)
-            for i in range(len(self._file_ncops))
-        ]
+        return [self.ncop(i, start_from=0, file_info_t=file_info_t) for i in range(len(self._file_ncops))]
 
-    def ncop(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
+    def ncop(self, num: int, /, file_info_t: type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified NCOP
 
@@ -589,18 +610,15 @@ class BlurayShow:
         ncop_info = file_info_t(ncop.file, **self._file_info_args)
         return ncop_info
 
-    def nceds(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def nceds(self, /, file_info_t: type[_FileInfoType]) -> list[_FileInfoType]:
         """
         Get all the NCEDs
 
         :return:                    List of FileInfo
         """
-        return [
-            self.nced(i, start_from=0, file_info_t=file_info_t)
-            for i in range(len(self._file_nceds))
-        ]
+        return [self.nced(i, start_from=0, file_info_t=file_info_t) for i in range(len(self._file_nceds))]
 
-    def nced(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
+    def nced(self, num: int, /, file_info_t: type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified NCED
 
@@ -612,18 +630,15 @@ class BlurayShow:
         nced_info = file_info_t(nced.file, **self._file_info_args)
         return nced_info
 
-    def episodes(self, /, file_info_t: Type[_FileInfoType]) -> List[_FileInfoType]:
+    def episodes(self, /, file_info_t: type[_FileInfoType]) -> list[_FileInfoType]:
         """
         Get all the episodes
 
         :return:                    List of FileInfo
         """
-        return [
-            self.episode(i, start_from=0, file_info_t=file_info_t)
-            for i in range(len(self._files))
-        ]
+        return [self.episode(i, start_from=0, file_info_t=file_info_t) for i in range(len(self._files))]
 
-    def episode(self, num: int, /, file_info_t: Type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
+    def episode(self, num: int, /, file_info_t: type[_FileInfoType], *, start_from: int = 1) -> _FileInfoType:
         """
         Get a specified episode
 

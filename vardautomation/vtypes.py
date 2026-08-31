@@ -1,25 +1,18 @@
-
-__all__ = ['AnyPath', 'DuplicateFrame', 'Element', 'Trim', 'UpdateFunc', 'VPSIdx', 'ElementTree']
+__all__ = ["AnyPath", "DuplicateFrame", "Element", "ElementTree", "Trim", "UpdateFunc", "VPSIdx"]
 
 from abc import ABC
+from collections.abc import Callable, Iterable, Iterator, Mapping, MutableSet
 from os import PathLike
-from typing import (
-    Any, Callable, Iterable, Iterator, List, Mapping, MutableSet, Optional, ParamSpec, Set, TypeVar,
-    Union, cast
-)
+from typing import Any, cast
 
 from lxml import etree
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
 
-T = TypeVar('T')
-F = TypeVar('F', bound=Callable[..., Any])
-P = ParamSpec('P')
-
 AnyPath = PathLike[str] | str
 """Represents a PathLike"""
 
-Element = etree._Element  # type: ignore[pylance-strict]
+Element = etree._Element
 
 UpdateFunc = Callable[[int, int], None]
 """An update function type suitable for ``vapoursynth.VideoNode.output``"""
@@ -28,24 +21,27 @@ VPSIdx = Callable[[str], VideoNode]
 """Vapoursynth function indexer"""
 
 
-class ElementTree(etree._ElementTree):  # type: ignore
-    def xpath(self, _path: Union[str, bytes],  # type: ignore
-              namespaces: Optional[Mapping[str, str]] = None,
-              extensions: Any = None, smart_strings: bool = True,
-              **_variables: Any) -> List[Element]:
+class ElementTree(etree._ElementTree):
+    def xpath(  # type: ignore[override]
+        self,
+        _path: str | bytes,
+        namespaces: Mapping[str, str] | None = None,
+        extensions: Any = None,
+        smart_strings: bool = True,
+        **_variables: Any,
+    ) -> list[Element]:
         xpathobject = super().xpath(
-            _path, namespaces=namespaces, extensions=extensions,
-            smart_strings=smart_strings, **_variables
+            _path, namespaces=namespaces, extensions=extensions, smart_strings=smart_strings, **_variables
         )
-        return cast(List[Element], xpathobject)
+        return cast(list[Element], xpathobject)
 
 
-class AbstractMutableSet(MutableSet[T], ABC):
-    __slots__ = ('__data', )
-    __data: Set[T]
+class AbstractMutableSet[T](MutableSet[T], ABC):
+    __slots__ = ("__data",)
+    __data: set[T]
 
-    def __init__(self, __iterable: Optional[Iterable[T]] = None) -> None:
-        self.__data = set(__iterable) if __iterable is not None else set()
+    def __init__(self, iterable: Iterable[T] | None = None, /) -> None:
+        self.__data = set(iterable) if iterable is not None else set()
         super().__init__()
 
     def __str__(self) -> str:

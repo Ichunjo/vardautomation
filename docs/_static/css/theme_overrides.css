@@ -1,7 +1,0 @@
-@import 'theme.css';
-
-@media screen and (min-width:1100px) {
-    .wy-nav-content {
-        max-width: 1000px
-    }
-}

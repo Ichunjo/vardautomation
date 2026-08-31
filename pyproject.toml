@@ -1,0 +1,132 @@
+[build-system]
+requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vardautomation"
+description = "Encoding automation tools via Vapoursynth"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "Vardë", email = "ichunjo.le.terrible@gmail.com" }]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+
+dependencies = [
+    "jetpytools>=3.0.0",
+    "langcodes>=3.5.0",
+    "language-data>=1.4.0",
+    "loguru>=0.7.3",
+    "lxml>=6.0.0",
+    "numpy>=2.5.2",
+    "psutil>=7.2.2",
+    "pymediainfo>=7.0.1",
+    "pyparsebluray>=0.1.4",
+    "pyparsedvd>=0.0.3",
+    "pytimeconv>=0.0.2",
+    "requests>=2.34.2",
+    "requests_toolbelt>=1.0.0",
+    "rich>=15.0.0",
+    "typing_extensions>=4.16.0",
+    "VapourSynth>=74",
+    "vardefunc>=0.13.0",
+    "vsjetpack>=2.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "lxml-stubs",
+    "mypy~=2.3.1",
+    "PyQt5-stubs",
+    "pytest",
+    "ruff~=0.16.5",
+    "types-Pillow",
+    "types-psutil",
+    "types-requests",
+    "vapoursynth-fmtconv",
+    "vsstubs>=2.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Ichunjo/vardautomation"
+Repository = "https://github.com/Ichunjo/vardautomation"
+Issues = "https://github.com/Ichunjo/vardautomation/issues"
+
+[tool.hatch.build]
+include = [
+    "vardautomation",
+    "vardautomation/py.typed",
+    "vardautomation/logo.txt",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["vardautomation", "pyproject.toml", "README.md", "LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["vardautomation"]
+
+[tool.hatch.version]
+source = "versioningit"
+default-version = "0.0.0+unknown"
+next-version = "minor"
+
+[tool.hatch.version.format]
+distance = "{next_version}.dev{distance}+{vcs}{rev}"
+dirty = "{next_version}+dirty"
+distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
+
+[tool.uv.sources]
+vapoursynth-fmtconv = { index = "vs-wheels" }
+vardefunc = { git = "https://github.com/Ichunjo/vardefunc" }
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
+name = "vs-wheels"
+url = "https://jaded-encoding-thaumaturgy.github.io/vs-wheels/simple"
+
+[tool.mypy]
+mypy_path = "stubs"
+
+# Flags changed by --strict
+warn_return_any = false
+extra_checks = false
+
+# Misc
+warn_unreachable = true
+
+allow_redefinition_new = true
+local_partial_types = true
+implicit_reexport = false
+strict = true
+
+show_column_numbers = true
+pretty = true
+color_output = true
+error_summary = true
+
+[[tool.mypy.overrides]]
+module = ["requests_toolbelt.*", "cv2.*", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+docstring-code-format = true
+exclude = ["stubs/vapoursynth/__init__.pyi"]
+
+[tool.ruff.lint]
+extend-select = ["E", "C4", "I", "PYI", "Q", "SIM", "N", "W", "RUF"]
+ignore = ["PYI041", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.*" = ["F401", "F403"]

@@ -2,32 +2,25 @@
 
 from __future__ import annotations
 
-__all__ = ['VPath']
+__all__ = ["VPath"]
 
+import contextlib
 import os
 import shutil
-
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Iterable, List, Optional, Protocol, Tuple, Type
+from typing import Any
 
 from ._logging import logger
 from .vtypes import AbstractMutableSet, AnyPath
 
-
-class _Flavour(Protocol):
-    sep: str
-    altsep: str
-
-
-_ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-_OptExcInfo = _ExcInfo | Tuple[None, None, None]  # type: ignore[operator]
+_ExcInfo = tuple[type[BaseException], BaseException, TracebackType]
+_OptExcInfo = _ExcInfo | tuple[None, None, None]
 
 
 class VPath(Path):
     """Modified version of pathlib.Path"""
-    # pylint: disable=no-member
-    _flavour: _Flavour = type(Path())._flavour  # type: ignore[attr-defined]
 
     @logger.catch
     def format(self, *args: Any, **kwargs: Any) -> VPath:
@@ -67,25 +60,22 @@ class VPath(Path):
 
     def append_suffix(self, suffix: str) -> VPath:
         """
-        Append ``stem`` at the end of the VPath suffix.
-        Stolen from pathlib3x
+        Append ``suffix`` at the end of the VPath suffix.
 
         :param suffix:              Suffix to add. It has to start with '.'
         :return:                    New VPath with the file suffix appended
         """
-        f = self._flavour
-        if f.sep in suffix or f.altsep and f.altsep in suffix:
-            raise ValueError(f'Invalid suffix {suffix}')
-        if suffix and not suffix.startswith('.') or suffix == '.':
-            raise ValueError(f'Invalid suffix {suffix}')
+        if (os.sep in suffix) or (os.altsep and os.altsep in suffix):
+            raise ValueError(f"Invalid suffix {suffix}")
+        if (suffix and not suffix.startswith(".")) or suffix == ".":
+            raise ValueError(f"Invalid suffix {suffix}")
         name = self.name
         if not name:
-            raise ValueError(f'{self} has an empty name')
-        name = name + suffix
-        return self._from_parsed_parts(self._drv, self._root, self._parts[:-1] + [name])  # type: ignore[attr-defined, no-any-return]
+            raise ValueError(f"{self} has an empty name")
+        return self.with_name(name + suffix)
 
     @logger.catch
-    def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:
+    def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:  # type: ignore[override]
         """
         Wraps shutil.copy. Stolen from pathlib3x.
 
@@ -146,10 +136,13 @@ class VPath(Path):
 
     @logger.catch
     def copytree(
-        self, target: AnyPath, symlinks: bool = False,
-        ignore: Optional[Callable[[AnyPath, List[str]], Iterable[str]]] = None,
+        self,
+        target: AnyPath,
+        symlinks: bool = False,
+        ignore: Callable[[AnyPath, list[str]], Iterable[str]] | None = None,
         copy_function: Callable[[AnyPath, AnyPath], Any] = shutil.copy2,
-        ignore_dangling_symlinks: bool = True, dirs_exist_ok: bool = False
+        ignore_dangling_symlinks: bool = True,
+        dirs_exist_ok: bool = False,
     ) -> None:
         """
         Wraps shutil.copytree. Stolen from pathlib3x.
@@ -166,8 +159,9 @@ class VPath(Path):
         shutil.copytree(self, target, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok)
 
     @logger.catch
-    def rmtree(self, ignore_errors: bool = False,
-               onerror: Optional[Callable[[Callable[..., Any], str, _OptExcInfo], Any]] = None) -> None:
+    def rmtree(
+        self, ignore_errors: bool = False, onerror: Callable[[Callable[..., Any], str, _OptExcInfo], Any] | None = None
+    ) -> None:
         """
         Wraps shutil.rmtree. Stolen from pathlib3x.
 
@@ -186,17 +180,15 @@ class VPath(Path):
         :param ignore_errors:           Ignore errors emitted by os.remove
         """
         if ignore_errors:
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(self)
-            except OSError:
-                pass
         else:
             try:
                 os.remove(self)
             except FileNotFoundError as file_err:
-                logger.critical('This file doesn\'t exist', file_err)
+                logger.critical("This file doesn't exist", file_err)
             except IsADirectoryError as dir_err:
-                logger.critical(f'{self} is a directory. Use ``rmtree`` instead', dir_err)
+                logger.critical(f"{self} is a directory. Use ``rmtree`` instead", dir_err)
 
 
 class CleanupSet(AbstractMutableSet[VPath]):
@@ -235,4 +227,4 @@ class CleanupSet(AbstractMutableSet[VPath]):
 
         :param s:           Iterable of path
         """
-        return super().update((VPath(p) for iterable in s for p in iterable))
+        return super().update(VPath(p) for iterable in s for p in iterable)
