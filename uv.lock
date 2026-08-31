@@ -1728,18 +1728,21 @@ dependencies = [
     { name = "langcodes" },
     { name = "language-data" },
     { name = "numpy" },
-    { name = "psutil" },
     { name = "pymediainfo" },
     { name = "pyparsebluray" },
     { name = "pyparsedvd" },
     { name = "pytimeconv" },
-    { name = "requests" },
-    { name = "requests-toolbelt" },
     { name = "rich" },
     { name = "typing-extensions" },
     { name = "vapoursynth" },
     { name = "vardefunc" },
     { name = "vsjetpack" },
+]
+
+[package.optional-dependencies]
+more = [
+    { name = "requests" },
+    { name = "requests-toolbelt" },
 ]
 
 [package.dev-dependencies]
@@ -1761,19 +1764,19 @@ requires-dist = [
     { name = "langcodes", specifier = ">=3.5.0" },
     { name = "language-data", specifier = ">=1.4.0" },
     { name = "numpy", specifier = ">=2.5.2" },
-    { name = "psutil", specifier = ">=7.2.2" },
     { name = "pymediainfo", specifier = ">=7.0.1" },
     { name = "pyparsebluray", specifier = ">=0.1.4" },
     { name = "pyparsedvd", specifier = ">=0.0.3" },
     { name = "pytimeconv", specifier = ">=0.0.2" },
-    { name = "requests", specifier = ">=2.34.2" },
-    { name = "requests-toolbelt", specifier = ">=1.0.0" },
+    { name = "requests", marker = "extra == 'more'", specifier = ">=2.34.2" },
+    { name = "requests-toolbelt", marker = "extra == 'more'", specifier = ">=1.0.0" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "typing-extensions", specifier = ">=4.16.0" },
     { name = "vapoursynth", specifier = ">=74" },
     { name = "vardefunc", git = "https://github.com/Ichunjo/vardefunc" },
     { name = "vsjetpack", specifier = ">=2.2.0" },
 ]
+provides-extras = ["more"]
 
 [package.metadata.requires-dev]
 dev = [

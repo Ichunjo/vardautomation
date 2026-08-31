@@ -1,4 +1,4 @@
-__all__ = ["KeyframesFile", "Qpfile", "SubProcessAsync", "get_keyframes", "get_vs_core", "make_qpfile"]
+__all__ = ["KeyframesFile", "Qpfile", "SubProcessAsync", "get_keyframes", "make_qpfile"]
 
 import asyncio
 import inspect
@@ -10,7 +10,6 @@ from itertools import accumulate
 from logging import getLogger
 from typing import NamedTuple
 
-import psutil
 import vapoursynth as vs
 from pytimeconv import Convert
 
@@ -96,30 +95,6 @@ def get_keyframes(path: AnyPath) -> KeyframesFile:
     with kf_file.open("r", encoding="utf-8") as kfio:
         file = KeyframesFile(kf_file, [int(kf) for kf in kfio.read().splitlines()[2:]])
     return file
-
-
-def get_vs_core(threads: Iterable[int] | None = None, max_cache_size: int | None = None) -> vs.Core:
-    """
-    Get the VapourSynth singleton core. Optionaly, set the number of threads used
-    and the maximum cache size
-
-    :param threads:         An iteratable of thread numbers, defaults to None.
-    :param max_cache_size:  Set the upper framebuffer cache size after which memory is aggressively freed.
-                            The value is in megabytes, defaults to None.
-    :return:                Vapoursynth Core.
-    """
-    core = vs.core.core
-
-    if threads is not None:
-        threads = list(threads)
-        core.num_threads = len(threads)
-        p_handle = psutil.Process()
-        p_handle.cpu_affinity(threads)
-
-    if max_cache_size is not None:
-        core.max_cache_size = max_cache_size
-
-    return core
 
 
 def make_tcfile(clips: Iterable[vs.VideoNode], path: AnyPath | None = None, precision: int = 6) -> VPath:

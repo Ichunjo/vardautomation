@@ -23,19 +23,18 @@ dependencies = [
     "langcodes>=3.5.0",
     "language-data>=1.4.0",
     "numpy>=2.5.2",
-    "psutil>=7.2.2",
     "pymediainfo>=7.0.1",
     "pyparsebluray>=0.1.4",
     "pyparsedvd>=0.0.3",
     "pytimeconv>=0.0.2",
-    "requests>=2.34.2",
-    "requests_toolbelt>=1.0.0",
     "rich>=15.0.0",
     "typing_extensions>=4.16.0",
     "VapourSynth>=74",
     "vardefunc>=0.13.0",
     "vsjetpack>=2.2.0",
 ]
+[project.optional-dependencies]
+more = ["requests>=2.34.2", "requests_toolbelt>=1.0.0"]
 
 [dependency-groups]
 dev = [
