@@ -18,6 +18,7 @@ __all__ = [
     "SoxCutter",
 ]
 
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum, IntEnum, auto
@@ -25,7 +26,6 @@ from typing import Any, ClassVar, Final, Literal, NoReturn, TypeGuard
 
 import numpy as np
 import vapoursynth as vs
-from lxml import etree
 from numpy.typing import NDArray
 from pymediainfo import MediaInfo
 from pytimeconv import Convert
@@ -284,16 +284,18 @@ class AudioEncoder(BasicTool):
         a_enc_cut = self.file.a_enc_cut
         assert a_enc_cut
 
-        tags = etree.Element("Tags")
-        tag = etree.SubElement(tags, "Tag")
-        _ = etree.SubElement(tag, "Targets")
-        simple = etree.SubElement(tag, "Simple")
-        etree.SubElement(simple, "Name").text = "ENCODER"
-        etree.SubElement(simple, "String").text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
+        tags = ET.Element("Tags")
+        tag = ET.SubElement(tags, "Tag")
+        _ = ET.SubElement(tag, "Targets")
+        simple = ET.SubElement(tag, "Simple")
+        ET.SubElement(simple, "Name").text = "ENCODER"
+        ET.SubElement(simple, "String").text = Properties.get_encoder_name(a_enc_cut.set_track(self.track))
 
         assert self.xml_tag
+        ET.indent(tags, space="  ")
+        tree = ET.ElementTree(tags)
         with open(self.xml_tag, "wb") as f:
-            f.write(etree.tostring(tags, encoding="utf-8", xml_declaration=True, pretty_print=True))
+            tree.write(f, encoding="utf-8", xml_declaration=True)
 
 
 class PassthroughAudioEncoder(AudioEncoder):

@@ -13,13 +13,13 @@ __all__ = [
 
 import os
 import random
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from fractions import Fraction
 from pprint import pformat
-from typing import NamedTuple, NoReturn, cast
+from typing import NamedTuple, NoReturn
 
-from lxml import etree
 from pyparsebluray import mpls
 from pyparsedvd import vts_ifo
 from pytimeconv import Convert
@@ -256,8 +256,6 @@ class MatroskaXMLChapters(Chapters):
     __CHAP_IETF = "ChapLanguageIETF"
     __CHAP_ISO639 = "ChapterLanguage"
 
-    __DOCTYPE = '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->'
-
     def __init__(self, chapter_file: AnyPath, extension: str = ".xml") -> None:
         """
         Register a new MatroskaXMLChapters object
@@ -270,10 +268,10 @@ class MatroskaXMLChapters(Chapters):
     def create(self, chapters: list[Chapter], fps: Fraction) -> None:
         self._fps = fps
 
-        root = etree.Element("Chapters")
+        root = ET.Element("Chapters")
 
-        edit_entry = etree.SubElement(root, self.__ED_ENTRY)
-        etree.SubElement(edit_entry, self.__ED_UID).text = str(random.getrandbits(64))
+        edit_entry = ET.SubElement(root, self.__ED_ENTRY)
+        ET.SubElement(edit_entry, self.__ED_UID).text = str(random.getrandbits(64))
 
         # Append chapters
         for chap in [self._make_chapter_xml(c) for c in chapters]:
@@ -282,9 +280,10 @@ class MatroskaXMLChapters(Chapters):
         if not (par := self.chapter_file.parent).exists():
             par.mkdir(parents=True, exist_ok=True)
 
-        self.chapter_file.write_bytes(
-            etree.tostring(root, encoding="utf-8", xml_declaration=True, pretty_print=True, doctype=self.__DOCTYPE)
-        )
+        ET.indent(root, space="  ")
+        tree = ET.ElementTree(root)
+        with self.chapter_file.open("wb") as file:
+            tree.write(file, encoding="utf-8", xml_declaration=True)
 
         logger.success(
             f"{self.__class__.__name__}: Chapter file sucessfully created at: "
@@ -296,7 +295,7 @@ class MatroskaXMLChapters(Chapters):
         tree = self._get_tree()
         names = list(names)
 
-        olds = tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}")
+        olds = tree.findall(f"./{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}")
 
         if len(names) > len(olds):
             raise ValueError(f"{self.__class__.__name__}: too many names!")
@@ -306,8 +305,9 @@ class MatroskaXMLChapters(Chapters):
         for new, old in zip(names, olds):
             old.text = new
 
+        ET.indent(tree, space="  ")
         with self.chapter_file.open("wb") as file:
-            tree.write(file, pretty_print=True, xml_declaration=True, with_comments=True)
+            tree.write(file, encoding="utf-8", xml_declaration=True)
 
         logger.success(
             f"{self.__class__.__name__}: Chapter file sucessfully updated at: "
@@ -319,8 +319,8 @@ class MatroskaXMLChapters(Chapters):
 
         shifttime = Convert.f2seconds(frames, fps)
 
-        timestarts = tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}")
-        timeends = tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}")
+        timestarts = tree.findall(f"./{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}")
+        timeends = tree.findall(f"./{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}")
 
         for t_s in timestarts:
             if isinstance(t_s.text, str):
@@ -330,8 +330,9 @@ class MatroskaXMLChapters(Chapters):
             if isinstance(t_e.text, str) and t_e.text != "":
                 t_e.text = Convert.seconds2ts(max(0, Convert.ts2seconds(t_e.text) + shifttime), precision=9)
 
+        ET.indent(tree, space="  ")
         with self.chapter_file.open("wb") as file:
-            tree.write(file, pretty_print=True, xml_declaration=True, with_comments=True)
+            tree.write(file, encoding="utf-8", xml_declaration=True)
 
         logger.success(
             f"{self.__class__.__name__}: Chapter file sucessfully shifted at: "
@@ -342,33 +343,21 @@ class MatroskaXMLChapters(Chapters):
     def to_chapters(self, fps: Fraction, lang: Lang | None = None) -> list[Chapter]:
         tree = self._get_tree()
 
-        timestarts = tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_START}")
-
-        timeends: list[Element | None] = []
-        timeends += tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_END}")
-        if len(timeends) != len(timestarts):
-            timeends += [None] * (len(timestarts) - len(timeends))
-
-        names: list[Element | None] = []
-        names += tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_NAME}")
-        if len(names) != len(timestarts):
-            names += [None] * (len(timestarts) - len(names))
-
-        ietfs: list[Element | None] = []
-        ietfs += tree.xpath(f"/Chapters/{self.__ED_ENTRY}/{self.__CHAP_ATOM}/{self.__CHAP_DISP}/{self.__CHAP_IETF}")
-        if len(ietfs) != len(timestarts):
-            ietfs += [None] * (len(timestarts) - len(ietfs))
-
         chapters: list[Chapter] = []
-        for name, timestart, timeend, ietf in zip(names, timestarts, timeends, ietfs):
+        for atom in tree.findall(f"./{self.__ED_ENTRY}/{self.__CHAP_ATOM}"):
+            timestart = atom.find(self.__CHAP_START)
+            timeend = atom.find(self.__CHAP_END)
+            name = atom.find(f"./{self.__CHAP_DISP}/{self.__CHAP_NAME}")
+            ietf = atom.find(f"./{self.__CHAP_DISP}/{self.__CHAP_IETF}")
+
             nametxt = name.text if name is not None and isinstance(name.text, str) else ""
 
-            if isinstance(timestart.text, str):
+            if timestart is not None and isinstance(timestart.text, str):
                 start_frame = Convert.ts2f(timestart.text, fps)
             else:
                 raise TypeError(f"{self.__class__.__name__}: timestart.text is not a str, wtf are u doin")
 
-            end_frame = Convert.ts2f(timeend.text, fps) if timeend and timeend.text else None
+            end_frame = Convert.ts2f(timeend.text, fps) if timeend is not None and timeend.text else None
 
             if lang is None:
                 lng = Lang.make(ietf.text) if ietf is not None and isinstance(ietf.text, str) else UNDEFINED
@@ -382,24 +371,24 @@ class MatroskaXMLChapters(Chapters):
 
     def _make_chapter_xml(self, chapter: Chapter) -> Element:
 
-        atom = etree.Element(self.__CHAP_ATOM)
+        atom = ET.Element(self.__CHAP_ATOM)
 
-        etree.SubElement(atom, self.__CHAP_START).text = Convert.f2ts(chapter.start_frame, self._fps, precision=9)
+        ET.SubElement(atom, self.__CHAP_START).text = Convert.f2ts(chapter.start_frame, self._fps, precision=9)
         if chapter.end_frame:
-            etree.SubElement(atom, self.__CHAP_END).text = Convert.f2ts(chapter.end_frame, self._fps, precision=9)
+            ET.SubElement(atom, self.__CHAP_END).text = Convert.f2ts(chapter.end_frame, self._fps, precision=9)
 
-        etree.SubElement(atom, self.__CHAP_UID).text = str(random.getrandbits(64))
+        ET.SubElement(atom, self.__CHAP_UID).text = str(random.getrandbits(64))
 
-        disp = etree.SubElement(atom, self.__CHAP_DISP)
-        etree.SubElement(disp, self.__CHAP_NAME).text = chapter.name
-        etree.SubElement(disp, self.__CHAP_IETF).text = chapter.lang.ietf
-        etree.SubElement(disp, self.__CHAP_ISO639).text = chapter.lang.iso639
+        disp = ET.SubElement(atom, self.__CHAP_DISP)
+        ET.SubElement(disp, self.__CHAP_NAME).text = chapter.name
+        ET.SubElement(disp, self.__CHAP_IETF).text = chapter.lang.ietf
+        ET.SubElement(disp, self.__CHAP_ISO639).text = chapter.lang.iso639
 
         return atom
 
     def _get_tree(self) -> ElementTree:
         try:
-            return cast(ElementTree, etree.parse(self.chapter_file.to_str()))
+            return ET.parse(self.chapter_file.to_str())
         except OSError as oserr:
             logger.critical(f"{self.__class__.__name__}: xml file not found!", oserr)
             raise

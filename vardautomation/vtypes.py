@@ -1,39 +1,29 @@
 __all__ = ["AnyPath", "DuplicateFrame", "Element", "ElementTree", "Trim", "UpdateFunc", "VPSIdx"]
 
+import xml.etree.ElementTree as ET
 from abc import ABC
-from collections.abc import Callable, Iterable, Iterator, Mapping, MutableSet
+from collections.abc import Callable, Iterable, Iterator, MutableSet
 from os import PathLike
-from typing import Any, cast
+from typing import TYPE_CHECKING
 
-from lxml import etree
 from vapoursynth import VideoNode
 from vardefunc.types import DuplicateFrame, Trim
 
 AnyPath = PathLike[str] | str
 """Represents a PathLike"""
 
-Element = etree._Element
+Element = ET.Element
+
+if TYPE_CHECKING:
+    ElementTree = ET.ElementTree[ET.Element]
+else:
+    ElementTree = ET.ElementTree
 
 UpdateFunc = Callable[[int, int], None]
 """An update function type suitable for ``vapoursynth.VideoNode.output``"""
 
 VPSIdx = Callable[[str], VideoNode]
 """Vapoursynth function indexer"""
-
-
-class ElementTree(etree._ElementTree):
-    def xpath(  # type: ignore[override]
-        self,
-        _path: str | bytes,
-        namespaces: Mapping[str, str] | None = None,
-        extensions: Any = None,
-        smart_strings: bool = True,
-        **_variables: Any,
-    ) -> list[Element]:
-        xpathobject = super().xpath(
-            _path, namespaces=namespaces, extensions=extensions, smart_strings=smart_strings, **_variables
-        )
-        return cast(list[Element], xpathobject)
 
 
 class AbstractMutableSet[T](MutableSet[T], ABC):

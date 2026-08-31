@@ -23,7 +23,6 @@ dependencies = [
     "langcodes>=3.5.0",
     "language-data>=1.4.0",
     "loguru>=0.7.3",
-    "lxml>=6.0.0",
     "numpy>=2.5.2",
     "psutil>=7.2.2",
     "pymediainfo>=7.0.1",
@@ -41,7 +40,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "lxml-stubs",
     "mypy~=2.3.1",
     "PyQt5-stubs",
     "pytest",
