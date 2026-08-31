@@ -13,10 +13,12 @@ __all__ = [
 
 import os
 import random
+import sys
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from fractions import Fraction
+from logging import getLogger
 from pprint import pformat
 from typing import NamedTuple, NoReturn
 
@@ -24,11 +26,12 @@ from pyparsebluray import mpls
 from pyparsedvd import vts_ifo
 from pytimeconv import Convert
 
-from ._logging import logger
 from .language import UNDEFINED, Lang
 from .utils import recursive_dict
 from .vpathlib import VPath
 from .vtypes import AnyPath, Element, ElementTree
+
+logger = getLogger(__name__)
 
 
 class Chapter(NamedTuple):
@@ -110,7 +113,7 @@ class Chapters(ABC):
         destination = VPath(destination)
         self.chapter_file.resolve().copyfile(destination.resolve())
         self.chapter_file = destination
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully copied from: "
             f'"{self.chapter_file.resolve().to_str()}" to "{destination.resolve().to_str()}"'
         )
@@ -129,7 +132,7 @@ class Chapters(ABC):
             encoding="utf-8",
         )
 
-        logger.success(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
+        logger.info(f'{self.__class__.__name__}: Qpfile sucessfully created at: "{qpfile.resolve().to_str()}"')
 
 
 class OGMChapters(Chapters):
@@ -159,12 +162,11 @@ class OGMChapters(Chapters):
                         f"CHAPTER{i:02.0f}NAME={chapter.name}\n",
                     ]
                 )
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully created at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
 
-    @logger.catch
     def set_names(self, names: Sequence[str | None]) -> None:
         data = self._get_data()
         names = list(names)
@@ -184,7 +186,7 @@ class OGMChapters(Chapters):
 
         self.chapter_file.write_text("\n".join(val for tup in zip(times, new) for val in tup), encoding="utf-8")
 
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully updated at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
@@ -207,7 +209,7 @@ class OGMChapters(Chapters):
             "\n".join([val for tup in zip(newchaptimes, chapnames) for val in tup]), encoding="utf-8"
         )
 
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully shifted at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
@@ -285,12 +287,11 @@ class MatroskaXMLChapters(Chapters):
         with self.chapter_file.open("wb") as file:
             tree.write(file, encoding="utf-8", xml_declaration=True)
 
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully created at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
 
-    @logger.catch
     def set_names(self, names: Sequence[str | None]) -> None:
         tree = self._get_tree()
         names = list(names)
@@ -309,7 +310,7 @@ class MatroskaXMLChapters(Chapters):
         with self.chapter_file.open("wb") as file:
             tree.write(file, encoding="utf-8", xml_declaration=True)
 
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully updated at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
@@ -334,12 +335,11 @@ class MatroskaXMLChapters(Chapters):
         with self.chapter_file.open("wb") as file:
             tree.write(file, encoding="utf-8", xml_declaration=True)
 
-        logger.success(
+        logger.info(
             f"{self.__class__.__name__}: Chapter file sucessfully shifted at: "
             + f'"{self.chapter_file.resolve().to_str()}"'
         )
 
-    @logger.catch
     def to_chapters(self, fps: Fraction, lang: Lang | None = None) -> list[Chapter]:
         tree = self._get_tree()
 
@@ -390,8 +390,8 @@ class MatroskaXMLChapters(Chapters):
         try:
             return ET.parse(self.chapter_file.to_str())
         except OSError as oserr:
-            logger.critical(f"{self.__class__.__name__}: xml file not found!", oserr)
-            raise
+            logger.critical(f"{self.__class__.__name__}: xml file not found!", exc_info=oserr)
+            sys.exit(1)
 
 
 class MplsChapters(Chapters):
@@ -404,19 +404,15 @@ class MplsChapters(Chapters):
     fps: Fraction
     """Framerate Per Second"""
 
-    @logger.catch
     def create(self, chapters: list[Chapter], fps: Fraction) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't create a mpls file!")
 
-    @logger.catch
     def set_names(self, names: Sequence[str | None]) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't change name from a mpls file!")
 
-    @logger.catch
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't shift times from a mpls file!")
 
-    @logger.catch
     def to_chapters(self, fps: Fraction | None = None, lang: Lang | None = None) -> list[Chapter]:
         if not hasattr(self, "chapters") or not hasattr(self, "fps"):
             self.chapters = []
@@ -431,19 +427,15 @@ class IfoChapters(Chapters):
     fps: Fraction
     """Framerate Per Second"""
 
-    @logger.catch
     def create(self, chapters: list[Chapter], fps: Fraction) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't create an ifo file!")
 
-    @logger.catch
     def set_names(self, names: Sequence[str | None]) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't change name from an ifo file!")
 
-    @logger.catch
     def shift_times(self, frames: int, fps: Fraction) -> NoReturn:
         raise NotImplementedError(f"{self.__class__.__name__}: Can't shift times from an ifo file!")
 
-    @logger.catch
     def to_chapters(self, fps: Fraction | None = None, lang: Lang | None = None) -> list[Chapter]:
         if not hasattr(self, "chapters") or not hasattr(self, "fps"):
             self.chapters = []
@@ -519,7 +511,6 @@ class MplsReader:
                     chaps = chapters_obj(output_folder / f"{mpls_file.mpls_file.stem}_{mpls_chapters.m2ts.stem}")
                     chaps.create(chapters, mpls_chapters.fps)
 
-    @logger.catch
     def parse_mpls(self, mpls_file: AnyPath) -> list[MplsChapters]:
         """
         Parse a mpls file and return a list of chapters that were in the MPLS file.
@@ -647,7 +638,6 @@ class IfoReader:
                 chaps = chapters_obj(output_folder / f"{ifo_file}_{i:02.0f}")
                 chaps.create(chapters, ifo_chapter.fps)
 
-    @logger.catch
     def parse_ifo(self, ifo_file: AnyPath) -> list[IfoChapters]:
         """
         Parse a mpls file and return a list of chapters that were in the ifo file.

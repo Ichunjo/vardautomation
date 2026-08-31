@@ -22,7 +22,6 @@ dependencies = [
     "jetpytools>=3.0.0",
     "langcodes>=3.5.0",
     "language-data>=1.4.0",
-    "loguru>=0.7.3",
     "numpy>=2.5.2",
     "psutil>=7.2.2",
     "pymediainfo>=7.0.1",

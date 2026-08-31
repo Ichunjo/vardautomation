@@ -3,21 +3,24 @@ __all__ = ["KeyframesFile", "Qpfile", "SubProcessAsync", "get_keyframes", "get_v
 import asyncio
 import inspect
 import os
+import sys
 from collections.abc import Iterable
 from fractions import Fraction
 from itertools import accumulate
+from logging import getLogger
 from typing import NamedTuple
 
 import psutil
 import vapoursynth as vs
 from pytimeconv import Convert
 
-from .._logging import logger
 from ..binary_path import BinaryPath
 from ..render import SceneChangeMode, find_scene_changes
 from ..vpathlib import VPath
 from ..vtypes import AnyPath
 from .base import BasicTool
+
+logger = getLogger(__name__)
 
 
 class Qpfile(NamedTuple):
@@ -51,6 +54,7 @@ def make_qpfile(
 
     if not overwrite and path.exists():
         logger.critical(f'make_qpfile: a qpfile already exists at "{path.resolve().to_str()}"')
+        sys.exit(1)
 
     num_threads = vs.core.num_threads
     if (oscpu := os.cpu_count()) is not None:
@@ -154,7 +158,6 @@ class SubProcessAsync:
 
     sem: asyncio.Semaphore
 
-    @logger.catch
     def __init__(self, cmds: list[str], /, *, nb_cpus: int | None = os.cpu_count()) -> None:
         if nb_cpus:
             self.sem = asyncio.Semaphore(nb_cpus)

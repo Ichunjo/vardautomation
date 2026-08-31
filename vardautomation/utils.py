@@ -1,24 +1,21 @@
-"""Properties and helpers functions"""
-
 import subprocess
-from collections.abc import Callable, Iterable, MutableMapping
-from functools import wraps
-from types import FunctionType
-from typing import Any, TypeVar, cast
+import sys
+from collections.abc import Callable, MutableMapping
+from logging import getLogger
+from typing import Any, TypeVar
 
 import vapoursynth as vs
 
-from ._logging import logger
 from .exception import VSColourRangeError, VSSubsamplingError
 from .vtypes import AnyPath
 
 core = vs.core
+logger = getLogger(__name__)
 
 
 class Properties:
     """Collection of methods to get some properties from the parameters and/or the clip"""
 
-    @logger.catch
     @classmethod
     def get_colour_range(cls, params: list[str], clip: vs.VideoNode) -> tuple[int, int]:
         """
@@ -72,7 +69,6 @@ class Properties:
         return clip.format.bits_per_sample
 
     @staticmethod
-    @logger.catch
     def get_csp(clip: vs.VideoNode) -> str:
         """
         Get the colourspace a the given clip based on its format
@@ -112,8 +108,7 @@ class Properties:
             "default=nokey=1:noprint_wrappers=1",
             str(path),
         ]
-        with logger.catch_ctx():
-            return subprocess.check_output(ffprobe_args, shell=True, encoding="utf-8")
+        return subprocess.check_output(ffprobe_args, shell=True, encoding="utf-8")
 
     @staticmethod
     def get_matrix_name(frame: vs.VideoFrame, key: str) -> str:
@@ -137,13 +132,13 @@ class Properties:
         try:
             prop = frame.props[key]
         except KeyError as key_err:
-            logger.critical(f"get_matrix_names: 'Key {key} not present in props'", key_err)
+            logger.critical(f"get_matrix_names: 'Key {key} not present in props'", exc_info=key_err)
+            sys.exit(1)
 
         if not isinstance(prop, int):
-            with logger.catch_ctx():
-                raise ValueError(
-                    f"get_matrix_names: 'Key {key} did not contain expected type: Expected int got {type(prop)}'"
-                )
+            raise TypeError(
+                f"get_matrix_names: 'Key {key} did not contain expected type: Expected int got {type(prop)}'"
+            )
 
         match prop:
             case 0:
@@ -179,11 +174,11 @@ class Properties:
         try:
             prop = frame.props[key]
         except KeyError as key_err:
-            logger.critical(f"get_prop: 'Key {key} not present in props'", key_err)
+            logger.critical(f"get_prop: 'Key {key} not present in props'", exc_info=key_err)
+            sys.exit(1)
 
         if not isinstance(prop, t):
-            with logger.catch_ctx():
-                raise ValueError(f"get_prop: 'Key {key} did not contain expected type: Expected {t} got {type(prop)}'")
+            raise TypeError(f"get_prop: 'Key {key} did not contain expected type: Expected {t} got {type(prop)}'")
 
         return prop
 
@@ -221,8 +216,7 @@ def copy_docstring_from(original: Callable[..., Any], mode: str = "o") -> Callab
         elif mode == "t+o":
             target.__doc__ += original.__doc__
         else:
-            with logger.catch_ctx():
-                raise ValueError("copy_docstring_from: Wrong mode!")
+            raise ValueError("copy_docstring_from: Wrong mode!")
         return target
 
     return wrapper

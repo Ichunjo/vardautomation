@@ -10,8 +10,10 @@ __all__ = [
 ]
 
 import subprocess
+import sys
 from abc import ABC
 from collections.abc import Callable, Sequence
+from logging import getLogger
 from typing import (
     Any,
     BinaryIO,
@@ -23,7 +25,6 @@ from typing import (
 
 import vapoursynth as vs
 
-from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo
 from ..utils import Properties, copy_docstring_from
@@ -33,6 +34,8 @@ from .abstract import Tool
 from .base import BasicTool
 from .misc import Qpfile, get_keyframes, make_qpfile, make_tcfile
 from .mux import MatroskaFile
+
+logger = getLogger(__name__)
 
 
 def progress_update_func(value: int, endvalue: int) -> None:
@@ -45,7 +48,8 @@ def progress_update_func(value: int, endvalue: int) -> None:
     # pylint: disable=consider-using-f-string
     if value == 0:
         return
-    logger.logger.opt(raw=True).info(f"\rVapourSynth: {value}/{endvalue} ~ {100 * value / endvalue:.2f}% || Encoder: ")
+    sys.stderr.write(f"\rVapourSynth: {value}/{endvalue} ~ {100 * value / endvalue:.2f}% || Encoder: ")
+    sys.stderr.flush()
 
 
 class VideoEncoder(Tool):
@@ -109,7 +113,6 @@ class VideoEncoder(Tool):
     @overload
     def run_enc(self, clip: vs.VideoNode, file: None) -> None: ...
 
-    @logger.catch
     def run_enc(self, clip: vs.VideoNode, file: FileInfo | None) -> None:
         """
         Run encoding toolchain
@@ -125,7 +128,6 @@ class VideoEncoder(Tool):
         self._update_settings()
         self._do_encode()
 
-    @logger.catch
     def run(self) -> NoReturn:
         """
         Shouldn't be used in VideoEncoder object.
@@ -148,7 +150,7 @@ class VideoEncoder(Tool):
 
     def _do_encode(self) -> None:
         logger.info(f"{self.__class__.__name__} command: " + " ".join(self.params))
-        with logger.catch_ctx(), subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
+        with subprocess.Popen(self.params, stdin=subprocess.PIPE) as process:
             self.clip.output(cast(BinaryIO, process.stdin), self.y4m, self.progress_update, self.prefetch, self.backlog)
 
 
@@ -274,7 +276,6 @@ class SupportQpfile(VideoEncoder, ABC):
         qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...,
     ) -> None: ...
 
-    @logger.catch
     @copy_docstring_from(VideoEncoder.run_enc, "o+t")
     def run_enc(
         self,
@@ -298,7 +299,7 @@ class SupportQpfile(VideoEncoder, ABC):
             if not file:
                 raise ValueError(f"{self.__class__.__name__}: a FileInfo file is needed when a qpfile_clip is provided")
             qpfile = qpfile_func(qpfile_clip, file.name_clip_output.append_stem("_qpfile").with_suffix(".log"))
-            logger.trace(str(qpfile._asdict()))
+            logger.debug(str(qpfile._asdict()))
             self.params.extend(["--qpfile", qpfile.path.to_str()])
             _craps.append(qpfile.path)
 
@@ -338,7 +339,6 @@ class SupportResume(SupportQpfile, ABC):
         qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...,
     ) -> None: ...
 
-    @logger.catch
     def run_enc(
         self,
         clip: vs.VideoNode,
@@ -369,7 +369,7 @@ class SupportResume(SupportQpfile, ABC):
         for part in _parts:
             try:
                 kfnt = get_keyframes(part)
-                logger.trace(str(kfnt._asdict()))
+                logger.debug(str(kfnt._asdict()))
                 kf = kfnt.frames[-1]
                 # If the last keyframe is 0 then we can just overwrite the last encode
                 if kf == 0:
@@ -405,8 +405,8 @@ class SupportResume(SupportQpfile, ABC):
         logger.debug("Merging the parts...")
         for kf, part in zip(_kfs, _parts):
             p_mkv = part.with_suffix(".mkv")
-            logger.trace("p_mkv: " + p_mkv.to_str())
-            logger.trace("part: " + part.to_str())
+            logger.debug("p_mkv: " + p_mkv.to_str())
+            logger.debug("part: " + part.to_str())
             MatroskaFile(p_mkv, part, ("--quiet" if self._quiet else "")).split_frames(kf)
             # Mkv files
             p_mkv001 = p_mkv.append_stem("-001")
@@ -416,20 +416,20 @@ class SupportResume(SupportQpfile, ABC):
             # Those are crappy
             _craps.update([p_mkv001, p_mkv002])
         _craps.update(_parts)
-        logger.trace("mkv_parts: " + str(mkv_parts))
-        logger.trace("craps: " + str(_craps))
+        logger.debug("mkv_parts: " + str(mkv_parts))
+        logger.debug("craps: " + str(_craps))
 
         # Also merge the last encoded part
         logger.debug("Merging the last encoded part...")
         last = self.file.name_clip_output.with_suffix(".mkv")
-        logger.trace("last: " + last.to_str())
-        logger.trace("output: " + self.file.name_clip_output.to_str())
+        logger.debug("last: " + last.to_str())
+        logger.debug("output: " + self.file.name_clip_output.to_str())
         MatroskaFile(last, self.file.name_clip_output, ("--quiet" if self._quiet else "")).mux()
         mkv_parts.append(last)
         _craps.add(last)
         _craps.add(self.file.name_clip_output)
-        logger.trace("mkv_parts: " + str(mkv_parts))
-        logger.trace("craps: " + str(_craps))
+        logger.debug("mkv_parts: " + str(mkv_parts))
+        logger.debug("craps: " + str(_craps))
 
         # Restore original name
         self.file.name_clip_output = _output
@@ -444,7 +444,7 @@ class SupportResume(SupportQpfile, ABC):
             mkvp.rename(output)
             _craps.remove(mkvp)
         _craps.add(output)
-        logger.trace("craps: " + str(_craps))
+        logger.debug("craps: " + str(_craps))
 
         # Extract the merged file
         BasicTool(BinaryPath.mkvextract, [output.to_str(), "tracks", f"0:{self.file.name_clip_output.to_str()}"]).run()
@@ -501,7 +501,6 @@ class SupportManualVFR(SupportResume, ABC):
         qpfile_func: Callable[[vs.VideoNode, AnyPath], Qpfile] = ...,
     ) -> None: ...
 
-    @logger.catch
     def run_enc(
         self,
         clip: vs.VideoNode | Sequence[vs.VideoNode],

@@ -7,13 +7,16 @@ __all__ = ["VPath"]
 import contextlib
 import os
 import shutil
+import sys
 from collections.abc import Callable, Iterable
+from logging import getLogger
 from pathlib import Path
 from types import TracebackType
 from typing import Any
 
-from ._logging import logger
 from .vtypes import AbstractMutableSet, AnyPath
+
+logger = getLogger(__name__)
 
 _ExcInfo = tuple[type[BaseException], BaseException, TracebackType]
 _OptExcInfo = _ExcInfo | tuple[None, None, None]
@@ -22,7 +25,6 @@ _OptExcInfo = _ExcInfo | tuple[None, None, None]
 class VPath(Path):
     """Modified version of pathlib.Path"""
 
-    @logger.catch
     def format(self, *args: Any, **kwargs: Any) -> VPath:
         """
         :return:        Formatted version of `vpath`,
@@ -31,7 +33,6 @@ class VPath(Path):
         """
         return VPath(self.to_str().format(*args, **kwargs))
 
-    @logger.catch
     def set_track(self, track_number: int, /) -> VPath:
         """
         Set the track number by replacing the substitution "{track_number}"
@@ -74,7 +75,6 @@ class VPath(Path):
             raise ValueError(f"{self} has an empty name")
         return self.with_name(name + suffix)
 
-    @logger.catch
     def copy(self, target: AnyPath, *, follow_symlinks: bool = True) -> None:  # type: ignore[override]
         """
         Wraps shutil.copy. Stolen from pathlib3x.
@@ -86,7 +86,6 @@ class VPath(Path):
         """
         shutil.copy(self, target, follow_symlinks=follow_symlinks)
 
-    @logger.catch
     def copy2(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copy2. Stolen from pathlib3x.
@@ -98,7 +97,6 @@ class VPath(Path):
         """
         shutil.copy2(self, target, follow_symlinks=follow_symlinks)
 
-    @logger.catch
     def copyfile(self, target: VPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copyfile. Stolen from pathlib3x.
@@ -110,7 +108,6 @@ class VPath(Path):
         """
         shutil.copyfile(self, target, follow_symlinks=follow_symlinks)
 
-    @logger.catch
     def copymode(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copymode. Stolen from pathlib3x.
@@ -122,7 +119,6 @@ class VPath(Path):
         """
         shutil.copymode(self, target, follow_symlinks=follow_symlinks)
 
-    @logger.catch
     def copystat(self, target: AnyPath, follow_symlinks: bool = True) -> None:
         """
         Wraps shutil.copystat. Stolen from pathlib3x.
@@ -134,7 +130,6 @@ class VPath(Path):
         """
         shutil.copystat(self, target, follow_symlinks=follow_symlinks)
 
-    @logger.catch
     def copytree(
         self,
         target: AnyPath,
@@ -158,7 +153,6 @@ class VPath(Path):
         """
         shutil.copytree(self, target, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok)
 
-    @logger.catch
     def rmtree(
         self, ignore_errors: bool = False, onerror: Callable[[Callable[..., Any], str, _OptExcInfo], Any] | None = None
     ) -> None:
@@ -172,7 +166,6 @@ class VPath(Path):
         """
         shutil.rmtree(self, ignore_errors, onerror)
 
-    @logger.catch
     def rm(self, ignore_errors: bool = False) -> None:
         """
         Wraps os.remove.
@@ -186,9 +179,11 @@ class VPath(Path):
             try:
                 os.remove(self)
             except FileNotFoundError as file_err:
-                logger.critical("This file doesn't exist", file_err)
+                logger.critical("This file doesn't exist", exc_info=file_err)
+                sys.exit(1)
             except IsADirectoryError as dir_err:
-                logger.critical(f"{self} is a directory. Use ``rmtree`` instead", dir_err)
+                logger.critical(f"{self} is a directory. Use ``rmtree`` instead", exc_info=dir_err)
+                sys.exit(1)
 
 
 class CleanupSet(AbstractMutableSet[VPath]):

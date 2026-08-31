@@ -1,13 +1,15 @@
 __all__ = ["BasicTool"]
 
 import subprocess
+from logging import getLogger
 from typing import Any
 
-from .._logging import logger
 from ..config import FileInfo
 from ..utils import copy_docstring_from
 from ..vtypes import AnyPath
 from .abstract import Tool
+
+logger = getLogger(__name__)
 
 
 class BasicTool(Tool):
@@ -46,5 +48,4 @@ class BasicTool(Tool):
 
     def _do_tooling(self) -> None:
         logger.info(f"{self.binary.to_str()} command: " + " ".join(self.params))
-        with logger.catch_ctx():
-            subprocess.run(self.params, check=True, text=True, encoding="utf-8")
+        subprocess.run(self.params, check=True, text=True, encoding="utf-8")

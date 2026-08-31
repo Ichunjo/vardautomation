@@ -27,18 +27,20 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 from fractions import Fraction
+from logging import getLogger
 from pprint import pformat
 from typing import Any, NamedTuple, TypeVar
 
 import vapoursynth as vs
 from pymediainfo import MediaInfo
 
-from ._logging import logger
 from .chapterisation import MatroskaXMLChapters, MplsReader
 from .language import UNDEFINED, Lang
 from .render import get_render_progress
 from .vpathlib import VPath
 from .vtypes import AnyPath, DuplicateFrame, Trim, VPSIdx
+
+logger = getLogger(__name__)
 
 core = vs.core
 
@@ -241,7 +243,6 @@ class FileInfo:
     _num_prop: bool = False
     _trims_or_dfs: list[Trim | DuplicateFrame] | Trim | None
 
-    @logger.catch
     def __init__(
         self,
         path: AnyPath,
@@ -420,7 +421,6 @@ class FileInfo2(FileInfo):
     audios_cut: list[vs.AudioNode]
     """List of AudioNode cut with the specified trims"""
 
-    @logger.catch
     def __post_init__(self) -> None:
         from vardefunc.util import adjust_audio_frames
 
@@ -483,7 +483,6 @@ class FileInfo2(FileInfo):
         """
         return self.audios_cut[0]
 
-    @logger.catch
     def write_a_src(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file
@@ -503,7 +502,6 @@ class FileInfo2(FileInfo):
                 progress_update=lambda curr, total: progress.update(task, completed=curr, total=total),
             )
 
-    @logger.catch
     def write_a_src_cut(self, index: int, offset: int = -1) -> None:
         """
         Using `audio_async_render` write the AudioNodes of the file

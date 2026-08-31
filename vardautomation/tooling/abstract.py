@@ -1,13 +1,17 @@
 __all__ = ["Tool"]
 
+import logging
 import re
 import subprocess
+import sys
 from abc import ABC, abstractmethod
+from logging import getLogger
 from typing import Any
 
-from .._logging import logger
 from ..vpathlib import VPath
 from ..vtypes import AnyPath
+
+logger = getLogger(__name__)
 
 
 class Tool(ABC):
@@ -66,7 +70,8 @@ class Tool(ABC):
                 with open(settings, "r", encoding="utf-8") as sttgs:
                     params_re = re.split(r"[\n\s]\s*", sttgs.read())
             except FileNotFoundError as file_err:
-                logger.critical(f"{self.__class__.__name__}: settings file not found", file_err)
+                logger.critical(f"{self.__class__.__name__}: settings file not found", exc_info=file_err)
+                sys.exit(1)
             self.params = [p for p in params_re if isinstance(p, str)]
 
         if check_binary:
@@ -87,9 +92,8 @@ class Tool(ABC):
 
     @property
     def _quiet(self) -> bool:
-        return logger.level >= logger.info.no
+        return logger.getEffectiveLevel() >= logging.INFO
 
-    @logger.catch
     def _update_settings(self) -> None:
         set_vars = self.set_variable()
         for i, p in enumerate(self.params):
@@ -102,4 +106,7 @@ class Tool(ABC):
         try:
             subprocess.call(self.binary.to_str(), stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         except FileNotFoundError as file_not_found:
-            logger.critical(f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!', file_not_found)
+            logger.critical(
+                f'{self.__class__.__name__}: "{self.binary.to_str()}" was not found!', exc_info=file_not_found
+            )
+            sys.exit(1)

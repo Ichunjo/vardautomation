@@ -9,13 +9,14 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from functools import partial
 from itertools import chain
+from logging import getLogger
 from typing import NotRequired, Protocol, TypedDict
 
 import vapoursynth as vs
 from jetpytools import StrictRange
 from vstools import FrameRangeN, FrameRangesN
 
-from ._logging import logger
+from ._logging import show_logo as print_logo
 from .binary_path import BinaryPath
 from .config import FileInfo, FileInfo2
 from .tooling import (
@@ -36,6 +37,7 @@ from .vpathlib import CleanupSet, VPath
 from .vtypes import AnyPath
 
 core = vs.core
+logger = getLogger(__name__)
 
 
 @dataclass(repr=False, eq=False, order=False, unsafe_hash=False, frozen=True, slots=True)
@@ -150,7 +152,7 @@ class SelfRunner:
         :param show_logo:   Print vardoto logo.
         """
         if show_logo:
-            logger.logo()
+            print_logo()
         logger.info("SelfRunning...")
 
         funcs = [self._encode, self._audio_getter]
@@ -196,7 +198,6 @@ class SelfRunner:
             + [self.file.name_file_final.absolute().as_posix(), f"{ftp_name}:{VPath(destination).to_str()}"],
         ).run()
 
-    @logger.catch
     def _encode(self) -> None:
         if self.config.clear_outputs:
             vs.clear_outputs()
@@ -262,7 +263,6 @@ def _toseq[T](seq: T | Sequence[T]) -> Sequence[T]:
     return seq if isinstance(seq, Sequence) else [seq]
 
 
-@logger.catch
 def patch(
     encoder: VideoEncoder,
     clip: vs.VideoNode,
@@ -389,7 +389,6 @@ class Patch:
 
     _file_to_fix: VPath
 
-    @logger.catch
     def __init__(
         self,
         encoder: VideoEncoder,

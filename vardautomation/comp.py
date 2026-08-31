@@ -15,9 +15,11 @@ import inspect
 import os
 import random
 import subprocess
+import sys
 from collections.abc import Callable, Iterable
 from enum import Enum, auto
 from functools import partial
+from logging import getLogger
 from typing import Any, Final, NamedTuple
 
 import numpy as np
@@ -27,12 +29,14 @@ from requests import Session
 from requests_toolbelt import MultipartEncoder
 from vstools import DitherType
 
-from ._logging import logger
 from .binary_path import BinaryPath
 from .tooling import SubProcessAsync, VideoEncoder
 from .utils import Properties
 from .vpathlib import VPath
 from .vtypes import AnyPath
+
+logger = getLogger(__name__)
+
 
 _MAX_ATTEMPTS_PER_PICTURE_TYPE: Final[int] = 50
 
@@ -100,7 +104,6 @@ class SlowPicsConf(NamedTuple):
 class Comparison:
     """Extract frames, make diff between two clips and upload to slow.pics"""
 
-    @logger.catch
     def __init__(
         self,
         clips: dict[str, vs.VideoNode],
@@ -145,7 +148,6 @@ class Comparison:
         self.max_num = max(samples)
         self.frames = sorted(samples)
 
-    @logger.catch
     def extract(self, writer: Writer = Writer.PYTHON, compression: int = -1, force_bt709: bool = False) -> None:
         """
         Extract images from the specified clips in the constructor
@@ -160,7 +162,8 @@ class Comparison:
             try:
                 path_name.mkdir(parents=True)
             except FileExistsError as file_err:
-                logger.critical(f"{self.__class__.__name__}: {path_name.to_str()} already exists!", file_err)
+                logger.critical(f"{self.__class__.__name__}: {path_name.to_str()} already exists!", exc_info=file_err)
+                sys.exit(1)
 
             clip = clip.resize.Bicubic(
                 format=vs.RGB24,
@@ -231,7 +234,7 @@ class Comparison:
                 # zzzzzzzzz soooo slow
                 with open(os.devnull, "wb") as devnull:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-                logger.logger.opt(raw=True).info("\n")
+                sys.stderr.write("\n")
             else:
                 from vardefunc.util import select_frames
 
@@ -241,9 +244,8 @@ class Comparison:
                 )
                 with open(os.devnull, "wb") as devnull:
                     clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-                logger.logger.opt(raw=True).info("\n")
+                sys.stderr.write("\n")
 
-    @logger.catch
     def magick_compare(self) -> None:
         """
         Make an image of differences between the first and second clip using ImageMagick.
@@ -258,9 +260,11 @@ class Comparison:
             subprocess.call(["magick", "compare"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             self.path_diff.mkdir(parents=True)
         except FileNotFoundError as f_err:
-            logger.critical(f'{self.__class__.__name__}: "magick compare" was not found!', f_err)
+            logger.critical(f'{self.__class__.__name__}: "magick compare" was not found!', exc_info=f_err)
+            sys.exit(1)
         except FileExistsError as f_err:
-            logger.critical(f"{self.__class__.__name__}: {self.path_diff.to_str()} already exists!", f_err)
+            logger.critical(f"{self.__class__.__name__}: {self.path_diff.to_str()} already exists!", exc_info=f_err)
+            sys.exit(1)
 
         all_images = [sorted((self.path / name).glob("*.png")) for name in self.clips]
         images_a, images_b = all_images
@@ -274,9 +278,8 @@ class Comparison:
         # Launch asynchronously the Magick commands
         logger.info("Diffing clips...")
         SubProcessAsync(cmds)
-        logger.logger.opt(raw=True).info("\n")
+        sys.stderr.write("\n")
 
-    @logger.catch
     def upload_to_slowpics(self, config: SlowPicsConf) -> None:
         """
         Upload to slow.pics with given configuration
@@ -304,7 +307,7 @@ class Comparison:
             files = MultipartEncoder(_make_api_compatible(config) | fields)
 
             logger.info("Uploading images...\n")
-            logger.logger.opt(raw=True).info("\n")
+            sys.stderr.write("\n")
             url = sess.post(
                 "https://slow.pics/api/comparison",
                 data=files.to_string(),
@@ -318,7 +321,6 @@ class Comparison:
         url_file.write_text(f"[InternetShortcut]\nURL={slowpics_url}", encoding="utf-8")
         logger.info(f'url file copied to "{url_file.resolve().to_str()}"')
 
-    @logger.catch
     def _select_samples_ptypes(
         self, num_frames: int, k: int, picture_types: PictureType | list[PictureType]
     ) -> set[int]:
@@ -366,7 +368,7 @@ class Comparison:
                 samples.add(rnum)
                 logger.info(f"\rSelecting image: {len(samples)}/{k} ~ {100 * len(samples) / k:.2f} %")
 
-        logger.logger.opt(raw=True).info("\n")
+        sys.stderr.write("\n")
         return samples
 
 
@@ -413,7 +415,6 @@ def _rand_num_frames(checked: set[int], rand_func: Callable[[], int]) -> int:
     return rnum
 
 
-@logger.catch
 def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, list[VPath]], vs.VideoFrame]:
     if writer == Writer.OPENCV:
         try:
@@ -531,8 +532,5 @@ def _make_api_compatible(config: SlowPicsConf) -> dict[str, str]:
 def _progress_update_func(value: int, endvalue: int) -> None:
     if value == 0:
         return
-    logger.logger.opt(raw=True, colors=True).info(
-        logger.info.colour
-        + f"\rExtracting image: {value}/{endvalue} ~ {100 * value / endvalue:.2f} %"
-        + logger.info.colour_close
-    )
+    sys.stderr.write(f"\rExtracting image: {value}/{endvalue} ~ {100 * value / endvalue:.2f} %")
+    sys.stderr.flush()

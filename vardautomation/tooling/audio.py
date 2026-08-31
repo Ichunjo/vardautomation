@@ -18,10 +18,12 @@ __all__ = [
     "SoxCutter",
 ]
 
+import sys
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum, IntEnum, auto
+from logging import getLogger
 from typing import Any, ClassVar, Final, Literal, NoReturn, TypeGuard
 
 import numpy as np
@@ -30,13 +32,14 @@ from numpy.typing import NDArray
 from pymediainfo import MediaInfo
 from pytimeconv import Convert
 
-from .._logging import logger
 from ..binary_path import BinaryPath
 from ..config import FileInfo, FileInfo2
 from ..utils import Properties
 from ..vpathlib import VPath
 from ..vtypes import AnyPath, DuplicateFrame, Trim
 from .base import BasicTool
+
+logger = getLogger(__name__)
 
 
 class AudioExtracter(BasicTool):
@@ -48,7 +51,6 @@ class AudioExtracter(BasicTool):
     track_out: Sequence[int]
     """Track number(s) of the output file"""
 
-    @logger.catch
     def __init__(self, binary: AnyPath, settings: AnyPath | list[str] | dict[str, Any], /, file: FileInfo) -> None:
         """
         :param binary:          See :py:attr:`Tool.binary`
@@ -61,7 +63,6 @@ class AudioExtracter(BasicTool):
 
 
 class _AutoSetTrack(AudioExtracter, ABC):
-    @logger.catch
     def __init__(
         self,
         binary: AnyPath,
@@ -100,7 +101,6 @@ class _AutoSetTrack(AudioExtracter, ABC):
 
 
 class _FFmpegSetTrack(_AutoSetTrack, ABC):
-    @logger.catch
     def _set_tracks_number(self) -> None:
         # ffmpeg is a bit more annoying since it can't guess the bitdepth
         # I'm using mediainfo here because it's already implemented in FileInfo
@@ -117,7 +117,8 @@ class _FFmpegSetTrack(_AutoSetTrack, ABC):
         try:
             mi_tracks = media_info["tracks"]
         except AttributeError as attr_err:
-            logger.critical(f"{self.__class__.__name__}: can't find any tracks in this file", attr_err)
+            logger.critical(f"{self.__class__.__name__}: can't find any tracks in this file", exc_info=attr_err)
+            sys.exit(1)
 
         for t_in, t_out in zip(self.track_in, self.track_out):
             if not mi_tracks[1 + t_in]["track_type"] == "Audio":
@@ -128,8 +129,10 @@ class _FFmpegSetTrack(_AutoSetTrack, ABC):
                 t_format = mi_tracks[1 + t_in]["format"]
             except AttributeError as attr_err:
                 logger.critical(
-                    f'{self.__class__.__name__}: can\'t find the format of the track number "{t_in}"!', attr_err
+                    f'{self.__class__.__name__}: can\'t find the format of the track number "{t_in}"!',
+                    exc_info=attr_err,
                 )
+                sys.exit(1)
             ac = acodecs[int(mi_tracks[1 + t_in]["bit_depth"])] if t_format in {"PCM", "DTS"} else "copy"
             self.params += ["-map", f"0:{t_in}", "-acodec", ac, self.file.a_src.set_track(t_out).to_str()]
 
@@ -228,7 +231,6 @@ class AudioEncoder(BasicTool):
 
     _ffmpeg_info: ClassVar[list[str]] = ["-hide_banner", "-loglevel", "info"]
 
-    @logger.catch
     def __init__(
         self,
         binary: AnyPath,
@@ -360,7 +362,6 @@ class QAACEncoder(AudioEncoder):
         BitrateMode.TVBR: "--tvbr",
     }
 
-    @logger.catch
     def __init__(
         self,
         /,
@@ -447,7 +448,6 @@ class OpusEncoder(AudioEncoder):
             settings.extend(["{a_src_cut:s}", "{a_enc_cut:s}"])
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
-    @logger.catch
     def _set_mode(
         self, layout_map: dict[BitrateMode, str], mode: OPUS_BITRATE_MODE, opus_args: list[str] | None
     ) -> list[str]:
@@ -511,7 +511,6 @@ class FDKAACEncoder(AudioEncoder):
 
         super().__init__(binary, settings, file, track=track, xml_tag=xml_tag)
 
-    @logger.catch
     def _set_mode(
         self,
         mode: FDK_BITRATE_MODE,
@@ -631,7 +630,6 @@ class FlacCompressionLevel(IntEnum):
 class FlacEncoder(AudioEncoder):
     """AudioEncoder using FLAC, Free Lossless Audio Codec"""
 
-    @logger.catch
     def __init__(
         self,
         file: FileInfo,
@@ -689,7 +687,6 @@ class AudioCutter(ABC):
     kwargs: dict[str, Any]
     """Additionnal arguments"""
 
-    @logger.catch
     def __init__(self, file: FileInfo, /, *, track: int, **kwargs: Any) -> None:
         """
         :param file:        FileInfo object
@@ -741,7 +738,10 @@ class ScipyCutter(AudioCutter):
         try:
             import scipy as _  # noqa F401
         except ImportError as imp_err:
-            logger.critical(f"{self.__class__.__name__}: you need to install scipy to use this cutter!", imp_err)
+            logger.critical(
+                f"{self.__class__.__name__}: you need to install scipy to use this cutter!", exc_info=imp_err
+            )
+            sys.exit(1)
         super().__init__(file, track=track, **kwargs)
 
     def run(self) -> None:
@@ -784,7 +784,8 @@ class ScipyCutter(AudioCutter):
             from scipy.io import wavfile
             from vardefunc import normalise_ranges
         except ImportError as imp_err:
-            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", imp_err)
+            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", exc_info=imp_err)
+            sys.exit(1)
 
         src, output = map(VPath, (src, output))
 
@@ -794,7 +795,8 @@ class ScipyCutter(AudioCutter):
         try:
             sample_rate, array = wavfile.read(src, False)
         except ValueError as val_err:
-            logger.critical(f"{cls.__name__}: this file is not a wav!", val_err)
+            logger.critical(f"{cls.__name__}: this file is not a wav!", exc_info=val_err)
+            sys.exit(1)
 
         parent = output.parent
         tmp_name = output.name + "_tmp_{track_number}" + src.suffix
@@ -831,7 +833,8 @@ class ScipyCutter(AudioCutter):
         try:
             from scipy.io import wavfile
         except ImportError as imp_err:
-            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", imp_err)
+            logger.critical(f"{cls.__name__}: you need to install scipy to use this cutter!", exc_info=imp_err)
+            sys.exit(1)
 
         silence_arr = np.array([(0,) * num_ch] * Convert.seconds2samples(s, sample_rate), cls._BITDEPTH[bitdepth])
         wavfile.write(output, sample_rate, silence_arr)
@@ -911,7 +914,10 @@ class EztrimCutter(AudioCutter):
             bitrate = media_info["tracks"][0]["overall_bit_rate"]
             nb_ch = media_info["tracks"][1]["channel_s"]
         except (AttributeError, KeyError) as err:
-            logger.critical(f"{cls.__name__}: file extension, sampling rate, bitrate or num channels not found", err)
+            logger.critical(
+                f"{cls.__name__}: file extension, sampling rate, bitrate or num channels not found", exc_info=err
+            )
+            sys.exit(1)
 
         parent = output.parent
         tmp_name = output.name + "_tmp_{track_number}" + src.suffix
@@ -981,7 +987,6 @@ class EztrimCutter(AudioCutter):
         del tmp_files
 
     @classmethod
-    @logger.catch
     def generate_silence(
         cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> None:
@@ -1079,7 +1084,8 @@ class SoxCutter(AudioCutter):
             bitdepth = media_info["tracks"][1]["bit_depth"]
             nb_ch = media_info["tracks"][1]["channel_s"]
         except (AttributeError, KeyError) as att_err:
-            logger.critical(f"{cls.__name__}: sampling rate, bit_depth or channel_s not found", att_err)
+            logger.critical(f"{cls.__name__}: sampling rate, bit_depth or channel_s not found", exc_info=att_err)
+            sys.exit(1)
 
         parent = output.parent
         tmp_name = output.name + "_tmp_{track_number}.wav"
@@ -1149,7 +1155,6 @@ class PassthroughCutter(AudioCutter):
         self.file.a_src.set_track(self.track).resolve().copyfile(self.file.a_src_cut.set_track(self.track).resolve())
 
     @classmethod
-    @logger.catch
     def generate_silence(
         cls, s: float, output: AnyPath, num_ch: int = 2, sample_rate: int = 48000, bitdepth: int = 16
     ) -> NoReturn:
