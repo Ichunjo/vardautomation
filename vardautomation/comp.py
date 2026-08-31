@@ -44,18 +44,6 @@ class Writer(Enum):
     FFMPEG = auto()
     """FFmpeg encoder"""
 
-    IMWRI = auto()
-    """vapoursynth.core.imwri Vapoursynth plugin"""
-
-    OPENCV = auto()
-    """opencv library"""
-
-    PILLOW = auto()
-    """Pillow library"""
-
-    PYQT = auto()
-    """PyQt library"""
-
     PYTHON = auto()
     """Pure python implementation"""
 
@@ -217,21 +205,6 @@ class Comparison:
                 encoder.progress_update = _progress_update_func
                 encoder.y4m = False
                 encoder.run_enc(clip, None)
-            # imwri lib is slower even asynchronously requested
-            elif writer == Writer.IMWRI:
-                from vardefunc.util import select_frames
-
-                pad = len(str(self.max_num))
-                reqs = clip.imwri.Write(
-                    "PNG",
-                    (path_name / f"{name}_%{pad:02d}d.jpg").to_str(),
-                    quality=compression if compression >= 0 else None,
-                )
-                clip = select_frames(reqs, self.frames)
-                # zzzzzzzzz soooo slow
-                with open(os.devnull, "wb") as devnull:
-                    clip.output(devnull, y4m=False, progress_update=_progress_update_func)
-                sys.stderr.write("\n")
             else:
                 from vardefunc.util import select_frames
 
@@ -417,49 +390,6 @@ def _rand_num_frames(checked: set[int], rand_func: Callable[[], int]) -> int:
 
 def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, list[VPath]], vs.VideoFrame]:
     import numpy as np
-
-    if writer == Writer.OPENCV:
-        try:
-            import cv2  # pyright: ignore[reportMissingImports]
-        except ImportError as imp_err:
-            raise ValueError("comp: you need opencv to use this writer") from imp_err
-
-        opencv_compression = [cv2.IMWRITE_PNG_COMPRESSION, compression] if compression >= 0 else []
-
-        def _opencv(n: int, f: vs.VideoFrame, path_images: list[VPath]) -> vs.VideoFrame:
-            frame_array = np.dstack(tuple(reversed(f)))
-            cv2.imwrite(path_images[n].to_str(), frame_array, opencv_compression)
-            return f
-
-        return _opencv
-
-    if writer == Writer.PILLOW:
-        try:
-            from PIL import Image  # pyright: ignore[reportMissingModuleSource]
-        except ImportError as imp_err:
-            raise ValueError("comp: you need Pillow to use this writer") from imp_err
-
-        def _pillow(n: int, f: vs.VideoFrame, path_images: list[VPath]) -> vs.VideoFrame:
-            frame_array = np.dstack(f)  # type: ignore[call-overload]
-            img = Image.fromarray(frame_array, "RGB")
-            img.save(path_images[n], format="PNG", optimize=False, compress_level=abs(compression))
-            return f
-
-        return _pillow
-
-    if writer == Writer.PYQT:
-        try:
-            from PyQt5.QtGui import QImage  # pyright: ignore[reportMissingModuleSource]
-        except ImportError as imp_err:
-            raise ValueError("comp: you need pyqt to use this writer") from imp_err
-
-        def _pyqt(n: int, f: vs.VideoFrame, path_images: list[VPath]) -> vs.VideoFrame:
-            frame_array = np.dstack(f)  # type: ignore[call-overload]
-            image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format_RGB888)
-            image.save(path_images[n].to_str(), "PNG", compression)
-            return f
-
-        return _pyqt
 
     if writer == Writer.PYTHON:
         import struct
