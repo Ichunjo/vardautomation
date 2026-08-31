@@ -1,16 +1,5 @@
 """Comparison module"""
 
-__all__ = [
-    # Class and function
-    "Comparison",
-    "PictureType",
-    # Dicts
-    "SlowPicsConf",
-    # Enums
-    "Writer",
-    "make_comps",
-]
-
 import inspect
 import os
 import random
@@ -22,11 +11,7 @@ from functools import partial
 from logging import getLogger
 from typing import Any, Final, NamedTuple
 
-import numpy as np
 import vapoursynth as vs
-from numpy.typing import NDArray
-from requests import Session
-from requests_toolbelt import MultipartEncoder
 from vstools import DitherType
 
 from .binary_path import BinaryPath
@@ -34,6 +19,18 @@ from .tooling import SubProcessAsync, VideoEncoder
 from .utils import Properties
 from .vpathlib import VPath
 from .vtypes import AnyPath
+
+__all__ = [
+    # Class and function
+    "Comparison",
+    "PictureType",
+    # Dicts
+    "SlowPicsConf",
+    # Enums
+    "Writer",
+    "make_comps",
+]
+
 
 logger = getLogger(__name__)
 
@@ -286,6 +283,9 @@ class Comparison:
 
         :param config:              NamedTuple which contains the uploading configuration
         """
+        from requests import Session
+        from requests_toolbelt import MultipartEncoder
+
         # Upload to slow.pics
         all_images = [sorted((self.path / name).glob("*.png")) for name in self.clips]
         if self.path_diff:
@@ -416,9 +416,11 @@ def _rand_num_frames(checked: set[int], rand_func: Callable[[], int]) -> int:
 
 
 def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, list[VPath]], vs.VideoFrame]:
+    import numpy as np
+
     if writer == Writer.OPENCV:
         try:
-            import cv2
+            import cv2  # pyright: ignore[reportMissingImports]
         except ImportError as imp_err:
             raise ValueError("comp: you need opencv to use this writer") from imp_err
 
@@ -433,12 +435,12 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, li
 
     if writer == Writer.PILLOW:
         try:
-            from PIL import Image
+            from PIL import Image  # pyright: ignore[reportMissingModuleSource]
         except ImportError as imp_err:
             raise ValueError("comp: you need Pillow to use this writer") from imp_err
 
         def _pillow(n: int, f: vs.VideoFrame, path_images: list[VPath]) -> vs.VideoFrame:
-            frame_array: NDArray[Any] = np.dstack(f)  # type: ignore[call-overload]
+            frame_array = np.dstack(f)  # type: ignore[call-overload]
             img = Image.fromarray(frame_array, "RGB")
             img.save(path_images[n], format="PNG", optimize=False, compress_level=abs(compression))
             return f
@@ -447,12 +449,12 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, li
 
     if writer == Writer.PYQT:
         try:
-            from PyQt5.QtGui import QImage
+            from PyQt5.QtGui import QImage  # pyright: ignore[reportMissingModuleSource]
         except ImportError as imp_err:
             raise ValueError("comp: you need pyqt to use this writer") from imp_err
 
         def _pyqt(n: int, f: vs.VideoFrame, path_images: list[VPath]) -> vs.VideoFrame:
-            frame_array: NDArray[Any] = np.dstack(f)  # type: ignore[call-overload]
+            frame_array = np.dstack(f)  # type: ignore[call-overload]
             image = QImage(frame_array.tobytes(), f.width, f.height, 3 * f.width, QImage.Format_RGB888)
             image.save(path_images[n].to_str(), "PNG", compression)
             return f
@@ -498,7 +500,7 @@ def _saver(writer: Writer, compression: int) -> Callable[[int, vs.VideoFrame, li
     raise ValueError(f'comp: unknown writer! "{writer}"')
 
 
-def _get_slowpics_header(content_length: str, content_type: str, sess: Session) -> dict[str, str]:
+def _get_slowpics_header(content_length: str, content_type: str, sess: Any) -> dict[str, str]:
     return {
         "Accept": "*/*",
         "Accept-Encoding": "gzip, deflate, br",
