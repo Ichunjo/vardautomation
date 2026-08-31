@@ -153,9 +153,7 @@ class VPath(Path):
         """
         shutil.copytree(self, target, symlinks, ignore, copy_function, ignore_dangling_symlinks, dirs_exist_ok)
 
-    def rmtree(
-        self, ignore_errors: bool = False, onerror: Callable[[Callable[..., Any], str, _OptExcInfo], Any] | None = None
-    ) -> None:
+    def rmtree(self, ignore_errors: bool = False) -> None:
         """
         Wraps shutil.rmtree. Stolen from pathlib3x.
 
@@ -164,7 +162,7 @@ class VPath(Path):
         :param ignore_errors:           See Python official documentation
         :param onerror:                 See Python official documentation
         """
-        shutil.rmtree(self, ignore_errors, onerror)
+        shutil.rmtree(self, ignore_errors)
 
     def rm(self, ignore_errors: bool = False) -> None:
         """
